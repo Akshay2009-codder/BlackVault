@@ -1,94 +1,157 @@
-# Nexus Protocol — ML Backend (Phase 1)
+# BlackVault: A Gamified Machine Learning Escape Simulator
 
-This is the ML backend for the Classification, Regression, and Clustering
-missions. It's a standalone FastAPI service — no Unity required to test it.
+> A story-driven 3D educational game that teaches real Machine Learning concepts through gameplay.
 
-## What's already done and verified
+---
 
-- Datasets generated (`app/data/`) with 4 variants each (clean, missing
-  values, outliers, hard-combo) for all 3 missions
-- Preprocessing pipeline (`app/ml/preprocessing.py`) — tested directly, works
-- Training/evaluation (`app/ml/train.py`) — tested directly for all 3
-  mission types, all passed correctly
-- SQLite mission variety system (`app/db.py`) — seeded with 36 mission
-  combinations, verified random selection gives different variants each call
-- FastAPI app (`app/main.py`) wiring it all together
+## Project Structure
 
-**Note:** This sandbox doesn't have internet access, so I couldn't install
-`fastapi`/`uvicorn` here or run the live server — but the underlying
-preprocessing + training logic (the actual ML) has been tested directly and
-works correctly. Once you run this on your own machine with internet access,
-the API layer just exposes that same tested logic over HTTP.
+```
+BlackVault/
+├── backend/                    ← FastAPI Python backend (the ML brain)
+│   ├── main.py                 ← All API endpoints (/ping /preprocess /train /mission/generate)
+│   ├── generate_datasets.py    ← Creates synthetic CSV datasets in ./data/
+│   ├── requirements.txt        ← Python dependencies
+│   └── data/                   ← Auto-generated CSVs (run generate_datasets.py)
+│
+├── BlackVault-Unity/           ← Unity project (3D game)
+│   └── Assets/
+│       └── Scripts/
+│           └── Phase0/
+│               └── ApiTester.cs   ← Phase 0: proves Unity↔Backend HTTP works
+│
+└── app/                        ← Legacy prototype (reference only)
+```
 
-## Setup (on your machine)
+---
 
-```bash
-cd nexus-backend
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Game Engine | Unity (C#) |
+| Backend | Python 3.11+ · FastAPI · Uvicorn |
+| ML | scikit-learn · pandas · numpy · XGBoost |
+| Database | SQLite (future: player progress & leaderboard) |
+
+---
+
+## Quick Start
+
+### 1 — Set up the Python backend
+
+```powershell
+cd backend
+
+# Create a virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # macOS/Linux
+
+# Install dependencies
 pip install -r requirements.txt
-```
 
-## Initialize the database (run once)
+# Generate sample datasets
+python generate_datasets.py
 
-```bash
-cd app
-python db.py
-```
-
-You should see: `Seeded 36 mission combinations.`
-
-## Run the server
-
-```bash
+# Start the server
 uvicorn main:app --reload --port 8000
 ```
 
-Visit `http://127.0.0.1:8000/docs` — FastAPI auto-generates an interactive
-API tester (Swagger UI). Use it to try everything below without writing any
-client code yet.
+The API will be live at **http://localhost:8000**
 
-## Try it manually
+Interactive docs: **http://localhost:8000/docs**
 
-**1. Get a mission:**
+---
+
+### 2 — Phase 0: Verify the connection from Unity
+
+1. Open the `BlackVault-Unity` project in Unity.
+2. Create an empty scene.
+3. Create an empty GameObject (e.g. `ApiTester`).
+4. Attach `Assets/Scripts/Phase0/ApiTester.cs` to it.
+5. Press **Play**.
+6. Open the **Console** window and look for `[BlackVault][PASS]` messages.
+
 ```
-GET http://127.0.0.1:8000/get-mission/classification
+[BlackVault][INFO] BlackVault Phase 0 – API Connectivity Test
+[BlackVault][INFO] Target: http://localhost:8000
+[BlackVault][PASS] GET /ping — server is online.
+[BlackVault][PASS] GET /mission/generate — received valid mission JSON.
+[BlackVault][PASS] POST /preprocess — dataset cleaned successfully.
+[BlackVault][PASS] POST /train — ML pipeline round-trip complete.
 ```
-Call it a few times — notice the `dataset_variant`, `target_metric_value`,
-and `time_limit_seconds` change. That's the mission variety system working.
 
-**2. Submit an attempt** (use the `id` from step 1 as `mission_id`):
+---
+
+## API Reference
+
+### `GET /ping`
+Health check. Returns a game-flavored greeting.
+
 ```json
-POST http://127.0.0.1:8000/submit-mission
 {
-  "mission_id": 1,
-  "level_id": "classification",
-  "algorithm": "random_forest",
-  "preprocessing": {
-    "missing_strategy": "fill_median",
-    "remove_duplicates": true,
-    "outlier_strategy": "clip_iqr",
-    "scaling": "standard"
-  }
+  "status": "online",
+  "message": "BlackVault security system is active. Infiltration detected.",
+  "version": "0.1.0"
 }
 ```
 
-For regression, use `"algorithm": "linear_regression"` (or
-`decision_tree`/`random_forest`) with `"level_id": "regression"`.
+### `GET /mission/generate?level=2&difficulty=easy`
+Returns a random mission config for a security terminal.
 
-For clustering, use `"algorithm": "kmeans"`, `"level_id": "clustering"`, and
-include `"k": 5` in the request body.
+### `POST /preprocess`
+Apply preprocessing choices to a dataset. Returns stats for the terminal UI.
 
-## Next step (Phase 3)
+```json
+{
+  "dataset": "house_prices",
+  "missing_strategy": "fill_median",
+  "remove_duplicates": true,
+  "outlier_strategy": "clip_iqr",
+  "encoding": "label",
+  "scaling": "standard"
+}
+```
 
-Once this runs correctly on your machine, Unity's `UnityWebRequest` calls
-these same two endpoints — `GET /get-mission/{level}` when the player
-reaches a terminal, and `POST /submit-mission` when they hit Submit in the
-puzzle UI. No changes needed here for that to work.
+### `POST /train`
+Train an ML model. Returns `passed` (bool) and `door_status` (UNLOCKED/LOCKED).
 
-## Swapping in the real datasets
+```json
+{
+  "dataset": "heart_disease",
+  "problem_type": "classification",
+  "algorithm": "random_forest",
+  "target_col": "target",
+  "target_metric": "accuracy",
+  "target_metric_value": 0.75
+}
+```
 
-Replace `app/data/heart_disease.csv`, `house_prices.csv`, and
-`mall_customers.csv` with the real Kaggle versions (same column names as
-generated here), then re-run `python app/generate_datasets.py` to regenerate
-the variants from the real data, then `python app/db.py` to re-seed.
+---
+
+## Levels Overview
+
+| Level | Concept | Dataset | Algorithm Pool |
+|-------|---------|---------|----------------|
+| 1 | Data Cleaning | House Prices | — (preprocessing only) |
+| 2 | Regression | House Prices | Linear, Decision Tree, Random Forest |
+| 3 | Classification | Heart Disease | Logistic, Decision Tree, RF, SVM |
+| 4 | Clustering | Mall Customers | K-Means, DBSCAN |
+| 5 | Anomaly Detection | Credit Card | Isolation Forest, One-Class SVM |
+| Final | Full Pipeline | Unknown | All |
+
+---
+
+## Development Phases
+
+- [x] **Phase 0** — Backend + Unity HTTP connectivity proof-of-concept
+- [ ] **Phase 1** — Unity scene: first security terminal + `/preprocess` UI
+- [ ] **Phase 2** — Unity scene: `/train` call + door unlock animation
+- [ ] **Phase 3** — All 5 levels + story narrative
+- [ ] **Phase 4** — Dynamic mission system + random events
+- [ ] **Phase 5** — Rewards, XP, leaderboard, polish
+
+---
+
+*Built as a final-year college project. Designed for expansion into a commercial educational platform.*
