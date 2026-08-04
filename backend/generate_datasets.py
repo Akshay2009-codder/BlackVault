@@ -7,11 +7,17 @@ so the backend can run without downloading anything from the internet.
 Usage:
     python generate_datasets.py
 
-Generates:
+Generates (offline, deterministic):
     data/house_prices.csv     (regression)
     data/heart_disease.csv    (classification)
     data/mall_customers.csv   (clustering)
     data/credit_card.csv      (anomaly detection)
+
+Boss dataset (called at runtime, non-deterministic):
+    gen_boss_dataset(seed)  — returns (DataFrame, true_problem_type)
+    Used by /mission/generate when level == 'boss'. The true problem
+    type must stay server-side and must NOT be sent to Unity until
+    after the player submits their answer via /train.
 """
 
 import os
@@ -179,6 +185,135 @@ def gen_credit_card(n=1000):
 
 
 # ---------------------------------------------------------------------------
+# 5. Boss Dataset  (non-deterministic — call at runtime, not build time)
+# ---------------------------------------------------------------------------
+
+def gen_boss_dataset(seed: int = None) -> tuple:
+    """
+    Returns (dataframe, true_problem_type).
+
+    true_problem_type is returned so the backend can evaluate the
+    player's chosen algorithm against the right metric — but this value
+    must never be sent to Unity/the player before they submit their
+    answer, or you've defeated the point of the boss fight.
+
+    Call this from your /mission/generate endpoint when level == 'boss',
+    store the true_problem_type server-side (e.g. in the mission record
+    in SQLite), and only reveal it in the /train response after the
+    player submits.
+    """
+    boss_rng = np.random.default_rng(seed)
+    problem_type = boss_rng.choice(
+        ["regression", "classification", "clustering", "anomaly_detection"]
+    )
+
+    if problem_type == "regression":
+        df = _boss_gen_regression(boss_rng)
+    elif problem_type == "classification":
+        df = _boss_gen_classification(boss_rng)
+    elif problem_type == "clustering":
+        df = _boss_gen_clustering(boss_rng)
+    else:
+        df = _boss_gen_anomaly(boss_rng)
+
+    df = _inject_boss_level_issues(df, boss_rng)
+    return df, problem_type
+
+
+def _boss_gen_regression(boss_rng) -> pd.DataFrame:
+    n = 400
+    x1 = boss_rng.normal(50, 15, n)
+    x2 = boss_rng.normal(30, 10, n)
+    x3 = boss_rng.choice(["A", "B", "C"], n)
+    category_effect = pd.Series(x3).map({"A": 0, "B": 15, "C": -10}).values
+    noise = boss_rng.normal(0, 8, n)
+    target = 2.5 * x1 + 1.8 * x2 + category_effect + noise + 20
+    return pd.DataFrame({
+        "feature_1": x1,
+        "feature_2": x2,
+        "category": x3,
+        "target": target,
+    })
+
+
+def _boss_gen_classification(boss_rng) -> pd.DataFrame:
+    n = 400
+    x1 = boss_rng.normal(0, 1, n)
+    x2 = boss_rng.normal(0, 1, n)
+    x3 = boss_rng.normal(0, 1, n)
+    # Nonlinear decision boundary — harder than level 3
+    score = 1.5 * x1 - 2 * x2 + 0.8 * x3 * x1 + boss_rng.normal(0, 0.5, n)
+    label = (score > np.median(score)).astype(int)
+    return pd.DataFrame({
+        "feature_1": x1,
+        "feature_2": x2,
+        "feature_3": x3,
+        "label": label,
+    })
+
+
+def _boss_gen_clustering(boss_rng) -> pd.DataFrame:
+    n_per_cluster = 100
+    centers = [(-5, -5), (5, 5), (-5, 5), (5, -5)]
+    rows = []
+    for cx, cy in centers:
+        xs = boss_rng.normal(cx, 1.2, n_per_cluster)
+        ys = boss_rng.normal(cy, 1.2, n_per_cluster)
+        rows.append(pd.DataFrame({"feature_1": xs, "feature_2": ys}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _boss_gen_anomaly(boss_rng) -> pd.DataFrame:
+    n_normal = 380
+    n_anomaly = 20  # ~5% anomaly rate, no explicit "fraud" framing
+    normal = pd.DataFrame({
+        "feature_1": boss_rng.normal(0, 1, n_normal),
+        "feature_2": boss_rng.normal(0, 1, n_normal),
+        "feature_3": boss_rng.normal(0, 1, n_normal),
+    })
+    anomalies = pd.DataFrame({
+        "feature_1": boss_rng.normal(6, 1, n_anomaly),
+        "feature_2": boss_rng.normal(6, 1, n_anomaly),
+        "feature_3": boss_rng.normal(-6, 1, n_anomaly),
+    })
+    df = pd.concat([normal, anomalies], ignore_index=True)
+    return df.sample(frac=1, random_state=int(boss_rng.integers(0, 1_000_000))).reset_index(drop=True)
+
+
+def _inject_boss_level_issues(df: pd.DataFrame, boss_rng) -> pd.DataFrame:
+    """
+    Harder than levels 1-5: higher missing rate, more duplicates,
+    and outliers injected on a RANDOM numeric column so even the
+    corruption pattern isn't predictable from earlier levels.
+    """
+    df = df.copy()
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    # 8-12% missing values across numeric columns
+    missing_rate = boss_rng.uniform(0.08, 0.12)
+    for col in numeric_cols:
+        mask = boss_rng.random(len(df)) < missing_rate
+        df.loc[mask, col] = np.nan
+
+    # 3-5% duplicate rows
+    dup_count = max(1, int(len(df) * boss_rng.uniform(0.03, 0.05)))
+    dup_rows = df.sample(n=dup_count, random_state=int(boss_rng.integers(0, 1_000_000)))
+    df = pd.concat([df, dup_rows], ignore_index=True)
+
+    # Outliers on one random numeric column
+    if numeric_cols:
+        target_col = boss_rng.choice(numeric_cols)
+        outlier_count = int(boss_rng.integers(3, 8))
+        outlier_indices = boss_rng.choice(df.index, size=outlier_count, replace=False)
+        col_std = df[target_col].std()
+        df.loc[outlier_indices, target_col] += (
+            boss_rng.choice([-1, 1]) * col_std * boss_rng.uniform(5, 8)
+        )
+
+    return df.sample(frac=1, random_state=int(boss_rng.integers(0, 1_000_000))).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print("Generating BlackVault sample datasets in ./data/ ...")
@@ -187,3 +322,5 @@ if __name__ == "__main__":
     gen_mall_customers()
     gen_credit_card()
     print("\nDone. Start the server with: uvicorn main:app --reload --port 8000")
+    print("\nNote: gen_boss_dataset() is called at runtime by /mission/generate,")
+    print("      not here — it must be non-deterministic per game session.")
