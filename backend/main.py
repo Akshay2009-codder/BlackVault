@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import random
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -194,7 +194,7 @@ class TrainRequest(BaseModel):
     problem_type: str                        # regression | classification | clustering | anomaly_detection
     algorithm: str
     target_col: Optional[str] = None
-    feature_cols: Optional[list[str]] = None
+    feature_cols: Optional[List[str]] = None
     target_metric: str = "accuracy"
     target_metric_value: float = 0.75
     metric_direction: str = "higher_is_better"

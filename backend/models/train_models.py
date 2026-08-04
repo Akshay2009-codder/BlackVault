@@ -1,1 +1,1 @@
-
+"""Training request/response models."""

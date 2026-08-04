@@ -1,1 +1,1 @@
-
+"""Training logic service module."""

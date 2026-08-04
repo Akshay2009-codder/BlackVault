@@ -1,1 +1,1 @@
-
+"""Database setup module."""
