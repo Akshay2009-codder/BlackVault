@@ -1,1 +1,1 @@
-
+"""Mission config models."""
