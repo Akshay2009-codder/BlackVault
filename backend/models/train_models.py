@@ -20,3 +20,14 @@ class TrainRequest(BaseModel):
     remove_duplicates: bool = True
     outlier_strategy: str = "clip_iqr"
     scaling: str = "standard"
+
+class TrainResponse(BaseModel):
+    metrics: dict
+    target_metric: str
+    target_value: float
+    achieved: float
+    passed: bool
+    door_status: str
+    detail: Optional[str] = None
+    true_problem_type: Optional[str] = None
+    xp_earned: int = 0
