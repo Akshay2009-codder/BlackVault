@@ -74,3 +74,14 @@ class BossMission(Base):
     resolved = Column(Boolean, default=False)
     passed = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(String, index=True, default="local_player")
+    achievement_id = Column(String, index=True)
+    title = Column(String)
+    description = Column(String)
+    unlocked_at = Column(DateTime(timezone=True), server_default=func.now())
