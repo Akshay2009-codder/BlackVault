@@ -1,4 +1,13 @@
-"""
+import os
+
+main_py_path = r"c:\Users\hp\OneDrive\Documents\BlackVault\backend\main.py"
+
+with open(main_py_path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+# We will just write the new content directly since we know exactly what it should be.
+
+new_content = '''"""
 main.py  —  BlackVault FastAPI Backend
 ========================================
 
@@ -349,3 +358,9 @@ def train(req: TrainRequest):
         raise HTTPException(400, str(e))
         
     return res
+'''
+
+with open(main_py_path, "w", encoding="utf-8") as f:
+    f.write(new_content)
+
+print("Refactored main.py successfully!")

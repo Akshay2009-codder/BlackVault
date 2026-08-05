@@ -2,7 +2,7 @@
 
 from models.preprocess_models import PreprocessRequest, PreprocessResponse
 from models.train_models import TrainRequest, TrainResponse
-from models.mission_models import MissionConfig, RandomEventConfig
+from models.mission_models import MissionConfig, RandomEventConfig, CorruptRequest
 
 __all__ = [
     "PreprocessRequest",
@@ -11,4 +11,5 @@ __all__ = [
     "TrainResponse",
     "MissionConfig",
     "RandomEventConfig",
+    "CorruptRequest",
 ]
