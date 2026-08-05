@@ -1,15 +1,15 @@
-"""Models package for BlackVault backend."""
+"""
+Models package for BlackVault backend — Pydantic request/response models,
+split out of main.py for readability.
+"""
 
-from models.preprocess_models import PreprocessRequest, PreprocessResponse
-from models.train_models import TrainRequest, TrainResponse
-from models.mission_models import MissionConfig, RandomEventConfig, CorruptRequest
+from models.preprocess_models import PreprocessRequest
+from models.train_models import TrainRequest
+from models.mission_models import Mission, BossMissionResponse
 
 __all__ = [
     "PreprocessRequest",
-    "PreprocessResponse",
     "TrainRequest",
-    "TrainResponse",
-    "MissionConfig",
-    "RandomEventConfig",
-    "CorruptRequest",
+    "Mission",
+    "BossMissionResponse",
 ]
