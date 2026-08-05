@@ -1,19 +1,40 @@
-"""Preprocessing logic service module."""
+"""
+Preprocessing logic service module.
+
+Moved out of main.py unchanged — same behavior, same function bodies,
+just relocated so main.py's endpoints can stay thin. DATA_DIR is computed
+relative to this file (backend/services/preprocessing.py -> backend/data),
+so it resolves correctly regardless of where uvicorn is launched from.
+"""
+
+import os
 
 import numpy as np
 import pandas as pd
+from fastapi import HTTPException
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+)
 
-def apply_preprocessing(
-    df: pd.DataFrame,
-    missing_strategy: str = "fill_median",
-    remove_duplicates: bool = True,
-    outlier_strategy: str = "clip_iqr",
-    encoding: str = "label",
-    scaling: str = "standard",
-) -> pd.DataFrame:
-    """Applies preprocessing steps to a pandas DataFrame."""
+
+def load_dataset(name: str) -> pd.DataFrame:
+    path = os.path.join(DATA_DIR, f"{name}.csv")
+    if not os.path.exists(path):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Dataset '{name}' not found at '{path}'. "
+                "Run 'python generate_datasets.py' to create sample CSVs."
+            ),
+        )
+    return pd.read_csv(path)
+
+
+def apply_preprocessing(df: pd.DataFrame, missing_strategy: str,
+                         remove_duplicates: bool, outlier_strategy: str,
+                         encoding: str, scaling: str) -> pd.DataFrame:
     df = df.copy()
 
     if remove_duplicates:
@@ -51,7 +72,7 @@ def apply_preprocessing(
                 df = df[(df[c] >= lo) & (df[c] <= hi)]
         df = df.reset_index(drop=True)
 
-    if scaling != "none" and num_cols:
+    if scaling != "none":
         scaler = StandardScaler() if scaling == "standard" else MinMaxScaler()
         df[num_cols] = scaler.fit_transform(df[num_cols])
 
