@@ -19,7 +19,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-class Mission(BaseModel):
+class MissionConfig(BaseModel):
     mission_id: str
     level: int
     title: str
@@ -48,3 +48,16 @@ class BossMissionResponse(BaseModel):
     time_limit_seconds: int
     max_retries: int
     hints_available: bool
+
+class CorruptRequest(BaseModel):
+    dataset: str
+    event_type: str
+    target_col: Optional[str] = None
+    params: dict = {}
+
+class RandomEventConfig(BaseModel):
+    event_type: str
+    description: str
+    affected_column: Optional[str] = None
+    severity: str
+    duration_seconds: int
