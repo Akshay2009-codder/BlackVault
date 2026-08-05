@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlackVault — ML Security Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #05070a;
+      --bg-card: rgba(16, 22, 34, 0.55);
+      --bg-card-border: rgba(0, 240, 255, 0.15);
+      --accent-cyan: #00f0ff;
+      --accent-cyan-glow: rgba(0, 240, 255, 0.4);
+      --accent-green: #00ff66;
+      --accent-red: #ff3366;
+      --accent-amber: #ffaa00;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --font-code: 'Fira Code', monospace;
+      --font-sans: 'Inter', sans-serif;
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(0, 255, 102, 0.05) 0%, transparent 40%),
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-cyan);
+    }
+
+    header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(5, 7, 10, 0.7);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-family: var(--font-code);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    }
+
+    .logo span:first-child {
+      color: var(--accent-cyan);
+    }
+
+    .logo-badge {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      letter-spacing: 1px;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      font-family: var(--font-code);
+      background: rgba(0, 255, 102, 0.05);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 255, 102, 0.2);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--accent-green);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 255, 102, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.5), transparent);
+    }
+
+    .card-title {
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title::before {
+      content: '>';
+      color: var(--text-muted);
+    }
+
+    .level-select {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .level-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-family: var(--font-sans);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .level-btn span {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
+
+    .level-btn small {
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }
+
+    .level-btn:hover {
+      background: rgba(0, 240, 255, 0.05);
+      border-color: rgba(0, 240, 255, 0.3);
+      transform: translateX(5px);
+    }
+
+    .level-btn.active {
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.15), transparent);
+      border-color: var(--accent-cyan);
+      border-left: 4px solid var(--accent-cyan);
+    }
+
+    .level-btn.active span {
+      color: var(--accent-cyan);
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    .terminal-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .mission-header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .terminal-title {
+      font-family: var(--font-code);
+      font-size: 1.5rem;
+      color: var(--text-main);
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .mission-desc {
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .stat-card {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: var(--transition-fast);
+    }
+
+    .stat-card:hover {
+      border-color: rgba(0, 240, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 240, 255, 0.1);
+    }
+
+    .stat-label {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: var(--font-code);
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-family: var(--font-sans);
+    }
+
+    select, input[type="text"] {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      font-family: var(--font-code);
+      font-size: 0.9rem;
+      outline: none;
+      transition: var(--transition-fast);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2300f0ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+    }
+
+    select:focus, input[type="text"]:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2);
+    }
+
+    select option {
+      background: #101622;
+      color: var(--text-main);
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: var(--transition-fast);
+    }
+
+    .toggle-group:hover {
+      background: rgba(0, 240, 255, 0.05);
+      border-color: rgba(0, 240, 255, 0.2);
+    }
+
+    /* Custom Checkbox */
+    .toggle-group input[type="checkbox"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--text-muted);
+      border-radius: 4px;
+      background: transparent;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+
+    .toggle-group input[type="checkbox"]:checked {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    .toggle-group input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      color: #000;
+      font-size: 12px;
+      font-weight: bold;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .toggle-group span {
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-family: var(--font-code);
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border: none;
+      transition: var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: var(--bg-dark);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+      flex: 2;
+    }
+
+    .btn-primary:hover {
+      background: #fff;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      flex: 1;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .results-panel {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      border-radius: 12px;
+      font-family: var(--font-code);
+      display: none;
+      animation: slideDown 0.3s ease-out forwards;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .results-panel.unlocked {
+      display: block;
+      background: rgba(0, 255, 102, 0.08);
+      border: 1px solid rgba(0, 255, 102, 0.3);
+      color: var(--accent-green);
+      box-shadow: 0 0 20px rgba(0, 255, 102, 0.1);
+    }
+
+    .results-panel.locked {
+      display: block;
+      background: rgba(255, 51, 102, 0.08);
+      border: 1px solid rgba(255, 51, 102, 0.3);
+      color: var(--accent-red);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.1);
+    }
+
+    .results-header {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .preview-table-container {
+      margin-top: 1rem;
+      overflow-x: auto;
+      max-height: 280px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: nowrap;
+    }
+
+    th {
+      background: rgba(0, 0, 0, 0.6);
+      color: var(--accent-cyan);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(5px);
+      z-index: 10;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    tr:hover td {
+      background: rgba(0, 240, 255, 0.05);
+    }
+
+    .timer-badge {
+      font-family: var(--font-code);
+      font-size: 1.25rem;
+      color: var(--accent-amber);
+      background: rgba(255, 170, 0, 0.1);
+      border: 1px solid rgba(255, 170, 0, 0.3);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      box-shadow: 0 0 15px rgba(255, 170, 0, 0.15);
+      animation: pulse-amber 2s infinite;
+    }
+
+    @keyframes pulse-amber {
+      0% { box-shadow: 0 0 10px rgba(255, 170, 0, 0.1); }
+      50% { box-shadow: 0 0 20px rgba(255, 170, 0, 0.3); }
+      100% { box-shadow: 0 0 10px rgba(255, 170, 0, 0.1); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span>BlackVault</span>
+      <span>Terminal</span>
+      <span class="logo-badge">v0.9.1a</span>
+    </div>
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div class="dot"></div>
+        <span>UPLINK ESTABLISHED</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">Missions Catalogue</div>
+        <div class="level-select">
+          <button class="level-btn active" onclick="loadMission(1)">
+            <span>Level 1: Data Cleaning</span>
+            <small>Dataset: House Prices</small>
+          </button>
+          <button class="level-btn" onclick="loadMission(2)">
+            <span>Level 2: Regression</span>
+            <small>Dataset: House Prices</small>
+          </button>
+          <button class="level-btn" onclick="loadMission(3)">
+            <span>Level 3: Classification</span>
+            <small>Dataset: Heart Disease</small>
+          </button>
+          <button class="level-btn" onclick="loadMission(4)">
+            <span>Level 4: Clustering</span>
+            <small>Dataset: Mall Customers</small>
+          </button>
+          <button class="level-btn" onclick="loadMission(5)">
+            <span>Level 5: Anomaly</span>
+            <small>Dataset: Credit Card</small>
+          </button>
+          <button class="level-btn" onclick="loadMission('boss')" style="border-color: rgba(255, 51, 102, 0.3);">
+            <span style="color: var(--accent-red);">Level 6: Boss Room</span>
+            <small>Dataset: Unknown Signal</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Operative Status</div>
+        <div class="stat-card" style="margin-bottom: 1rem; background: rgba(0,0,0,0.2); border: none;">
+          <div class="stat-label">RANK</div>
+          <div class="stat-value" id="player-rank" style="color: var(--text-main); text-shadow: none;">Loading...</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0,0,0,0.2); border: none;">
+          <div class="stat-label">TOTAL XP</div>
+          <div class="stat-value" id="player-xp" style="color: var(--accent-green); text-shadow: 0 0 10px rgba(0,255,102,0.3);">0 XP</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="terminal-container">
+      <div class="card" style="border-top: 3px solid var(--accent-cyan);">
+        <div class="terminal-header">
+          <div class="mission-header-info">
+            <div class="card-title" style="margin-bottom: 0.25rem;">Active Objective</div>
+            <div class="terminal-title" id="mission-title">Initializing...</div>
+          </div>
+          <div class="timer-badge" id="timer-badge" style="display: none;">3:00</div>
+        </div>
+        <p class="mission-desc" id="mission-desc">Connecting to BlackVault mainframe...</p>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">TOTAL ROWS</div>
+            <div class="stat-value" id="stat-rows">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">MISSING VALUES</div>
+            <div class="stat-value" id="stat-missing">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">DUPLICATE ROWS</div>
+            <div class="stat-value" id="stat-duplicates">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">TARGET METRIC</div>
+            <div class="stat-value" id="stat-metric">-</div>
+          </div>
+        </div>
+
+        <div class="preview-table-container">
+          <table id="preview-table">
+            <thead>
+              <tr id="table-head"><th>Dataset Preview Loading...</th></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Security Overrides & ML Pipeline Controls</div>
+        
+        <div class="controls-grid">
+          <div class="form-group">
+            <label>Missing Value Strategy</label>
+            <select id="missing-strategy">
+              <option value="fill_median">Fill Median (Recommended)</option>
+              <option value="fill_mean">Fill Mean</option>
+              <option value="drop_rows">Drop Rows with NaNs</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="boss-problem-group" style="display: none;">
+            <label style="color: var(--accent-red);">Problem Type Diagnosis (Boss Room)</label>
+            <select id="boss-problem-type" onchange="onBossProblemChange()" style="border-color: rgba(255, 51, 102, 0.4);">
+              <option value="regression">Regression</option>
+              <option value="classification">Classification</option>
+              <option value="clustering">Clustering</option>
+              <option value="anomaly_detection">Anomaly Detection</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Algorithm Selection</label>
+            <select id="algorithm-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Outlier Strategy</label>
+            <select id="outlier-strategy">
+              <option value="clip_iqr">Clip IQR Outliers</option>
+              <option value="remove_iqr">Remove IQR Outliers</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap;">
+          <label class="toggle-group">
+            <input type="checkbox" id="remove-duplicates" checked>
+            <span>Remove Duplicates</span>
+          </label>
+          <label class="toggle-group">
+            <input type="checkbox" id="encode-categoricals" checked>
+            <span>Label Encode Categoricals</span>
+          </label>
+          <label class="toggle-group">
+            <input type="checkbox" id="scale-features" checked>
+            <span>Standard Scale Features</span>
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-secondary" onclick="triggerPreprocess()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.23l-3.34 2.89"/></svg>
+            Preprocess & Preview
+          </button>
+          <button class="btn btn-primary" onclick="triggerTrain()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Execute Model & Unlock Door
+          </button>
+        </div>
+
+        <div class="results-panel" id="results-panel"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+    let currentMission = null;
+
+    async function fetchPlayerProgress() {
+      try {
+        const res = await fetch(`${API_BASE}/player/progress`);
+        const data = await res.json();
+        document.getElementById('player-rank').textContent = data.rank || 'Operative';
+        document.getElementById('player-xp').textContent = `${data.xp || 0} XP`;
+      } catch (e) {
+        console.error('Failed to fetch player progress', e);
+        // Fallback for UI visualization without backend
+        document.getElementById('player-rank').textContent = 'NetRunner';
+        document.getElementById('player-xp').textContent = `1,450 XP`;
+      }
+    }
+
+    async function loadMission(level) {
+      document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.level-btn')).find(btn => btn.getAttribute('onclick').includes(`'${level}'`) || btn.getAttribute('onclick').includes(`(${level})`));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.getElementById('results-panel').style.display = 'none';
+      const isBoss = level === 'boss';
+
+      document.getElementById('boss-problem-group').style.display = isBoss ? 'flex' : 'none';
+      document.getElementById('timer-badge').style.display = isBoss ? 'block' : 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/mission/generate?level=${level}`);
+        currentMission = await res.json();
+
+        document.getElementById('mission-title').textContent = `${currentMission.title} [${currentMission.mission_id}]`;
+        document.getElementById('mission-desc').textContent = currentMission.description;
+        document.getElementById('stat-metric').textContent = currentMission.target_metric ? `${currentMission.target_metric} (${currentMission.target_metric_value})` : 'Cleaning Only';
+
+        populateAlgorithms(currentMission.algorithms_allowed || []);
+        await triggerPreprocess();
+      } catch (e) {
+        console.error('Failed to load mission', e);
+        // Mock fallback so the UI still looks nice if backend is down
+        document.getElementById('mission-title').textContent = `Mission Failed to Load`;
+        document.getElementById('mission-desc').textContent = `Ensure the FastAPI backend is running at ${API_BASE}. Attempting fallback data simulation...`;
+      }
+    }
+
+    function populateAlgorithms(allowed) {
+      const select = document.getElementById('algorithm-select');
+      select.innerHTML = '';
+      if (!allowed || allowed.length === 0) {
+        select.innerHTML = '<option value="">None Required</option>';
+        return;
+      }
+      allowed.forEach(algo => {
+        const opt = document.createElement('option');
+        opt.value = algo;
+        opt.textContent = algo.replace(/_/g, ' ').toUpperCase();
+        select.appendChild(opt);
+      });
+    }
+
+    function onBossProblemChange() {
+      const selected = document.getElementById('boss-problem-type').value;
+      const algoMap = {
+        regression: ['linear_regression', 'decision_tree', 'random_forest', 'xgboost'],
+        classification: ['logistic_regression', 'decision_tree', 'random_forest', 'svm', 'xgboost'],
+        clustering: ['kmeans', 'dbscan', 'hierarchical'],
+        anomaly_detection: ['isolation_forest', 'one_class_svm']
+      };
+      populateAlgorithms(algoMap[selected] || []);
+    }
+
+    async function triggerPreprocess() {
+      if (!currentMission) return;
+      
+      const btn = document.querySelector('.btn-secondary');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Processing...';
+      btn.disabled = true;
+
+      const reqBody = {
+        dataset: currentMission.dataset,
+        missing_strategy: document.getElementById('missing-strategy').value,
+        remove_duplicates: document.getElementById('remove-duplicates').checked,
+        outlier_strategy: document.getElementById('outlier-strategy').value,
+        encoding: document.getElementById('encode-categoricals').checked ? 'label' : 'none',
+        scaling: document.getElementById('scale-features').checked ? 'standard' : 'none'
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/preprocess`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody)
+        });
+        const data = await res.json();
+
+        document.getElementById('stat-rows').textContent = `${data.rows_after} / ${data.rows_before}`;
+        document.getElementById('stat-missing').textContent = `${data.missing_after} (was ${data.missing_before})`;
+        document.getElementById('stat-duplicates').textContent = data.duplicates_removed;
+
+        renderPreviewTable(data.cols, data.preview);
+      } catch (e) {
+        console.error('Failed preprocess request', e);
+      } finally {
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }, 500);
+      }
+    }
+
+    function renderPreviewTable(cols, rows) {
+      const head = document.getElementById('table-head');
+      const body = document.getElementById('table-body');
+      head.innerHTML = '';
+      body.innerHTML = '';
+
+      if (!cols || cols.length === 0) return;
+
+      cols.forEach(c => {
+        const th = document.createElement('th');
+        th.textContent = c;
+        head.appendChild(th);
+      });
+
+      if (!rows) return;
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        cols.forEach(c => {
+          const td = document.createElement('td');
+          // Round numbers for cleaner UI
+          let val = r[c] !== null ? r[c] : 'NaN';
+          if (typeof val === 'number' && !Number.isInteger(val)) {
+            val = val.toFixed(4);
+          }
+          td.textContent = val;
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+    }
+
+    async function triggerTrain() {
+      if (!currentMission) return;
+      
+      const btn = document.querySelector('.btn-primary');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Executing Neural Pathway...';
+      btn.disabled = true;
+
+      const isBoss = currentMission.level === 'boss';
+      const problemType = isBoss ? document.getElementById('boss-problem-type').value : currentMission.problem_type;
+
+      const reqBody = {
+        dataset: currentMission.dataset,
+        problem_type: problemType,
+        algorithm: document.getElementById('algorithm-select').value,
+        target_col: currentMission.target_col,
+        feature_cols: currentMission.feature_cols,
+        target_metric: currentMission.target_metric || 'accuracy',
+        target_metric_value: currentMission.target_metric_value || 0.75,
+        metric_direction: currentMission.metric_direction || 'higher_is_better',
+        k: (currentMission.k_range && currentMission.k_range[0]) || 5,
+        missing_strategy: document.getElementById('missing-strategy').value,
+        remove_duplicates: document.getElementById('remove-duplicates').checked,
+        outlier_strategy: document.getElementById('outlier-strategy').value,
+        scaling: document.getElementById('scale-features').checked ? 'standard' : 'none'
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/train`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody)
+        });
+        const data = await res.json();
+        renderResults(data);
+        await fetchPlayerProgress();
+        if (data.passed) {
+          window.parent.postMessage('UNLOCK_DOOR', '*');
+          setTimeout(() => {
+            window.parent.postMessage('CLOSE_UI', '*');
+          }, 2000);
+        }
+      } catch (e) {
+        console.error('Failed train request', e);
+        // Mock result if backend is down
+        renderResults({ passed: false, door_status: 'LOCKED', detail: 'Connection to Mainframe lost. Server unreachable.' });
+      } finally {
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }, 500);
+      }
+    }
+
+    function renderResults(data) {
+      const panel = document.getElementById('results-panel');
+      panel.className = 'results-panel ' + (data.passed ? 'unlocked' : 'locked');
+      
+      const statusIcon = data.passed ? 
+        `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>` : 
+        `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>`;
+
+      let html = `<div class="results-header">${statusIcon} DOOR STATUS: ${data.door_status}</div>`;
+      
+      html += `<div style="opacity: 0.9; margin-bottom: 0.5rem;">`;
+      if (data.target_metric) {
+        html += `<strong>Metric:</strong> ${data.target_metric} | <strong>Achieved:</strong> ${data.achieved || 'N/A'} | <strong>Target:</strong> ${data.target_value}<br>`;
+      }
+      if (data.detail) {
+        html += `<strong>System Log:</strong> ${data.detail}<br>`;
+      }
+      html += `</div>`;
+
+      if (data.xp_earned) {
+        html += `<div style="margin-top: 0.75rem; font-weight: bold; color: var(--accent-green);">+${data.xp_earned} XP Earned</div>`;
+      }
+
+      panel.innerHTML = html;
+    }
+
+    // Initial load
+    fetchPlayerProgress();
+    loadMission(1);
+  </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BlackVault 3D - Server Room</title>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Fira Code', monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #crosshair {
+      position: absolute; top: 50%; left: 50%;
+      width: 20px; height: 20px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #crosshair::before, #crosshair::after {
+      content: ''; position: absolute; background: #00f0ff; box-shadow: 0 0 8px #00f0ff;
+    }
+    #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+    #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+    
+    #instructions {
+      position: absolute; width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      background: rgba(0, 5, 10, 0.85);
+      color: #00f0ff; z-index: 100;
+      text-shadow: 0 0 15px #00f0ff;
+      backdrop-filter: blur(5px);
+    }
+    #instructions h1 { font-size: 4rem; margin-bottom: 10px; letter-spacing: 5px; }
+    #instructions p { font-size: 1.2rem; color: #fff; text-shadow: none; }
+    
+    #ui-overlay {
+      position: absolute; top: 5%; left: 5%; width: 90%; height: 90%;
+      display: none; z-index: 50;
+      background: rgba(10, 12, 16, 0.95);
+      border: 2px solid #00f0ff;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.4);
+    }
+    
+    #ui-iframe {
+      width: 100%; height: 100%; border: none; border-radius: 10px;
+    }
+
+    #close-ui {
+      position: absolute; top: -15px; right: -15px;
+      width: 40px; height: 40px;
+      background: #ff3366; color: white;
+      border: 2px solid #fff; border-radius: 50%;
+      font-weight: bold; font-size: 20px;
+      cursor: pointer; z-index: 60;
+      box-shadow: 0 0 15px #ff3366;
+      transition: all 0.2s;
+    }
+    #close-ui:hover {
+      transform: scale(1.1); background: #ff0044;
+    }
+    
+    .interaction-prompt {
+      position: absolute; bottom: 15%; left: 50%;
+      transform: translateX(-50%);
+      color: #00ff66; font-size: 1.5rem;
+      text-shadow: 0 0 15px #00ff66;
+      display: none; z-index: 20;
+      background: rgba(0,255,102,0.1);
+      border: 1px solid #00ff66;
+      padding: 10px 20px;
+      border-radius: 8px;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="instructions">
+    <h1>BLACKVAULT</h1>
+    <p>Click to Initiate Neural Uplink</p>
+    <p style="font-size: 0.9rem; color: #888; margin-top: 30px;">[ WASD ] Move &nbsp;&nbsp;|&nbsp;&nbsp; [ MOUSE ] Look &nbsp;&nbsp;|&nbsp;&nbsp; [ E ] Interact</p>
+  </div>
+  
+  <div id="crosshair"></div>
+  <div id="interaction-prompt" class="interaction-prompt">Press [E] to Access Terminal</div>
+  
+  <div id="ui-overlay">
+    <button id="close-ui">X</button>
+    <iframe id="ui-iframe" src="terminal_simulator.html"></iframe>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
