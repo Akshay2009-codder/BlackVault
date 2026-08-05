@@ -39,3 +39,11 @@ class RandomEventConfig(BaseModel):
     severity: str = "medium"
     affects_dataset: bool = True
     params: dict = {}
+
+
+class CorruptRequest(BaseModel):
+    """Player's corruption request sent from Unity."""
+    dataset: str
+    event_type: str
+    target_col: Optional[str] = None
+    params: dict = {}
