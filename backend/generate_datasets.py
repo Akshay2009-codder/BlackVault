@@ -24,6 +24,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from services.corruption_engine import inject_boss_level_issues
+
 rng = np.random.default_rng(42)
 OUT = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(OUT, exist_ok=True)
@@ -216,7 +218,7 @@ def gen_boss_dataset(seed: int = None) -> tuple[pd.DataFrame, str]:
     else:
         df = _gen_anomaly_shape(rng)
 
-    df = _inject_boss_level_issues(df, rng)
+    df = inject_boss_level_issues(df, rng)
     return df, problem_type
 
 
@@ -282,36 +284,8 @@ def _gen_anomaly_shape(rng) -> pd.DataFrame:
     return df.sample(frac=1, random_state=int(rng.integers(0, 1_000_000))).reset_index(drop=True)
 
 
-def _inject_boss_level_issues(df: pd.DataFrame, rng) -> pd.DataFrame:
-    """
-    Harder than levels 1-5: higher missing rate, more duplicates,
-    and — new for the boss — a few injected outliers on a RANDOM
-    numeric column, so even the corruption pattern isn't fully
-    predictable from having played earlier levels.
-    """
-    df = df.copy()
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-
-    # 8-12% missing values scattered across numeric columns
-    missing_rate = rng.uniform(0.08, 0.12)
-    for col in numeric_cols:
-        mask = rng.random(len(df)) < missing_rate
-        df.loc[mask, col] = np.nan
-
-    # 3-5% duplicate rows
-    dup_count = max(1, int(len(df) * rng.uniform(0.03, 0.05)))
-    dup_rows = df.sample(n=dup_count, random_state=int(rng.integers(0, 1_000_000)))
-    df = pd.concat([df, dup_rows], ignore_index=True)
-
-    # A handful of outliers on one random numeric column
-    if numeric_cols:
-        target_col = rng.choice(numeric_cols)
-        outlier_count = int(rng.integers(3, 8))
-        outlier_indices = rng.choice(df.index, size=outlier_count, replace=False)
-        col_std = df[target_col].std()
-        df.loc[outlier_indices, target_col] += rng.choice([-1, 1]) * col_std * rng.uniform(5, 8)
-
-    return df.sample(frac=1, random_state=int(rng.integers(0, 1_000_000))).reset_index(drop=True)
+# _inject_boss_level_issues() moved to services/corruption_engine.py as
+# inject_boss_level_issues() — imported at the top of this file.
 
 
 # ---------------------------------------------------------------------------
