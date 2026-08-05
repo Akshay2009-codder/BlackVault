@@ -11,7 +11,7 @@ class PreprocessRequest(BaseModel):
 
     dataset: str = Field(..., description="Dataset identifier (e.g. 'house_prices')")
     missing_strategy: str = Field(
-        "fill_median",
+        "fill_median"
         description="How to handle missing values: drop_rows | fill_mean | fill_median | fill_mode | none",
     )
     remove_duplicates: bool = Field(True, description="Whether to remove duplicate rows")
