@@ -4,85 +4,53 @@ main.py  —  BlackVault FastAPI Backend
 
 Endpoints
 ---------
-GET  /health                    -> alive check
-GET  /ping                      -> game-flavored greeting (Phase 0)
+GET  /health                    -> alive check (Phase 0 ping target)
+GET  /ping                      -> alias for /health, returns game-flavored JSON
 GET  /mission/generate          -> returns a randomised mission config
-POST /preprocess                -> applies player's preprocessing choices to a dataset
+POST /preprocess                -> applies player's preprocessing choices to a dataset,
+                                   returns cleaned dataset stats
 POST /train                     -> trains the chosen algorithm, returns pass/fail + metrics
-GET  /player/progress           -> returns player XP, level, stats
-GET  /player/history            -> returns recent mission attempts
-POST /corrupt                   -> applies a corruption event to a dataset
-GET  /events/random             -> returns a random event config for Unity
-GET  /player/achievements       -> returns achievement list and status
-GET  /mission/challenge         -> procedurally generated challenge mission
-GET  /mission/daily             -> daily challenge puzzle
 
 Run with:
     uvicorn main:app --reload --port 8000
 
-Unity talks to this via UnityWebRequest.
+Unity talks to this via UnityWebRequest (see frontend/Assets/Scripts/Phase0/ApiTester.cs).
 """
 
 from __future__ import annotations
 
 import os
 import random
-from typing import Optional
-
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-# Internal imports
-from models.preprocess_models import PreprocessRequest
-from models.train_models import TrainRequest
-from services.preprocessing import apply_preprocessing
-from services.training import train_and_evaluate
-from services.corruption_engine import (
-    inject_missing_values,
-    inject_duplicates,
-    inject_outliers,
-    inject_label_noise,
-    inject_correlated_features,
-    modify_class_balance,
-    apply_composite_corruption,
-)
-from services.events import get_random_event, get_event_probability
-from services.rewards import check_and_unlock_achievements, get_all_achievements
-from services.mission_generator import generate_challenge_mission, generate_daily_challenge
-from db.database import Base, engine, get_db
-from db.models import MissionAttempt, PlayerProgress, BossMission, Achievement
-from generate_datasets import gen_boss_dataset
-
-# ---------------------------------------------------------------------------
-# Helpers — dataset loading
-# ---------------------------------------------------------------------------
+import uuid
+from typing import Optional, List, Dict, Any
 
 import numpy as np
 import pandas as pd
+# pyrefly: ignore [missing-import]
+from fastapi import FastAPI, HTTPException
+# pyrefly: ignore [missing-import]
+from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
+from pydantic import BaseModel
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    RandomForestRegressor,
+    IsolationForest,
+)
+from sklearn.svm import SVC, OneClassSVM
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_squared_error,
+    silhouette_score,
+)
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-
-
-def _load_dataset(name: str) -> pd.DataFrame:
-    path = os.path.join(DATA_DIR, f"{name}.csv")
-    if not os.path.exists(path):
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Dataset '{name}' not found at '{path}'. "
-                "Run 'python generate_datasets.py' to create sample CSVs."
-            ),
-        )
-    return pd.read_csv(path)
-
-
-# ---------------------------------------------------------------------------
-# Initialize DB
-# ---------------------------------------------------------------------------
-
-Base.metadata.create_all(bind=engine)
+from generate_datasets import gen_boss_dataset
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -91,15 +59,17 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="BlackVault ML Backend",
     description="Python backend that runs real ML for the BlackVault escape game.",
-    version="0.2.0",
+    version="0.1.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Unity build or editor on any port
+    allow_origins=["*"],   # Unity build or editor on any port
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # ---------------------------------------------------------------------------
 # Mission catalogue  (drives /mission/generate)
@@ -136,7 +106,7 @@ MISSION_POOL = [
         "dataset": "house_prices",
         "target_col": "price",
         "feature_cols": ["area_sqft", "bedrooms", "bathrooms", "house_age", "location_score"],
-        "algorithms_allowed": ["linear_regression", "decision_tree", "random_forest", "xgboost"],
+        "algorithms_allowed": ["linear_regression", "decision_tree", "random_forest"],
         "target_metric": "rmse",
         "target_metric_value": 30000,
         "metric_direction": "lower_is_better",
@@ -158,7 +128,7 @@ MISSION_POOL = [
         "dataset": "heart_disease",
         "target_col": "target",
         "feature_cols": ["age", "sex", "cp", "trestbps", "chol", "thalach", "exang"],
-        "algorithms_allowed": ["logistic_regression", "decision_tree", "random_forest", "svm", "xgboost"],
+        "algorithms_allowed": ["logistic_regression", "decision_tree", "random_forest", "svm"],
         "target_metric": "accuracy",
         "target_metric_value": 0.75,
         "metric_direction": "higher_is_better",
@@ -179,7 +149,7 @@ MISSION_POOL = [
         "problem_type": "clustering",
         "dataset": "mall_customers",
         "feature_cols": ["annual_income_k", "spending_score"],
-        "algorithms_allowed": ["kmeans", "dbscan", "hierarchical"],
+        "algorithms_allowed": ["kmeans", "dbscan"],
         "target_metric": "silhouette_score",
         "target_metric_value": 0.3,
         "metric_direction": "higher_is_better",
@@ -211,42 +181,107 @@ MISSION_POOL = [
     },
 ]
 
+# In-memory registry for boss missions: dataset filename -> ground truth.
+# NOT a database — resets on server restart, which is fine for a
+# single-session game. The true_problem_type/target_col here are what
+# make the boss fight honest: this data is never sent to Unity in
+# /mission/generate/boss's response, only used server-side in /train
+# to know which column to evaluate against.
+BOSS_MISSIONS: Dict[str, Dict[str, Any]] = {}
+
+
 # ---------------------------------------------------------------------------
-# XP / Reward helpers
+# Pydantic models
 # ---------------------------------------------------------------------------
 
-DIFFICULTY_XP_MULTIPLIER = {
-    "easy": 1.0,
-    "medium": 1.5,
-    "hard": 2.0,
-    "boss": 3.0,
-}
-
-BASE_XP_PER_LEVEL = {
-    "1": 100,
-    "2": 150,
-    "3": 200,
-    "4": 250,
-    "5": 300,
-    "boss": 500,
-}
+class PreprocessRequest(BaseModel):
+    dataset: str
+    missing_strategy: str = "fill_median"   # drop_rows | fill_mean | fill_median | fill_mode
+    remove_duplicates: bool = True
+    outlier_strategy: str = "clip_iqr"      # none | clip_iqr | remove_iqr
+    encoding: str = "label"                 # label | onehot | none
+    scaling: str = "standard"              # none | standard | minmax
 
 
-def _calculate_xp(
-    level: str,
-    difficulty: str,
-    passed: bool,
-    attempt_number: int = 1,
-) -> int:
-    if not passed:
-        return 10
+class TrainRequest(BaseModel):
+    dataset: str
+    problem_type: str                        # regression | classification | clustering | anomaly_detection
+    algorithm: str
+    target_col: Optional[str] = None
+    feature_cols: Optional[List[str]] = None
+    target_metric: str = "accuracy"
+    target_metric_value: float = 0.75
+    metric_direction: str = "higher_is_better"
+    k: Optional[int] = 5
+    # Preprocessing fields (same names as PreprocessRequest for simplicity)
+    missing_strategy: str = "fill_median"
+    remove_duplicates: bool = True
+    outlier_strategy: str = "clip_iqr"
+    scaling: str = "standard"
 
-    base_xp = BASE_XP_PER_LEVEL.get(str(level), 100)
-    multiplier = DIFFICULTY_XP_MULTIPLIER.get(difficulty, 1.0)
-    first_attempt_bonus = 1.5 if attempt_number == 1 else 1.0
 
-    xp = int(base_xp * multiplier * first_attempt_bonus)
-    return xp
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _load_dataset(name: str) -> pd.DataFrame:
+    path = os.path.join(DATA_DIR, f"{name}.csv")
+    if not os.path.exists(path):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Dataset '{name}' not found at '{path}'. "
+                "Run 'python generate_datasets.py' to create sample CSVs."
+            ),
+        )
+    return pd.read_csv(path)
+
+
+def _apply_preprocessing(df: pd.DataFrame, missing_strategy: str,
+                          remove_duplicates: bool, outlier_strategy: str,
+                          encoding: str, scaling: str) -> pd.DataFrame:
+    df = df.copy()
+
+    if remove_duplicates:
+        df = df.drop_duplicates().reset_index(drop=True)
+
+    num_cols = df.select_dtypes(include=np.number).columns.tolist()
+    if missing_strategy == "drop_rows":
+        df = df.dropna().reset_index(drop=True)
+    elif missing_strategy == "fill_mean":
+        df[num_cols] = df[num_cols].fillna(df[num_cols].mean())
+    elif missing_strategy == "fill_median":
+        df[num_cols] = df[num_cols].fillna(df[num_cols].median())
+    elif missing_strategy == "fill_mode":
+        for c in num_cols:
+            mode = df[c].mode()
+            df[c] = df[c].fillna(mode.iloc[0] if not mode.empty else 0)
+
+    cat_cols = df.select_dtypes(include="object").columns.tolist()
+    if encoding == "label":
+        le = LabelEncoder()
+        for c in cat_cols:
+            df[c] = le.fit_transform(df[c].astype(str))
+    elif encoding == "onehot":
+        df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
+
+    num_cols = df.select_dtypes(include=np.number).columns.tolist()
+    if outlier_strategy in ("clip_iqr", "remove_iqr"):
+        for c in num_cols:
+            q1, q3 = df[c].quantile(0.25), df[c].quantile(0.75)
+            iqr = q3 - q1
+            lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+            if outlier_strategy == "clip_iqr":
+                df[c] = df[c].clip(lo, hi)
+            else:
+                df = df[(df[c] >= lo) & (df[c] <= hi)]
+        df = df.reset_index(drop=True)
+
+    if scaling != "none":
+        scaler = StandardScaler() if scaling == "standard" else MinMaxScaler()
+        df[num_cols] = scaler.fit_transform(df[num_cols])
+
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -255,70 +290,33 @@ def _calculate_xp(
 
 @app.get("/health")
 def health():
+    """Standard liveness probe."""
     return {"status": "ok", "service": "BlackVault ML Backend"}
 
 
 @app.get("/ping")
 def ping():
+    """
+    Phase 0 — used by ApiTester.cs in Unity to prove HTTP connectivity.
+    Returns a game-flavoured greeting.
+    """
     return {
         "status": "online",
         "message": "BlackVault security system is active. Infiltration detected.",
-        "version": "0.2.0",
+        "version": "0.1.0",
     }
 
 
 @app.get("/mission/generate")
-def generate_mission(
-    level: Optional[str] = None,
-    difficulty: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
-    if level == "boss" or level == "6":
-        df, true_type = gen_boss_dataset()
-        boss_mission = BossMission(
-            dataset_filename="",
-            true_problem_type=true_type,
-            time_limit_seconds=180,
-        )
-        db.add(boss_mission)
-        db.commit()
-        db.refresh(boss_mission)
-
-        filename_base = f"boss_unknown_{boss_mission.id}"
-        csv_path = os.path.join(DATA_DIR, f"{filename_base}.csv")
-        df.to_csv(csv_path, index=False)
-
-        boss_mission.dataset_filename = filename_base
-        db.commit()
-
-        return {
-            "mission_id": f"L6_BOSS_{boss_mission.id}",
-            "level": "boss",
-            "title": "Master Terminal — Unknown System Anomaly",
-            "description": (
-                "An unidentified stream is swarming the terminal. Diagnose the true problem "
-                "type and train an optimal model to bypass the lock."
-            ),
-            "problem_type": "unknown",
-            "dataset": filename_base,
-            "algorithms_allowed": [
-                "linear_regression", "decision_tree", "random_forest", "xgboost",
-                "logistic_regression", "svm",
-                "kmeans", "dbscan", "hierarchical",
-                "isolation_forest", "one_class_svm",
-            ],
-            "difficulty": "boss",
-            "time_limit_seconds": 180,
-            "hints_available": False,
-        }
-
+def generate_mission(level: Optional[int] = None, difficulty: Optional[str] = None):
+    """
+    Return a random mission config from the pool.
+    Optional query params: ?level=2  or  ?difficulty=hard
+    Unity calls this when the player interacts with a security terminal.
+    """
     pool = MISSION_POOL[:]
     if level is not None:
-        try:
-            level_num = int(level)
-            pool = [m for m in pool if m["level"] == level_num]
-        except ValueError:
-            pool = [m for m in pool if str(m["level"]) == str(level)]
+        pool = [m for m in pool if m["level"] == level]
     if difficulty is not None:
         pool = [m for m in pool if m["difficulty"] == difficulty]
     if not pool:
@@ -326,13 +324,61 @@ def generate_mission(
     return random.choice(pool)
 
 
+@app.get("/mission/generate/boss")
+def generate_boss_mission():
+    """
+    Generates a fresh, unknown dataset with a randomly chosen problem
+    type (regression / classification / clustering / anomaly_detection).
+
+    The true problem type and its target column are stored server-side
+    in BOSS_MISSIONS and are deliberately NOT included in this response
+    — the player must diagnose the problem type themselves before
+    calling /train. /train looks up the true answer from BOSS_MISSIONS
+    using the returned `dataset` filename to score correctly.
+    """
+    df, true_type = gen_boss_dataset()
+
+    mission_id = f"boss_{uuid.uuid4().hex[:8]}"
+    df.to_csv(os.path.join(DATA_DIR, f"{mission_id}.csv"), index=False)
+
+    target_col = {
+        "regression": "target",
+        "classification": "label",
+    }.get(true_type)  # None for clustering / anomaly_detection — no target column exists
+
+    BOSS_MISSIONS[mission_id] = {
+        "true_problem_type": true_type,
+        "target_col": target_col,
+    }
+
+    return {
+        "mission_id": mission_id,
+        "level": "boss",
+        "title": "Core Security Room",
+        "description": (
+            "Unknown signal detected. No hints available. Diagnose the "
+            "problem type, clean the data, and beat the target metric "
+            "before the countdown reaches zero."
+        ),
+        "dataset": mission_id,
+        "time_limit_seconds": 180,
+        "max_retries": 1,
+        "hints_available": False,
+    }
+
+
 @app.post("/preprocess")
 def preprocess(req: PreprocessRequest):
+    """
+    Apply the player's preprocessing choices to a dataset.
+    Returns summary stats so Unity can display them in the terminal UI.
+    The player uses this to explore data quality before committing to training.
+    """
     df_raw = _load_dataset(req.dataset)
     missing_before = int(df_raw.isnull().sum().sum())
     dupes_before = int(df_raw.duplicated().sum())
 
-    df_clean = apply_preprocessing(
+    df_clean = _apply_preprocessing(
         df_raw,
         req.missing_strategy,
         req.remove_duplicates,
@@ -355,297 +401,161 @@ def preprocess(req: PreprocessRequest):
 
 
 @app.post("/train")
-def train(req: TrainRequest, db: Session = Depends(get_db)):
+def train(req: TrainRequest):
+    """
+    Full ML pipeline: load -> preprocess -> train -> evaluate -> return pass/fail.
+    Unity uses the 'passed' field to decide whether to unlock the security door.
+    """
     df = _load_dataset(req.dataset)
-
-    is_boss = req.dataset.startswith("boss_unknown_")
-    difficulty = "boss" if is_boss else _get_difficulty_for_dataset(req.dataset)
-
-    if is_boss:
-        boss_record = db.query(BossMission).filter_by(dataset_filename=req.dataset).first()
-        if boss_record:
-            if req.problem_type != boss_record.true_problem_type:
-                attempt_count = _get_attempt_count(db, req.dataset) + 1
-                xp = _calculate_xp("boss", "boss", False, attempt_count)
-
-                res = {
-                    "metrics": {},
-                    "target_metric": "problem_type_match",
-                    "target_value": 1.0,
-                    "achieved": 0.0,
-                    "passed": False,
-                    "door_status": "LOCKED",
-                    "true_problem_type": boss_record.true_problem_type,
-                    "detail": (
-                        f"Incorrect problem type diagnosis. "
-                        f"Target was actually '{boss_record.true_problem_type}'."
-                    ),
-                    "xp_earned": xp,
-                }
-                _record_attempt(db, req, res, level="boss", xp_earned=xp)
-                return res
-
-    df = apply_preprocessing(
+    df = _apply_preprocessing(
         df,
         req.missing_strategy,
         req.remove_duplicates,
         req.outlier_strategy,
-        "label",
+        "label",       # always label-encode for training
         req.scaling,
     )
 
-    try:
-        res = train_and_evaluate(
-            df=df,
-            problem_type=req.problem_type,
-            algorithm=req.algorithm,
-            target_col=req.target_col,
-            feature_cols=req.feature_cols,
-            target_metric=req.target_metric,
-            target_metric_value=req.target_metric_value,
-            metric_direction=req.metric_direction,
-            k=req.k,
-        )
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    algo = req.algorithm
+    problem = req.problem_type
 
-    level_str = "boss" if is_boss else _get_level_for_dataset(req.dataset)
-    attempt_count = _get_attempt_count(db, req.dataset) + 1
-    xp = _calculate_xp(level_str, difficulty, res["passed"], attempt_count)
-    res["xp_earned"] = xp
+    # ── Boss mission handling ────────────────────────────────────────────
+    # If this dataset is a boss mission, the player's guessed problem_type
+    # decides which target column THEY expect — but the actual column only
+    # exists if they guessed correctly. We override target_col with the
+    # server-known value (which may be None), then check it exists before
+    # any branch that needs it. A missing/wrong column means "wrong
+    # diagnosis" — a normal failed attempt, not a server error.
+    boss_info = BOSS_MISSIONS.get(req.dataset)
+    if boss_info is not None:
+        req.target_col = boss_info["target_col"]
 
-    _record_attempt(db, req, res, level=level_str, xp_earned=xp)
+        needs_target_col = problem in ("regression", "classification")
+        if needs_target_col and (req.target_col is None or req.target_col not in df.columns):
+            return {
+                "metrics": {},
+                "target_metric": req.target_metric,
+                "target_value": req.target_metric_value,
+                "achieved": 0.0,
+                "passed": False,
+                "door_status": "LOCKED",
+                "diagnosis_error": (
+                    f"No valid target column for problem_type='{problem}'. "
+                    "This doesn't look like that kind of problem — try a different diagnosis."
+                ),
+            }
 
-    newly_unlocked = check_and_unlock_achievements(db)
-    if newly_unlocked:
-        res["achievements_unlocked"] = newly_unlocked
-
-    return res
-
-
-@app.get("/player/progress")
-def player_progress(db: Session = Depends(get_db)):
-    progress = db.query(PlayerProgress).filter_by(player_id="local_player").first()
-    if not progress:
+    # ── Regression ─────────────────────────────────────────────────────────
+    if problem == "regression":
+        REGRESSORS = {
+            "linear_regression": LinearRegression(),
+            "decision_tree": DecisionTreeRegressor(random_state=42),
+            "random_forest": RandomForestRegressor(n_estimators=100, random_state=42),
+        }
+        if algo not in REGRESSORS:
+            raise HTTPException(400, f"Unknown regressor '{algo}'. Allowed: {list(REGRESSORS)}")
+        feat = req.feature_cols or [c for c in df.columns if c != req.target_col]
+        X, y = df[feat], df[req.target_col]
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=42)
+        REGRESSORS[algo].fit(Xtr, ytr)
+        preds = REGRESSORS[algo].predict(Xte)
+        achieved = round(float(np.sqrt(mean_squared_error(yte, preds))), 2)
+        passed = achieved <= req.target_metric_value
         return {
-            "player_id": "local_player",
-            "xp": 0,
-            "level_reached": 1,
-            "total_attempts": 0,
-            "total_passes": 0,
-            "rank": "Recruit",
+            "metrics": {"rmse": achieved},
+            "target_metric": "rmse",
+            "target_value": req.target_metric_value,
+            "achieved": achieved,
+            "passed": passed,
+            "door_status": "UNLOCKED" if passed else "LOCKED",
         }
 
-    return {
-        "player_id": progress.player_id,
-        "xp": progress.xp,
-        "level_reached": progress.level_reached,
-        "total_attempts": progress.total_attempts,
-        "total_passes": progress.total_passes,
-        "rank": _xp_to_rank(progress.xp),
-    }
-
-
-@app.get("/player/history")
-def player_history(limit: int = 20, db: Session = Depends(get_db)):
-    attempts = (
-        db.query(MissionAttempt)
-        .filter_by(player_id="local_player")
-        .order_by(MissionAttempt.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-
-    return [
-        {
-            "id": a.id,
-            "level": a.level,
-            "dataset_id": a.dataset_id,
-            "algorithm": a.algorithm,
-            "problem_type": a.problem_type,
-            "metric_name": a.metric_name,
-            "metric_value": a.metric_value,
-            "metric_target": a.metric_target,
-            "passed": a.passed,
-            "xp_earned": a.xp_earned,
-            "created_at": str(a.created_at) if a.created_at else None,
+    # ── Classification ──────────────────────────────────────────────────────
+    elif problem == "classification":
+        CLASSIFIERS = {
+            "logistic_regression": LogisticRegression(max_iter=1000, random_state=42),
+            "decision_tree": DecisionTreeClassifier(random_state=42),
+            "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
+            "svm": SVC(random_state=42),
         }
-        for a in attempts
-    ]
+        if algo not in CLASSIFIERS:
+            raise HTTPException(400, f"Unknown classifier '{algo}'. Allowed: {list(CLASSIFIERS)}")
+        feat = req.feature_cols or [c for c in df.columns if c != req.target_col]
+        X, y = df[feat], df[req.target_col]
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=42)
+        CLASSIFIERS[algo].fit(Xtr, ytr)
+        preds = CLASSIFIERS[algo].predict(Xte)
+        metrics = {
+            "accuracy": round(float(accuracy_score(yte, preds)), 4),
+            "f1_score": round(float(f1_score(yte, preds, average="weighted")), 4),
+        }
+        achieved = metrics.get(req.target_metric, metrics["accuracy"])
+        passed = achieved >= req.target_metric_value
+        return {
+            "metrics": metrics,
+            "target_metric": req.target_metric,
+            "target_value": req.target_metric_value,
+            "achieved": achieved,
+            "passed": passed,
+            "door_status": "UNLOCKED" if passed else "LOCKED",
+        }
 
+    # ── Clustering ──────────────────────────────────────────────────────────
+    elif problem == "clustering":
+        CLUSTERERS: dict = {
+            "kmeans": lambda k: KMeans(n_clusters=k, random_state=42, n_init=10),
+            "dbscan": lambda k: DBSCAN(eps=0.5, min_samples=5),
+        }
+        if algo not in CLUSTERERS:
+            raise HTTPException(400, f"Unknown clusterer '{algo}'. Allowed: {list(CLUSTERERS)}")
+        feat = req.feature_cols or df.select_dtypes(include=np.number).columns.tolist()
+        X = df[feat]
+        model = CLUSTERERS[algo](req.k or 5)
+        labels = model.fit_predict(X)
+        n_clusters = len(set(labels) - {-1})
+        sil = round(float(silhouette_score(X, labels)), 4) if n_clusters >= 2 else -1.0
+        passed = sil >= req.target_metric_value
+        return {
+            "metrics": {"silhouette_score": sil, "n_clusters_found": n_clusters},
+            "target_metric": "silhouette_score",
+            "target_value": req.target_metric_value,
+            "achieved": sil,
+            "passed": passed,
+            "door_status": "UNLOCKED" if passed else "LOCKED",
+        }
 
-def _get_difficulty_for_dataset(dataset: str) -> str:
-    for m in MISSION_POOL:
-        if m["dataset"] == dataset:
-            return m["difficulty"]
-    return "medium"
+    # ── Anomaly Detection ───────────────────────────────────────────────────
+    elif problem == "anomaly_detection":
+        feat = req.feature_cols or df.select_dtypes(include=np.number).columns.tolist()
+        X = df[feat]
+        if algo == "isolation_forest":
+            model = IsolationForest(contamination=0.05, random_state=42)
+        elif algo == "one_class_svm":
+            model = OneClassSVM(nu=0.05)
+        else:
+            raise HTTPException(400, f"Unknown anomaly detector '{algo}'. "
+                                     "Allowed: isolation_forest, one_class_svm")
+        raw_preds = model.fit_predict(X)
+        anomaly_flags = (raw_preds == -1).astype(int)
+        n_anomalies = int(anomaly_flags.sum())
+        anomaly_rate = round(float(n_anomalies / max(len(anomaly_flags), 1)), 4)
+        passed = 0.02 <= anomaly_rate <= 0.15
+        return {
+            "metrics": {
+                "anomaly_rate": anomaly_rate,
+                "n_anomalies_detected": n_anomalies,
+                "total_samples": len(anomaly_flags),
+            },
+            "target_metric": "anomaly_rate",
+            "target_value": 0.05,
+            "achieved": anomaly_rate,
+            "passed": passed,
+            "door_status": "UNLOCKED" if passed else "LOCKED",
+        }
 
-
-def _get_level_for_dataset(dataset: str) -> str:
-    for m in MISSION_POOL:
-        if m["dataset"] == dataset:
-            return str(m["level"])
-    return "1"
-
-
-def _get_attempt_count(db: Session, dataset_id: str) -> int:
-    return (
-        db.query(MissionAttempt)
-        .filter_by(player_id="local_player", dataset_id=dataset_id)
-        .count()
-    )
-
-
-def _xp_to_rank(xp: int) -> str:
-    if xp >= 5000:
-        return "Legendary Hacker"
-    elif xp >= 3000:
-        return "Master Infiltrator"
-    elif xp >= 2000:
-        return "Senior Analyst"
-    elif xp >= 1000:
-        return "Data Operative"
-    elif xp >= 500:
-        return "Junior Agent"
-    elif xp >= 100:
-        return "Trainee"
-    return "Recruit"
-
-
-def _record_attempt(
-    db: Session,
-    req: TrainRequest,
-    res: dict,
-    level: str = "standard",
-    xp_earned: int = 0,
-):
-    try:
-        attempt = MissionAttempt(
-            player_id="local_player",
-            level=level,
-            dataset_id=req.dataset,
-            algorithm=req.algorithm,
-            problem_type=req.problem_type,
-            metric_name=res.get("target_metric"),
-            metric_value=float(res.get("achieved")) if res.get("achieved") is not None else 0.0,
-            metric_target=float(res.get("target_value")) if res.get("target_value") is not None else 0.0,
-            passed=bool(res.get("passed", False)),
-            xp_earned=xp_earned,
-        )
-        db.add(attempt)
-
-        progress = db.query(PlayerProgress).filter_by(player_id="local_player").first()
-        if not progress:
-            progress = PlayerProgress(
-                player_id="local_player",
-                xp=0,
-                level_reached=1,
-                total_attempts=0,
-                total_passes=0,
-            )
-            db.add(progress)
-
-        progress.total_attempts += 1
-        progress.xp += xp_earned
-        if res.get("passed"):
-            progress.total_passes += 1
-            try:
-                current_level = int(level) if level != "boss" else 6
-                if current_level > progress.level_reached:
-                    progress.level_reached = current_level
-            except (ValueError, TypeError):
-                pass
-
-        db.commit()
-    except Exception:
-        db.rollback()
-
-
-class CorruptRequest(BaseModel):
-    dataset: str
-    event_type: str
-    target_col: Optional[str] = None
-    params: dict = {}
-
-
-@app.post("/corrupt")
-def corrupt_dataset(req: CorruptRequest):
-    df = _load_dataset(req.dataset)
-
-    corruption_map = {
-        "inject_missing": lambda: inject_missing_values(
-            df, missing_rate=req.params.get("missing_rate", 0.08)
-        ),
-        "inject_duplicates": lambda: inject_duplicates(
-            df, dup_rate=req.params.get("dup_rate", 0.05)
-        ),
-        "inject_outliers": lambda: inject_outliers(
-            df,
-            outlier_count=req.params.get("outlier_count", 5),
-            multiplier_range=tuple(req.params.get("multiplier_range", [4.0, 8.0])),
-        ),
-        "inject_label_noise": lambda: inject_label_noise(
-            df,
-            target_col=req.target_col or "target",
-            noise_rate=req.params.get("noise_rate", 0.1),
-        ),
-        "inject_correlated_features": lambda: inject_correlated_features(df),
-        "modify_class_balance": lambda: modify_class_balance(
-            df,
-            target_col=req.target_col or "target",
-            minority_ratio=req.params.get("minority_ratio", 0.1),
-        ),
-    }
-
-    if req.event_type not in corruption_map:
+    else:
         raise HTTPException(
             400,
-            f"Unknown event_type '{req.event_type}'. "
-            f"Allowed: {list(corruption_map.keys())}",
+            f"Unknown problem_type '{problem}'. "
+            "Use: regression | classification | clustering | anomaly_detection",
         )
-
-    df_corrupted = corruption_map[req.event_type]()
-
-    csv_path = os.path.join(DATA_DIR, f"{req.dataset}.csv")
-    df_corrupted.to_csv(csv_path, index=False)
-
-    return {
-        "dataset": req.dataset,
-        "event_type": req.event_type,
-        "rows_before": len(df),
-        "rows_after": len(df_corrupted),
-        "missing_after": int(df_corrupted.isnull().sum().sum()),
-        "status": "corrupted",
-    }
-
-
-@app.get("/events/random")
-def random_event(
-    difficulty: str = "medium",
-    problem_type: Optional[str] = None,
-):
-    event = get_random_event(difficulty, problem_type)
-    probability = get_event_probability(difficulty)
-
-    return {
-        "event": event.model_dump(),
-        "trigger_probability": probability,
-        "should_trigger": random.random() < probability,
-    }
-
-
-@app.get("/player/achievements")
-def player_achievements(db: Session = Depends(get_db)):
-    return get_all_achievements(db)
-
-
-@app.get("/mission/challenge")
-def challenge_mission(db: Session = Depends(get_db)):
-    progress = db.query(PlayerProgress).filter_by(player_id="local_player").first()
-    player_xp = progress.xp if progress else 0
-    return generate_challenge_mission(player_xp=player_xp)
-
-
-@app.get("/mission/daily")
-def daily_mission():
-    return generate_daily_challenge()
