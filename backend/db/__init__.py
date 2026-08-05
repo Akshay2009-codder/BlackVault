@@ -1,16 +1,20 @@
 """
-Services package for BlackVault backend — the actual ML/data logic,
-split out of main.py so the FastAPI endpoints stay thin route handlers.
+Database package for BlackVault backend — SQLite persistence via
+SQLAlchemy. NOT YET IMPORTED BY main.py — see the wiring notes in
+db/models.py for the two lines that connect this to /train and a new
+/progress endpoint when you're ready to add mission-history logging.
 """
 
-from services.preprocessing import load_dataset, apply_preprocessing, DATA_DIR
-from services.training import train_model
-from services.corruption_engine import inject_boss_level_issues
+from db.database import Base, engine, SessionLocal, get_db, init_db
+from db.models import MissionAttempt, PlayerProgress, BossMission
 
 __all__ = [
-    "load_dataset",
-    "apply_preprocessing",
-    "DATA_DIR",
-    "train_model",
-    "inject_boss_level_issues",
+    "Base",
+    "engine",
+    "SessionLocal",
+    "get_db",
+    "init_db",
+    "MissionAttempt",
+    "PlayerProgress",
+    "BossMission",
 ]
