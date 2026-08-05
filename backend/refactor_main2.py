@@ -1,4 +1,9 @@
-"""
+import os
+
+main_py_path = r"c:\Users\hp\OneDrive\Documents\BlackVault\backend\main.py"
+
+with open(main_py_path, "w", encoding="utf-8") as f:
+    f.write('''"""
 main.py  —  BlackVault FastAPI Backend
 """
 
@@ -451,3 +456,6 @@ def challenge_mission(db: Session = Depends(get_db)):
 @app.get("/mission/daily")
 def daily_mission():
     return generate_daily_challenge()
+''')
+
+print("main.py updated!")
