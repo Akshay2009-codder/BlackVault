@@ -29,8 +29,8 @@ from fastapi import FastAPI, HTTPException
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import PreprocessRequest, TrainRequest
-from services import load_dataset, apply_preprocessing, train_model, DATA_DIR
+from models import PreprocessRequest, TrainRequest, CorruptRequest
+from services import load_dataset, apply_preprocessing, train_model, apply_named_event, DATA_DIR
 from generate_datasets import gen_boss_dataset
 
 # ---------------------------------------------------------------------------
@@ -259,6 +259,65 @@ def generate_boss_mission():
         "time_limit_seconds": 180,
         "max_retries": 1,
         "hints_available": False,
+    }
+
+
+RANDOM_EVENTS = [
+    "inject_missing",
+    "inject_duplicates",
+    "inject_outliers",
+    "reduce_time_limit",
+    "shift_target_metric",
+]
+
+# How often /events/random reports should_trigger=True, by difficulty —
+# matches the PRD's escalating-difficulty random event system.
+EVENT_TRIGGER_CHANCE = {
+    "easy": 0.15,
+    "medium": 0.30,
+    "hard": 0.50,
+}
+
+
+@app.get("/events/random")
+def get_random_event(difficulty: Optional[str] = "easy"):
+    """
+    Picks a random potential mid-mission event and rolls whether it
+    should trigger right now, with the trigger chance scaling by
+    difficulty. Unity can poll this periodically during a mission to
+    decide whether the security AI escalates (see PRD section 8,
+    Dynamic Mission & Random Event System).
+    """
+    chance = EVENT_TRIGGER_CHANCE.get(difficulty, EVENT_TRIGGER_CHANCE["easy"])
+    return {
+        "event": random.choice(RANDOM_EVENTS),
+        "should_trigger": random.random() < chance,
+        "difficulty": difficulty,
+    }
+
+
+@app.post("/corrupt")
+def corrupt_dataset(req: CorruptRequest):
+    """
+    Applies a single named corruption event to a dataset and returns
+    the resulting stats. This does NOT modify the CSV on disk — it
+    loads a copy, corrupts that copy in memory, and reports what
+    happened, so the player can see the effect of an escalating event
+    without permanently degrading the underlying dataset file.
+    """
+    df = load_dataset(req.dataset)
+    try:
+        corrupted = apply_named_event(df, req.event_type, req.params)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "status": "corrupted",
+        "dataset": req.dataset,
+        "event_type": req.event_type,
+        "rows": len(corrupted),
+        "missing_values": int(corrupted.isnull().sum().sum()),
+        "duplicates": int(corrupted.duplicated().sum()),
     }
 
 
