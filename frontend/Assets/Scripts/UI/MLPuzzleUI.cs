@@ -30,6 +30,10 @@
 //      table without adding a JSON library like Newtonsoft/Json.NET.
 //      The UI shows the numeric stats instead (rows/missing/duplicates),
 //      which is what actually drives player decisions anyway.
+//
+//   FIX (this revision): TrainRequestBody was missing the `encoding`
+//   field even though OnRunClicked() assigns body.encoding — that was
+//   the cause of CS0117. Added below, matching PreprocessRequestBody.
 
 using System;
 using System.Collections;
@@ -126,6 +130,7 @@ public class MLPuzzleUI : MonoBehaviour
         public string missing_strategy = "fill_median";
         public bool remove_duplicates = true;
         public string outlier_strategy = "clip_iqr";
+        public string encoding = "label";
         public string scaling = "standard";
     }
 
