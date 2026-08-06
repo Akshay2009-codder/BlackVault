@@ -68,3 +68,49 @@ def inject_standard_issues(df: pd.DataFrame, rng: np.random.Generator,
         df = pd.concat([df, dup_rows], ignore_index=True)
 
     return df
+
+
+def apply_named_event(df: pd.DataFrame, event_type: str, params: dict = None) -> pd.DataFrame:
+    """
+    Applies a single named corruption event to a COPY of df and returns
+    it — used by the POST /corrupt endpoint so a player-facing "random
+    event" (missing values appear, duplicates injected, outliers spike)
+    can be previewed/applied on demand mid-mission, matching the PRD's
+    "Random Events" system, rather than only at dataset-generation time.
+
+    Raises ValueError for an unrecognized event_type — main.py catches
+    this and converts it to an HTTP 400.
+    """
+    params = params or {}
+    df = df.copy()
+    rng = np.random.default_rng()
+
+    if event_type == "inject_missing":
+        rate = float(params.get("missing_rate", 0.05))
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        for col in numeric_cols:
+            mask = rng.random(len(df)) < rate
+            df.loc[mask, col] = np.nan
+
+    elif event_type == "inject_duplicates":
+        count = min(int(params.get("count", 5)), len(df))
+        if count > 0:
+            dup_rows = df.sample(n=count, random_state=int(rng.integers(0, 1_000_000)))
+            df = pd.concat([df, dup_rows], ignore_index=True)
+
+    elif event_type == "inject_outliers":
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        if numeric_cols:
+            col = rng.choice(numeric_cols)
+            count = min(int(params.get("count", 3)), len(df))
+            idx = rng.choice(df.index, size=count, replace=False)
+            std = df[col].std()
+            df.loc[idx, col] += rng.choice([-1, 1]) * std * rng.uniform(5, 8)
+
+    else:
+        raise ValueError(
+            f"Unknown event_type '{event_type}'. "
+            "Allowed: inject_missing, inject_duplicates, inject_outliers"
+        )
+
+    return df
