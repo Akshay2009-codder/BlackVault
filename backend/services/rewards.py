@@ -1,235 +1,142 @@
 """
-Rewards & Achievements System — BlackVault
-=============================================
-Calculates XP, checks achievement unlock conditions, and manages
-player rank progression.
+Rewards and achievements logic.
+
+calculate_xp() and xp_to_rank() are pure functions (no DB access) so
+they're easy to unit test in isolation — see tests/test_rewards.py.
+record_mission_attempt() and unlock_achievement() are the DB-writing
+helpers that use them; call these from main.py once db/ is wired in
+(see db/models.py's wiring notes).
 """
 
-from __future__ import annotations
+from typing import Optional
 
-from typing import List, Dict, Optional
-from datetime import datetime
-
-from sqlalchemy.orm import Session
 from db.models import MissionAttempt, PlayerProgress, Achievement
 
+# ---------------------------------------------------------------------------
+# XP calculation
+# ---------------------------------------------------------------------------
 
-ACHIEVEMENT_DEFS: List[Dict] = [
-    {
-        "id": "first_blood",
-        "title": "First Blood",
-        "description": "Successfully solve your first ML puzzle.",
-        "icon": "🎯",
-    },
-    {
-        "id": "data_janitor",
-        "title": "Data Janitor",
-        "description": "Complete Level 1 — Data Cleaning.",
-        "icon": "🧹",
-    },
-    {
-        "id": "prediction_machine",
-        "title": "Prediction Machine",
-        "description": "Complete Level 2 — Regression.",
-        "icon": "📈",
-    },
-    {
-        "id": "pattern_detector",
-        "title": "Pattern Detector",
-        "description": "Complete Level 3 — Classification.",
-        "icon": "🔬",
-    },
-    {
-        "id": "cluster_commander",
-        "title": "Cluster Commander",
-        "description": "Complete Level 4 — Clustering.",
-        "icon": "🎯",
-    },
-    {
-        "id": "anomaly_hunter",
-        "title": "Anomaly Hunter",
-        "description": "Complete Level 5 — Anomaly Detection.",
-        "icon": "🕵️",
-    },
-    {
-        "id": "boss_slayer",
-        "title": "Boss Slayer",
-        "description": "Defeat the Final Boss level.",
-        "icon": "👑",
-    },
-    {
-        "id": "escape_artist",
-        "title": "Escape Artist",
-        "description": "Complete all 6 levels and escape the facility.",
-        "icon": "🏆",
-    },
-    {
-        "id": "perfect_run",
-        "title": "Perfect Run",
-        "description": "Pass a puzzle on the first attempt.",
-        "icon": "⭐",
-    },
-    {
-        "id": "speed_demon",
-        "title": "Speed Demon",
-        "description": "Solve 3 puzzles successfully.",
-        "icon": "⚡",
-    },
-    {
-        "id": "model_master",
-        "title": "Model Master",
-        "description": "Use 5 different algorithms successfully.",
-        "icon": "🧠",
-    },
-    {
-        "id": "persistent",
-        "title": "Persistent",
-        "description": "Attempt 10 puzzles (pass or fail).",
-        "icon": "💪",
-    },
-    {
-        "id": "veteran",
-        "title": "Veteran",
-        "description": "Earn 1000 total XP.",
-        "icon": "🎖️",
-    },
-    {
-        "id": "legendary",
-        "title": "Legendary Hacker",
-        "description": "Earn 5000 total XP and achieve Legendary rank.",
-        "icon": "🏅",
-    },
-]
+BASE_XP = 100
+FAILED_ATTEMPT_XP = 10  # flat consolation XP so failing still feels like progress, not punishment
 
-
-DIFFICULTY_XP_MULTIPLIER = {
+DIFFICULTY_MULTIPLIERS = {
     "easy": 1.0,
     "medium": 1.5,
     "hard": 2.0,
-    "boss": 3.0,
 }
 
-BASE_XP_PER_LEVEL = {
-    "1": 100,
-    "2": 150,
-    "3": 200,
-    "4": 250,
-    "5": 300,
-    "boss": 500,
-}
+FIRST_ATTEMPT_BONUS = 1.5  # rewards solving it right the first time
 
+
+def calculate_xp(level: str, difficulty: str = "easy", passed: bool = True,
+                  attempt_number: int = 1) -> int:
+    """
+    XP awarded for one mission attempt.
+
+    - Failed attempts always award a flat FAILED_ATTEMPT_XP, regardless
+      of level/difficulty — trying and failing still teaches something.
+    - Passed attempts scale with difficulty, and get a bonus for solving
+      it on the first try (attempt_number == 1).
+
+    `level` is accepted (and typically logged alongside XP in
+    MissionAttempt) but doesn't currently affect the formula — difficulty
+    already captures how hard a mission is. Kept as a parameter so
+    call sites don't need to change if per-level scaling is added later.
+    """
+    if not passed:
+        return FAILED_ATTEMPT_XP
+
+    multiplier = DIFFICULTY_MULTIPLIERS.get(difficulty, 1.0)
+    bonus = FIRST_ATTEMPT_BONUS if attempt_number == 1 else 1.0
+    return round(BASE_XP * multiplier * bonus)
+
+
+# ---------------------------------------------------------------------------
+# Rank ladder
+# ---------------------------------------------------------------------------
+
+# Ordered low -> high. xp_to_rank() returns the highest rank whose
+# threshold the player's XP meets or exceeds.
 RANK_THRESHOLDS = [
-    (5000, "Legendary Hacker"),
-    (3000, "Master Infiltrator"),
-    (2000, "Senior Analyst"),
-    (1000, "Data Operative"),
-    (500, "Junior Agent"),
-    (100, "Trainee"),
     (0, "Recruit"),
+    (150, "Trainee"),
+    (500, "Operative"),
+    (1500, "Specialist"),
+    (3000, "Elite Hacker"),
+    (5000, "Legendary Hacker"),
 ]
 
 
-def calculate_xp(
-    level: str,
-    difficulty: str,
-    passed: bool,
-    attempt_number: int = 1,
-) -> int:
-    if not passed:
-        return 10
-
-    base_xp = BASE_XP_PER_LEVEL.get(str(level), 100)
-    multiplier = DIFFICULTY_XP_MULTIPLIER.get(difficulty, 1.0)
-    first_attempt_bonus = 1.5 if attempt_number <= 1 else 1.0
-
-    return int(base_xp * multiplier * first_attempt_bonus)
-
-
 def xp_to_rank(xp: int) -> str:
-    for threshold, rank in RANK_THRESHOLDS:
+    rank = RANK_THRESHOLDS[0][1]
+    for threshold, name in RANK_THRESHOLDS:
         if xp >= threshold:
-            return rank
-    return "Recruit"
+            rank = name
+        else:
+            break
+    return rank
 
 
-def check_and_unlock_achievements(
-    db: Session,
-    player_id: str = "local_player",
-) -> List[Dict]:
-    existing = {
-        a.achievement_id
-        for a in db.query(Achievement).filter_by(player_id=player_id).all()
-    }
+# ---------------------------------------------------------------------------
+# DB-writing helpers (require a SQLAlchemy session — not yet called by
+# main.py; wire these in alongside db/database.py's init_db() per the
+# notes in db/models.py)
+# ---------------------------------------------------------------------------
 
-    progress = db.query(PlayerProgress).filter_by(player_id=player_id).first()
-    if not progress:
-        return []
+def record_mission_attempt(db, *, player_id: str, level: str, dataset_id: str,
+                            algorithm: str, problem_type: str, metric_name: str,
+                            metric_value: float, metric_target: float,
+                            passed: bool, difficulty: str = "easy",
+                            attempt_number: int = 1) -> PlayerProgress:
+    """
+    Logs one MissionAttempt row, then updates (or creates) the player's
+    PlayerProgress row with the earned XP and attempt/pass counters.
+    Returns the updated PlayerProgress so the caller can build a response.
+    """
+    db.add(MissionAttempt(
+        player_id=player_id, level=level, dataset_id=dataset_id,
+        algorithm=algorithm, problem_type=problem_type, metric_name=metric_name,
+        metric_value=metric_value, metric_target=metric_target, passed=passed,
+    ))
 
-    all_attempts = db.query(MissionAttempt).filter_by(player_id=player_id).all()
-    passed_attempts = [a for a in all_attempts if a.passed]
-    passed_levels = {a.level for a in passed_attempts}
-    passed_algorithms = {a.algorithm for a in passed_attempts}
+    progress = db.query(PlayerProgress).filter(
+        PlayerProgress.player_id == player_id
+    ).first()
+    if progress is None:
+        progress = PlayerProgress(player_id=player_id)
+        db.add(progress)
 
-    dataset_attempts: Dict[str, List] = {}
-    for a in all_attempts:
-        dataset_attempts.setdefault(a.dataset_id, []).append(a)
+    earned = calculate_xp(level=level, difficulty=difficulty, passed=passed,
+                           attempt_number=attempt_number)
+    progress.xp = (progress.xp or 0) + earned
+    progress.total_attempts = (progress.total_attempts or 0) + 1
+    if passed:
+        progress.total_passes = (progress.total_passes or 0) + 1
 
-    has_first_attempt_pass = any(
-        attempts[0].passed
-        for attempts in dataset_attempts.values()
-        if attempts
+    db.commit()
+    db.refresh(progress)
+    return progress
+
+
+def unlock_achievement(db, *, player_id: str, achievement_id: str,
+                        name: str, description: str = "") -> Optional[Achievement]:
+    """
+    Unlocks an achievement for a player if they don't already have it.
+    Returns the new Achievement row, or None if they already had it
+    (so callers can tell "newly unlocked" from "already had this").
+    """
+    existing = db.query(Achievement).filter(
+        Achievement.player_id == player_id,
+        Achievement.achievement_id == achievement_id,
+    ).first()
+    if existing is not None:
+        return None
+
+    achievement = Achievement(
+        player_id=player_id, achievement_id=achievement_id,
+        name=name, description=description,
     )
-
-    newly_unlocked = []
-
-    def _try_unlock(achievement_id: str, condition: bool):
-        if condition and achievement_id not in existing:
-            defn = next((d for d in ACHIEVEMENT_DEFS if d["id"] == achievement_id), None)
-            if defn:
-                ach = Achievement(
-                    player_id=player_id,
-                    achievement_id=achievement_id,
-                    title=defn["title"],
-                    description=defn["description"],
-                )
-                db.add(ach)
-                newly_unlocked.append(defn)
-
-    _try_unlock("first_blood", progress.total_passes >= 1)
-    _try_unlock("data_janitor", "1" in passed_levels)
-    _try_unlock("prediction_machine", "2" in passed_levels)
-    _try_unlock("pattern_detector", "3" in passed_levels)
-    _try_unlock("cluster_commander", "4" in passed_levels)
-    _try_unlock("anomaly_hunter", "5" in passed_levels)
-    _try_unlock("boss_slayer", "boss" in passed_levels)
-    _try_unlock("escape_artist", passed_levels >= {"1", "2", "3", "4", "5", "boss"})
-    _try_unlock("perfect_run", has_first_attempt_pass)
-    _try_unlock("speed_demon", progress.total_passes >= 3)
-    _try_unlock("model_master", len(passed_algorithms) >= 5)
-    _try_unlock("persistent", progress.total_attempts >= 10)
-    _try_unlock("veteran", progress.xp >= 1000)
-    _try_unlock("legendary", progress.xp >= 5000)
-
-    if newly_unlocked:
-        db.commit()
-
-    return newly_unlocked
-
-
-def get_all_achievements(
-    db: Session,
-    player_id: str = "local_player",
-) -> List[Dict]:
-    earned = {
-        a.achievement_id: str(a.unlocked_at)
-        for a in db.query(Achievement).filter_by(player_id=player_id).all()
-    }
-
-    result = []
-    for defn in ACHIEVEMENT_DEFS:
-        result.append({
-            **defn,
-            "unlocked": defn["id"] in earned,
-            "unlocked_at": earned.get(defn["id"]),
-        })
-    return result
+    db.add(achievement)
+    db.commit()
+    db.refresh(achievement)
+    return achievement

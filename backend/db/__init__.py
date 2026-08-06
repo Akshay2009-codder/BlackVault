@@ -6,7 +6,7 @@ db/models.py for the two lines that connect this to /train and a new
 """
 
 from db.database import Base, engine, SessionLocal, get_db, init_db
-from db.models import MissionAttempt, PlayerProgress, BossMission
+from db.models import MissionAttempt, PlayerProgress, BossMission, Achievement
 
 __all__ = [
     "Base",
@@ -17,4 +17,5 @@ __all__ = [
     "MissionAttempt",
     "PlayerProgress",
     "BossMission",
+    "Achievement",
 ]
