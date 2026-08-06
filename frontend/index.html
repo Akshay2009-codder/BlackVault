@@ -1,93 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>BlackVault 3D - Server Room</title>
-  <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Fira Code', monospace; }
-    canvas { display: block; width: 100vw; height: 100vh; }
-    #crosshair {
-      position: absolute; top: 50%; left: 50%;
-      width: 20px; height: 20px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 10;
-    }
-    #crosshair::before, #crosshair::after {
-      content: ''; position: absolute; background: #00f0ff; box-shadow: 0 0 8px #00f0ff;
-    }
-    #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
-    #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
-    
-    #instructions {
-      position: absolute; width: 100%; height: 100%;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: center;
-      background: rgba(0, 5, 10, 0.85);
-      color: #00f0ff; z-index: 100;
-      text-shadow: 0 0 15px #00f0ff;
-      backdrop-filter: blur(5px);
-    }
-    #instructions h1 { font-size: 4rem; margin-bottom: 10px; letter-spacing: 5px; }
-    #instructions p { font-size: 1.2rem; color: #fff; text-shadow: none; }
-    
-    #ui-overlay {
-      position: absolute; top: 5%; left: 5%; width: 90%; height: 90%;
-      display: none; z-index: 50;
-      background: rgba(10, 12, 16, 0.95);
-      border: 2px solid #00f0ff;
-      border-radius: 12px;
-      box-shadow: 0 0 40px rgba(0, 240, 255, 0.4);
-    }
-    
-    #ui-iframe {
-      width: 100%; height: 100%; border: none; border-radius: 10px;
-    }
-
-    #close-ui {
-      position: absolute; top: -15px; right: -15px;
-      width: 40px; height: 40px;
-      background: #ff3366; color: white;
-      border: 2px solid #fff; border-radius: 50%;
-      font-weight: bold; font-size: 20px;
-      cursor: pointer; z-index: 60;
-      box-shadow: 0 0 15px #ff3366;
-      transition: all 0.2s;
-    }
-    #close-ui:hover {
-      transform: scale(1.1); background: #ff0044;
-    }
-    
-    .interaction-prompt {
-      position: absolute; bottom: 15%; left: 50%;
-      transform: translateX(-50%);
-      color: #00ff66; font-size: 1.5rem;
-      text-shadow: 0 0 15px #00ff66;
-      display: none; z-index: 20;
-      background: rgba(0,255,102,0.1);
-      border: 1px solid #00ff66;
-      padding: 10px 20px;
-      border-radius: 8px;
-    }
-  </style>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BlackVault // Security Terminal</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="instructions">
-    <h1>BLACKVAULT</h1>
-    <p>Click to Initiate Neural Uplink</p>
-    <p style="font-size: 0.9rem; color: #888; margin-top: 30px;">[ WASD ] Move &nbsp;&nbsp;|&nbsp;&nbsp; [ MOUSE ] Look &nbsp;&nbsp;|&nbsp;&nbsp; [ E ] Interact</p>
-  </div>
-  
-  <div id="crosshair"></div>
-  <div id="interaction-prompt" class="interaction-prompt">Press [E] to Access Terminal</div>
-  
-  <div id="ui-overlay">
-    <button id="close-ui">X</button>
-    <iframe id="ui-iframe" src="terminal_simulator.html"></iframe>
+
+  <div class="crt-overlay"></div>
+  <div class="crt-vignette"></div>
+  <div class="noise-flicker"></div>
+
+  <div id="app" class="col" style="height:100%; padding:18px; gap:14px;">
+
+    <!-- ============ HEADER ============ -->
+    <div class="term-window">
+      <div class="term-titlebar">
+        <span class="term-dot live"></span>
+        <span>BLACKVAULT SECURITY TERMINAL</span>
+        <span class="dim">/ MISSION IDE</span>
+        <span class="grow"></span>
+        <span id="missionLevel" class="glow-cyan">LEVEL --</span>
+        <span class="grow"></span>
+        <span id="timer" class="glow-red mono">--:--</span>
+        <span class="grow"></span>
+        <span id="attempts" class="dim">ATTEMPTS: -- </span>
+      </div>
+      <div style="padding:14px 18px;">
+        <div id="missionTitle" class="mono glow-green" style="font-size:18px; letter-spacing:0.05em;">LOADING MISSION…</div>
+        <div id="storyBrief" class="dim" style="font-size:12.5px; margin-top:6px; max-width:900px; line-height:1.5;"></div>
+      </div>
+    </div>
+
+    <!-- ============ MAIN GRID ============ -->
+    <div class="flex gap-16 grow" style="min-height:0;">
+
+      <!-- LEFT: dataset -->
+      <div class="term-window col" style="flex:1.3; min-width:0;">
+        <div class="term-titlebar"><span class="term-dot"></span> DATASET_PREVIEW.csv</div>
+        <div style="padding:10px; overflow:auto;" class="grow">
+          <div id="issueChips" class="flex gap-8" style="margin-bottom:10px; flex-wrap:wrap;"></div>
+          <div style="overflow:auto; max-height:100%;">
+            <table class="dataset" id="datasetTable"><thead></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER: preprocessing + model -->
+      <div class="term-window col" style="flex:1; min-width:280px;">
+        <div class="term-titlebar"><span class="term-dot"></span> PIPELINE_BUILDER</div>
+        <div style="padding:14px; overflow:auto;" class="grow col gap-16">
+
+          <div>
+            <div class="dim mono" style="font-size:11px; margin-bottom:8px; letter-spacing:0.1em;">01 // PREPROCESSING STEPS</div>
+            <div id="stepsList"></div>
+          </div>
+
+          <div>
+            <div class="dim mono" style="font-size:11px; margin-bottom:8px; letter-spacing:0.1em;">02 // MODEL SELECTION</div>
+            <select id="algoSelect" style="width:100%;"></select>
+          </div>
+
+          <div>
+            <div class="dim mono" style="font-size:11px; margin-bottom:6px; letter-spacing:0.1em;">03 // TARGET</div>
+            <div id="targetInfo" class="data glow-cyan" style="font-size:13px;"></div>
+          </div>
+
+          <div class="grow"></div>
+
+          <div class="flex gap-8">
+            <button id="hintBtn" class="btn" style="flex:1;">Request Hint</button>
+            <button id="trainBtn" class="btn primary" style="flex:2;">▶ Run Training</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: console + metrics -->
+      <div class="term-window col" style="flex:1.1; min-width:300px;">
+        <div class="term-titlebar"><span class="term-dot" id="consoleDot"></span> SYSTEM_LOG</div>
+        <div id="console" class="data" style="padding:12px; overflow:auto; flex:1; font-size:12px; line-height:1.6;"></div>
+        <div id="metricsRow" class="flex gap-8 hidden" style="padding:12px; border-top:1px solid var(--panel-line);"></div>
+        <div id="doorStatus" style="padding:12px; border-top:1px solid var(--panel-line); text-align:center; font-family:var(--font-data); letter-spacing:0.08em;">
+          DOOR STATUS: <span class="glow-red">SEALED</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="game.js"></script>
+  <script>
+  /* ============================================================
+     PAGE CONTROLLER — index.html (ML Puzzle IDE)
+     ============================================================ */
+  const el = (id) => document.getElementById(id);
+  const consoleEl = el("console");
+
+  function log(text, cls = "") {
+    const line = document.createElement("div");
+    if (cls) line.className = cls;
+    line.textContent = `> ${text}`;
+    consoleEl.appendChild(line);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  function renderIssueChips(issues) {
+    const wrap = el("issueChips");
+    wrap.innerHTML = "";
+    const chip = (label, count) => {
+      if (!count) return;
+      const c = document.createElement("span");
+      c.className = "mono glow-red";
+      c.style.cssText = "font-size:10px; border:1px solid var(--red); padding:3px 8px;";
+      c.textContent = `${label}: ${count}`;
+      wrap.appendChild(c);
+    };
+    chip("MISSING VALUES", issues.missing_values);
+    chip("DUPLICATE ROWS", issues.duplicate_rows);
+    if (issues.unencoded_categoricals?.length)
+      chip("UNENCODED", issues.unencoded_categoricals.join(","));
+  }
+
+  function renderDataset(ds) {
+    const thead = document.querySelector("#datasetTable thead");
+    const tbody = document.querySelector("#datasetTable tbody");
+    thead.innerHTML = `<tr>${ds.columns.map((c) => `<th>${c}</th>`).join("")}</tr>`;
+    const seen = new Set();
+    tbody.innerHTML = ds.rows
+      .map((row) => {
+        const key = JSON.stringify(row);
+        const isDup = seen.has(key);
+        seen.add(key);
+        const cells = row
+          .map((v) => (v === null || v === undefined
+            ? `<td class="missing">NULL</td>`
+            : `<td>${v}</td>`))
+          .join("");
+        return `<tr class="${isDup ? "dup-row" : ""}">${cells}</tr>`;
+      })
+      .join("");
+  }
+
+  const STEP_DEFS = [
+    { id: "remove_duplicates", label: "Remove Duplicate Rows" },
+    { id: "fill_missing",      label: "Fill Missing Values (median/mode)" },
+    { id: "encode_categorical",label: "Encode Categorical Columns" },
+    { id: "scale_features",    label: "Scale Numeric Features" },
+    { id: "remove_outliers",   label: "Remove Outliers (IQR)" },
+  ];
+
+  function renderSteps() {
+    const wrap = el("stepsList");
+    wrap.innerHTML = "";
+    STEP_DEFS.forEach((step) => {
+      const applied = GameState.appliedSteps.has(step.id);
+      const label = document.createElement("label");
+      label.className = `checkline ${applied ? "clean" : ""}`;
+      label.innerHTML = `
+        <input type="checkbox" ${applied ? "checked" : ""} data-step="${step.id}" />
+        <span>${step.label}</span>
+        <span class="tag">${applied ? "OK" : "PENDING"}</span>
+      `;
+      wrap.appendChild(label);
+    });
+    wrap.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+      cb.addEventListener("change", onStepToggle);
+    });
+  }
+
+  async function onStepToggle(e) {
+    const stepId = e.target.dataset.step;
+    if (e.target.checked) GameState.appliedSteps.add(stepId);
+    else GameState.appliedSteps.delete(stepId);
+
+    log(`applying step: ${stepId.replace(/_/g, " ")}...`);
+    const result = await Api.preprocess([...GameState.appliedSteps]);
+    renderIssueChips(result.remaining_issues);
+    renderSteps();
+
+    el("trainBtn").disabled = !result.ready_to_train;
+    log(result.ready_to_train
+      ? "pipeline clean — ready to train"
+      : "unresolved data issues remain", result.ready_to_train ? "glow-green" : "glow-red");
+  }
+
+  function renderMetrics(res) {
+    const row = el("metricsRow");
+    row.classList.remove("hidden");
+    row.innerHTML = Object.entries(res.metrics)
+      .map(([k, v]) => `
+        <div class="metric-card grow">
+          <div class="val ${res.passed ? "glow-green" : "glow-red"}">${typeof v === "number" ? v.toLocaleString() : v}</div>
+          <div class="lbl">${k}</div>
+        </div>`)
+      .join("");
+  }
+
+  async function onTrain() {
+    const algo = el("algoSelect").value;
+    el("trainBtn").disabled = true;
+    log(`initializing ${algo}...`, "glow-cyan");
+    await new Promise((r) => setTimeout(r, 500));
+    log("training model on cleaned dataset...");
+    await new Promise((r) => setTimeout(r, 700));
+
+    const result = await Api.train(algo, {});
+    renderMetrics(result);
+
+    GameState.attemptsUsed += 1;
+    el("attempts").textContent = `ATTEMPTS: ${GameState.attemptsUsed}/${GameState.mission.attempts_remaining || "∞"}`;
+
+    if (result.passed) {
+      log(result.message, "glow-green");
+      el("doorStatus").innerHTML = `DOOR STATUS: <span class="glow-green">UNLOCKED</span>`;
+      el("consoleDot").classList.add("live");
+      GameState.stopTimer();
+      UnityBridge.doorUnlocked(result);
+    } else {
+      log(result.message, "glow-red");
+      UnityBridge.attemptFailed(result);
+      el("trainBtn").disabled = false;
+    }
+  }
+
+  function onHint() {
+    if (!GameState.mission.hints_enabled) {
+      log("hints disabled for this sector", "glow-red");
+      return;
+    }
+    UnityBridge.requestHint();
+    log("hint requested — check side panel", "glow-cyan");
+  }
+
+  async function boot() {
+    log("connecting to mission control...");
+    const mission = await Api.getCurrentMission();
+    GameState.reset(mission);
+    UnityBridge.missionLoaded(mission);
+
+    el("missionLevel").textContent = `LEVEL ${mission.level}`;
+    el("missionTitle").textContent = mission.title;
+    el("storyBrief").textContent = mission.story_brief;
+    el("attempts").textContent = `ATTEMPTS: 0/${mission.attempts_remaining || "∞"}`;
+    el("targetInfo").textContent =
+      `${mission.target_metric} ${mission.comparison} ${mission.target_value}`;
+
+    el("algoSelect").innerHTML = mission.algorithms
+      .map((a) => `<option value="${a}">${a}</option>`)
+      .join("");
+
+    renderIssueChips(mission.dataset.issues);
+    renderDataset(mission.dataset);
+    renderSteps();
+
+    GameState.startTimer(
+      (secs) => { el("timer").textContent = formatTime(secs); },
+      () => { log("TIME LIMIT EXCEEDED — LOCKDOWN REINFORCED", "glow-red"); el("trainBtn").disabled = true; }
+    );
+    el("timer").textContent = formatTime(mission.secondsLeft ?? mission.time_limit_seconds);
+
+    log("mission data loaded. begin preprocessing.", "glow-green");
+  }
+
+  el("trainBtn").addEventListener("click", onTrain);
+  el("hintBtn").addEventListener("click", onHint);
+  boot();
+  </script>
 </body>
 </html>
