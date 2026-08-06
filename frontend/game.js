@@ -1,358 +1,233 @@
-// BlackVault 3D Engine (Three.js)
+/* ============================================================
+   BLACKVAULT — game.js
+   Shared engine used by index.html (ML Puzzle IDE) and
+   terminal_simulator.html (boot / narrative terminal).
 
-let camera, scene, renderer, raycaster;
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-let prevTime = performance.now();
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
+   This file is the ONE bridge point between:
+     Unity (WebView)  <-->  this HTML/JS layer  <-->  FastAPI backend
 
-let isLocked = false;
-let interactableObjects = [];
-let currentInteractTarget = null;
-let doorMesh, doorLight;
+   Ak: wire the CONFIG.API_BASE + ENDPOINTS below to match your
+   FastAPI routes. Until the backend is running, every call falls
+   back to MOCK_DATA so you can build/demo the UI standalone.
+   ============================================================ */
 
-const instructions = document.getElementById('instructions');
-const interactionPrompt = document.getElementById('interaction-prompt');
-const uiOverlay = document.getElementById('ui-overlay');
-const closeUiBtn = document.getElementById('close-ui');
+const CONFIG = {
+  API_BASE: "http://127.0.0.1:8000",   // <- change to your FastAPI host
+  USE_MOCK_IF_UNREACHABLE: true,       // auto-fallback so UI never blocks on missing backend
+  TYPE_SPEED_MS: 14,                   // terminal typewriter speed
+};
 
-// Level Complete UI
-const levelCompleteUI = document.createElement('div');
-levelCompleteUI.style.position = 'absolute';
-levelCompleteUI.style.top = '0';
-levelCompleteUI.style.left = '0';
-levelCompleteUI.style.width = '100vw';
-levelCompleteUI.style.height = '100vh';
-levelCompleteUI.style.backgroundColor = 'rgba(0, 255, 102, 0.9)';
-levelCompleteUI.style.color = '#000';
-levelCompleteUI.style.display = 'none';
-levelCompleteUI.style.flexDirection = 'column';
-levelCompleteUI.style.justifyContent = 'center';
-levelCompleteUI.style.alignItems = 'center';
-levelCompleteUI.style.zIndex = '200';
-levelCompleteUI.style.fontFamily = "'Fira Code', monospace";
-levelCompleteUI.innerHTML = '<h1 style="font-size: 5rem; margin-bottom: 20px;">MISSION ACCOMPLISHED</h1><p style="font-size: 1.5rem; font-weight: bold;">You have bypassed the BlackVault Security System.</p><button onclick="location.reload()" style="margin-top: 30px; padding: 15px 30px; font-size: 1.2rem; background: #000; color: #00ff66; border: 2px solid #000; cursor: pointer; font-family: \'Fira Code\', monospace;">PLAY AGAIN</button>';
-document.body.appendChild(levelCompleteUI);
+const ENDPOINTS = {
+  currentMission: () => `${CONFIG.API_BASE}/api/mission/current`,
+  preprocess:     () => `${CONFIG.API_BASE}/api/mission/preprocess`,
+  train:          () => `${CONFIG.API_BASE}/api/mission/train`,
+};
 
-// PointerLock implementation
-const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-const PI_2 = Math.PI / 2;
+/* ============================================================
+   UNITY BRIDGE
+   Unity's WebView (or a browser iframe during dev) can listen for
+   these postMessage events. If this page is running INSIDE Unity's
+   UnityWebView / WebGL wrapper, window.unityInstance may exist and
+   SendMessage(gameObjectName, methodName, value) can be called
+   directly instead — both paths are wired below.
+   ============================================================ */
+const UnityBridge = {
+  gameObject: "IDEController", // must match the GameObject name in Unity holding IDEController.cs
 
-init();
-animate();
+  send(eventName, payload) {
+    const data = typeof payload === "string" ? payload : JSON.stringify(payload);
 
-function init() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020305);
-  scene.fog = new THREE.FogExp2(0x020305, 0.04);
-
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.y = 1.6; // Player height
-  camera.position.z = 10;
-
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-  scene.add(ambientLight);
-  
-  const pointLight = new THREE.PointLight(0x00f0ff, 1, 20);
-  pointLight.position.set(0, 4, -5);
-  scene.add(pointLight);
-
-  // Build Environment
-  buildRoom();
-  buildTerminal();
-  buildDoor();
-  buildServerRacks();
-
-  // Raycaster for interaction
-  raycaster = new THREE.Raycaster();
-
-  // Event Listeners
-  document.addEventListener('click', () => {
-    if (!isLocked && uiOverlay.style.display !== 'block') {
-      document.body.requestPointerLock();
+    // Path 1: native Unity WebGL / UnityWebView bridge
+    if (window.unityInstance && typeof window.unityInstance.SendMessage === "function") {
+      window.unityInstance.SendMessage(this.gameObject, eventName, data);
+      return;
     }
-  });
+    // Path 2: generic postMessage bridge (works for a native WebView plugin listening on window)
+    try {
+      window.parent.postMessage({ source: "blackvault-web", event: eventName, data }, "*");
+    } catch (e) { /* no parent frame, that's fine during standalone dev */ }
 
-  document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === document.body) {
-      isLocked = true;
-      instructions.style.display = 'none';
-    } else {
-      isLocked = false;
-      if (uiOverlay.style.display !== 'block') {
-        instructions.style.display = 'flex';
+    console.log(`[UnityBridge] ${eventName} ->`, payload);
+  },
+
+  doorUnlocked(missionResult)  { this.send("OnDoorUnlocked", missionResult); },
+  attemptFailed(missionResult) { this.send("OnAttemptFailed", missionResult); },
+  missionLoaded(mission)       { this.send("OnMissionLoaded", mission); },
+  requestHint()                { this.send("OnHintRequested", {}); },
+};
+
+/* ============================================================
+   TERMINAL TEXT FX — shared typewriter used on both pages
+   ============================================================ */
+function typeLine(el, text, speed = CONFIG.TYPE_SPEED_MS) {
+  return new Promise((resolve) => {
+    let i = 0;
+    el.textContent = "";
+    const tick = () => {
+      if (i < text.length) {
+        el.textContent += text[i++];
+        setTimeout(tick, speed + (Math.random() * 10 - 5));
+      } else resolve();
+    };
+    tick();
+  });
+}
+
+async function typeSequence(container, lines, opts = {}) {
+  const { speed = CONFIG.TYPE_SPEED_MS, lineDelay = 220, cls = "" } = opts;
+  for (const line of lines) {
+    const p = document.createElement("div");
+    if (cls) p.className = cls;
+    container.appendChild(p);
+    await typeLine(p, line, speed);
+    await new Promise((r) => setTimeout(r, lineDelay));
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+/* ============================================================
+   API CLIENT — with transparent mock fallback
+   ============================================================ */
+const Api = {
+  async _fetch(url, options) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      if (!CONFIG.USE_MOCK_IF_UNREACHABLE) throw err;
+      console.warn(`[Api] backend unreachable (${url}), using mock data. Reason:`, err.message);
+      return null; // caller falls back to mock
+    }
+  },
+
+  async getCurrentMission() {
+    const live = await this._fetch(ENDPOINTS.currentMission());
+    return live || MockData.mission();
+  },
+
+  async preprocess(steps) {
+    const live = await this._fetch(ENDPOINTS.preprocess(), {
+      method: "POST",
+      body: JSON.stringify({ steps }),
+    });
+    return live || MockData.preprocessResult(steps);
+  },
+
+  async train(algorithm, hyperparams) {
+    const live = await this._fetch(ENDPOINTS.train(), {
+      method: "POST",
+      body: JSON.stringify({ algorithm, hyperparams }),
+    });
+    return live || MockData.trainResult(algorithm);
+  },
+};
+
+/* ============================================================
+   MOCK DATA — lets you build/demo the frontend before the
+   FastAPI backend + trained pipeline exist. Delete this whole
+   block once your backend responses match the same shape.
+   ============================================================ */
+const MockData = {
+  mission() {
+    return {
+      level: 2,
+      title: "SECTOR 02 — PRICE PREDICTION ENGINE",
+      dataset_name: "house_prices.csv",
+      problem_type: "regression",
+      story_brief:
+        "The corridor door is fused shut. Its lock is bound to a valuation model — feed it a working regressor and it releases.",
+      target_metric: "RMSE",
+      target_value: 28000,
+      comparison: "below",
+      time_limit_seconds: 480,
+      hints_enabled: true,
+      attempts_remaining: 3,
+      algorithms: ["Linear Regression", "Decision Tree Regressor", "Random Forest Regressor"],
+      dataset: {
+        columns: ["id", "area_sqft", "bedrooms", "location", "year_built", "price"],
+        rows: [
+          [1, 1450, 3, "Suburb", 2011, 312000],
+          [2, null, 2, "Downtown", 2005, 275000],
+          [3, 2100, 4, "Suburb", 1998, null],
+          [4, 980, 1, "Downtown", 2016, 190000],
+          [4, 980, 1, "Downtown", 2016, 190000],
+          [5, 1720, 3, null, 2009, 298500],
+        ],
+        issues: { missing_values: 3, duplicate_rows: 1, unencoded_categoricals: ["location"] },
+      },
+    };
+  },
+
+  preprocessResult(steps) {
+    const resolved = new Set(steps);
+    const stillMissing = resolved.has("fill_missing") ? 0 : 3;
+    const stillDup = resolved.has("remove_duplicates") ? 0 : 1;
+    const stillCat = resolved.has("encode_categorical") ? [] : ["location"];
+    return {
+      ready_to_train: stillMissing === 0 && stillDup === 0 && stillCat.length === 0,
+      remaining_issues: { missing_values: stillMissing, duplicate_rows: stillDup, unencoded_categoricals: stillCat },
+    };
+  },
+
+  trainResult(algorithm) {
+    const scoreByAlgo = {
+      "Linear Regression": 34200,
+      "Decision Tree Regressor": 30500,
+      "Random Forest Regressor": 24800,
+    };
+    const rmse = scoreByAlgo[algorithm] ?? 39000;
+    const passed = rmse < 28000;
+    return {
+      algorithm,
+      metrics: { RMSE: rmse, MAE: Math.round(rmse * 0.78), R2: passed ? 0.87 : 0.61 },
+      target_metric: "RMSE",
+      target_value: 28000,
+      passed,
+      message: passed
+        ? "MODEL ACCEPTED — LOCK DISENGAGED"
+        : "MODEL REJECTED — ERROR EXCEEDS TOLERANCE",
+    };
+  },
+};
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const GameState = {
+  mission: null,
+  appliedSteps: new Set(),
+  attemptsUsed: 0,
+  timerHandle: null,
+  secondsLeft: 0,
+
+  reset(mission) {
+    this.mission = mission;
+    this.appliedSteps.clear();
+    this.attemptsUsed = 0;
+    this.secondsLeft = mission.time_limit_seconds;
+  },
+
+  startTimer(onTick, onExpire) {
+    clearInterval(this.timerHandle);
+    this.timerHandle = setInterval(() => {
+      this.secondsLeft = Math.max(0, this.secondsLeft - 1);
+      onTick(this.secondsLeft);
+      if (this.secondsLeft === 0) {
+        clearInterval(this.timerHandle);
+        onExpire();
       }
-    }
-  });
+    }, 1000);
+  },
 
-  document.addEventListener('mousemove', (event) => {
-    if (isLocked) {
-      const movementX = event.movementX || 0;
-      const movementY = event.movementY || 0;
-      euler.setFromQuaternion(camera.quaternion);
-      euler.y -= movementX * 0.002;
-      euler.x -= movementY * 0.002;
-      euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
-      camera.quaternion.setFromEuler(euler);
-    }
-  });
+  stopTimer() { clearInterval(this.timerHandle); },
+};
 
-  document.addEventListener('keydown', onKeyDown);
-  document.addEventListener('keyup', onKeyUp);
-  window.addEventListener('resize', onWindowResize);
-
-  closeUiBtn.addEventListener('click', () => {
-    uiOverlay.style.display = 'none';
-    document.body.requestPointerLock();
-  });
-}
-
-function onKeyDown(event) {
-  switch (event.code) {
-    case 'KeyW': moveForward = true; break;
-    case 'KeyA': moveLeft = true; break;
-    case 'KeyS': moveBackward = true; break;
-    case 'KeyD': moveRight = true; break;
-    case 'KeyE': 
-      if (currentInteractTarget && isLocked) {
-        document.exitPointerLock();
-        uiOverlay.style.display = 'block';
-      }
-      break;
-    case 'KeyO': // Secret key to test door opening without backend
-      openDoor();
-      break;
-  }
-}
-
-function onKeyUp(event) {
-  switch (event.code) {
-    case 'KeyW': moveForward = false; break;
-    case 'KeyA': moveLeft = false; break;
-    case 'KeyS': moveBackward = false; break;
-    case 'KeyD': moveRight = false; break;
-  }
-}
-
-function buildRoom() {
-  // Floor
-  const floorGeo = new THREE.PlaneGeometry(30, 30);
-  const floorMat = new THREE.MeshStandardMaterial({ 
-    color: 0x050505, 
-    roughness: 0.1, 
-    metalness: 0.5 
-  });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-
-  // Ceiling
-  const ceilingGeo = new THREE.PlaneGeometry(30, 30);
-  const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x0a0c10, roughness: 1.0 });
-  const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
-  ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.y = 8;
-  scene.add(ceiling);
-
-  // Grid Helper for cyberpunk feel
-  const gridHelper = new THREE.GridHelper(30, 30, 0x00f0ff, 0x002233);
-  gridHelper.position.y = 0.01;
-  scene.add(gridHelper);
-
-  // Walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.8 });
-  const wallGeo = new THREE.PlaneGeometry(30, 8);
-  
-  const wall1 = new THREE.Mesh(wallGeo, wallMat);
-  wall1.position.set(0, 4, -15);
-  scene.add(wall1);
-
-  const wall2 = new THREE.Mesh(wallGeo, wallMat);
-  wall2.position.set(0, 4, 15);
-  wall2.rotation.y = Math.PI;
-  scene.add(wall2);
-
-  const wall3 = new THREE.Mesh(wallGeo, wallMat);
-  wall3.position.set(-15, 4, 0);
-  wall3.rotation.y = Math.PI / 2;
-  scene.add(wall3);
-
-  const wall4 = new THREE.Mesh(wallGeo, wallMat);
-  wall4.position.set(15, 4, 0);
-  wall4.rotation.y = -Math.PI / 2;
-  scene.add(wall4);
-}
-
-function buildTerminal() {
-  const group = new THREE.Group();
-  
-  // Pedestal
-  const pedGeo = new THREE.BoxGeometry(1.2, 1, 1.2);
-  const pedMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 });
-  const pedestal = new THREE.Mesh(pedGeo, pedMat);
-  pedestal.position.y = 0.5;
-  group.add(pedestal);
-
-  // Screen
-  const screenGeo = new THREE.BoxGeometry(1.5, 1, 0.1);
-  const screenMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-  const screen = new THREE.Mesh(screenGeo, screenMat);
-  screen.position.set(0, 1.5, 0.3);
-  screen.rotation.x = -0.2;
-  group.add(screen);
-
-  // Holographic Beam
-  const beamGeo = new THREE.CylinderGeometry(0.5, 0.8, 3, 16);
-  const beamMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false });
-  const beam = new THREE.Mesh(beamGeo, beamMat);
-  beam.position.set(0, 3, 0.3);
-  group.add(beam);
-
-  // Glow
-  const glowLight = new THREE.PointLight(0x00f0ff, 1.5, 8);
-  glowLight.position.set(0, 1.5, 1);
-  group.add(glowLight);
-
-  group.position.set(0, 0, -8);
-  scene.add(group);
-  
-  // Add to interactables (use screen for raycasting)
-  screen.userData = { type: 'terminal' };
-  interactableObjects.push(screen);
-}
-
-function buildServerRacks() {
-  const rackGeo = new THREE.BoxGeometry(2, 6, 2);
-  const rackMat = new THREE.MeshStandardMaterial({ color: 0x0a0c10, metalness: 0.9, roughness: 0.2 });
-  
-  for(let i=0; i<4; i++) {
-    // Left side racks
-    const rackL = new THREE.Mesh(rackGeo, rackMat);
-    rackL.position.set(-10, 3, -10 + (i * 4));
-    scene.add(rackL);
-    addServerLights(rackL.position);
-
-    // Right side racks
-    const rackR = new THREE.Mesh(rackGeo, rackMat);
-    rackR.position.set(10, 3, -10 + (i * 4));
-    scene.add(rackR);
-    addServerLights(rackR.position);
-  }
-}
-
-function addServerLights(pos) {
-  const cGeo = new THREE.BoxGeometry(1.8, 0.1, 2.1);
-  const cMat = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
-  const lightBand = new THREE.Mesh(cGeo, cMat);
-  lightBand.position.copy(pos);
-  lightBand.position.y += Math.random() * 2;
-  scene.add(lightBand);
-}
-
-function buildDoor() {
-  const doorGeo = new THREE.BoxGeometry(4, 5, 0.5);
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0xff3366, metalness: 0.5, roughness: 0.5 });
-  doorMesh = new THREE.Mesh(doorGeo, doorMat);
-  doorMesh.position.set(0, 2.5, 14.8);
-  scene.add(doorMesh);
-  
-  // Light above door
-  doorLight = new THREE.PointLight(0xff3366, 2, 10);
-  doorLight.position.set(0, 6, 13);
-  scene.add(doorLight);
-}
-
-function openDoor() {
-  // Simple animation to slide door open
-  const targetX = 4;
-  const slide = setInterval(() => {
-    if (doorMesh.position.x < targetX) {
-      doorMesh.position.x += 0.1;
-    } else {
-      clearInterval(slide);
-    }
-  }, 16);
-  
-  // Turn light green
-  doorMesh.material.color.setHex(0x00ff66);
-  doorLight.color.setHex(0x00ff66);
-}
-
-// Hook for iframe to call when train succeeds
-window.addEventListener('message', (event) => {
-  if (event.data === 'UNLOCK_DOOR') {
-    openDoor();
-  } else if (event.data === 'CLOSE_UI') {
-    uiOverlay.style.display = 'none';
-    document.body.requestPointerLock();
-  }
-});
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function checkInteractions() {
-  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-  const intersects = raycaster.intersectObjects(interactableObjects);
-  
-  if (intersects.length > 0 && intersects[0].distance < 4) {
-    if (currentInteractTarget !== intersects[0].object) {
-      currentInteractTarget = intersects[0].object;
-      interactionPrompt.style.display = 'block';
-    }
-  } else {
-    if (currentInteractTarget) {
-      currentInteractTarget = null;
-      interactionPrompt.style.display = 'none';
-    }
-  }
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const time = performance.now();
-  
-  if (isLocked) {
-    const delta = (time - prevTime) / 1000;
-    
-    velocity.x -= velocity.x * 10.0 * delta;
-    velocity.z -= velocity.z * 10.0 * delta;
-    
-    direction.z = Number(moveForward) - Number(moveBackward);
-    direction.x = Number(moveRight) - Number(moveLeft);
-    direction.normalize();
-    
-    if (moveForward || moveBackward) velocity.z -= direction.z * 40.0 * delta;
-    if (moveLeft || moveRight) velocity.x -= direction.x * 40.0 * delta;
-
-    camera.translateX(velocity.x * delta);
-    camera.translateZ(velocity.z * delta);
-    
-    // Simple collision with walls (Room is 30x30, so bounds are -14 to 14)
-    if (camera.position.x < -14) camera.position.x = -14;
-    if (camera.position.x > 14) camera.position.x = 14;
-    if (camera.position.z < -14) camera.position.z = -14;
-    if (camera.position.z > 14) camera.position.z = 14;
-
-    // Check if player walked through the open door
-    if (doorMesh.position.x >= 2 && camera.position.z > 13.5 && camera.position.x > -2 && camera.position.x < 2) {
-        document.exitPointerLock();
-        levelCompleteUI.style.display = 'flex';
-        isLocked = false;
-    }
-
-    checkInteractions();
-  }
-
-  prevTime = time;
-  renderer.render(scene, camera);
+function formatTime(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const s = Math.floor(totalSeconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 }
