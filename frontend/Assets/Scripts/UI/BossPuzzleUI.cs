@@ -15,6 +15,11 @@
 // TrainRequest/TrainResponse Pydantic models exactly (remove_duplicates,
 // outlier_strategy, encoding, scaling / achieved, passed, door_status).
 //
+// FIX (this version): TrainRequestBody was missing the "encoding" field
+// even though RunTrainSequence() sets it — that caused CS0117
+// "TrainRequestBody does not contain a definition for 'encoding'".
+// Added it below alongside the other preprocessing fields.
+//
 // ⚠ BACKEND GAP: main.py's MISSION_POOL currently only defines levels 1-5.
 // There is no "boss" entry and no /mission/generate support for it, and
 // no "boss_unknown" dataset exists in backend/data/. This script will
@@ -108,6 +113,7 @@ public class BossPuzzleUI : MonoBehaviour
         public string missing_strategy = "fill_median";
         public bool remove_duplicates = true;
         public string outlier_strategy = "clip_iqr";
+        public string encoding = "label";   // <-- FIX: was missing, caused CS0117
         public string scaling = "standard";
     }
 
