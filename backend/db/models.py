@@ -1,12 +1,14 @@
 """
 SQLAlchemy ORM models — mission history, player progress, boss missions.
 
-NOT YET IMPORTED BY main.py. Three tables:
+NOT YET IMPORTED BY main.py. Four tables:
   - MissionAttempt: every /train call, pass or fail.
   - PlayerProgress: XP/level per player (Phase 6 reward system).
   - BossMission: stores the true_problem_type server-side per boss
     attempt (see generate_datasets.py's gen_boss_dataset()) so it's
     never exposed to Unity before the player submits.
+  - Achievement: unlocked achievement records per player (used by
+    services/rewards.py's unlock_achievement()).
 
 --- To wire this in (main.py), add: ---
     from db.database import init_db, get_db
@@ -74,3 +76,14 @@ class BossMission(Base):
     resolved = Column(Boolean, default=False)
     passed = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(String, index=True, default="local_player")
+    achievement_id = Column(String, index=True)  # e.g. "first_blood", "no_hints_used", "boss_slayer"
+    name = Column(String)
+    description = Column(String)
+    unlocked_at = Column(DateTime(timezone=True), server_default=func.now())

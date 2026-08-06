@@ -1,16 +1,15 @@
 """
-Services package for BlackVault backend — the actual ML/data logic,
-split out of main.py so the FastAPI endpoints stay thin route handlers.
+Models package for BlackVault backend — Pydantic request/response models,
+split out of main.py for readability.
 """
 
-from services.preprocessing import load_dataset, apply_preprocessing, DATA_DIR
-from services.training import train_model
-from services.corruption_engine import inject_boss_level_issues
+from models.preprocess_models import PreprocessRequest
+from models.train_models import TrainRequest
+from models.mission_models import Mission, BossMissionResponse
 
 __all__ = [
-    "load_dataset",
-    "apply_preprocessing",
-    "DATA_DIR",
-    "train_model",
-    "inject_boss_level_issues",
+    "PreprocessRequest",
+    "TrainRequest",
+    "Mission",
+    "BossMissionResponse",
 ]
