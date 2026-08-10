@@ -402,4 +402,4 @@ def train(req: TrainRequest):
     # train_anomaly_detection in services/training.py based on req.problem_type.
     # Raises HTTPException(400) for an unknown algorithm or problem_type,
     # same as the original inline version.
-    return train_model(df, req).
+    return train_model(df, req)
