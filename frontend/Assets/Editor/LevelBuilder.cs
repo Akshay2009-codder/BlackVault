@@ -234,7 +234,9 @@ public static class LevelBuilder
         controller.firstPersonCamera = fpCam;
         controller.thirdPersonCamera = tpCam;
         controller.thirdPersonLookTarget = player.transform;
+        controller.playerModel = model;
         controller.startInFirstPerson = true;
+        model.SetActive(false); // hidden by default since we start in first-person
 
         // Remove Unity's default Main Camera if present, since the rig cameras replace it
         Camera mainCam = Camera.main;
