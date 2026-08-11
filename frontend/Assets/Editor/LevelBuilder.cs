@@ -273,37 +273,79 @@ public static class LevelBuilder
         GameObject panel = new GameObject("PuzzlePanel");
         panel.transform.SetParent(canvasObj.transform, false);
         Image panelBg = panel.AddComponent<Image>();
-        panelBg.color = new Color(0f, 0f, 0f, 0.85f);
+        panelBg.color = new Color(0.05f, 0.05f, 0.07f, 0.95f);
         RectTransform panelRect = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0.15f, 0.1f);
-        panelRect.anchorMax = new Vector2(0.85f, 0.9f);
+        panelRect.anchorMin = new Vector2(0.08f, 0.06f);
+        panelRect.anchorMax = new Vector2(0.92f, 0.94f);
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        Text datasetPreviewText = CreateUIText(panel.transform, "DatasetPreviewText", "Dataset preview...", new Vector2(0f, 300f));
-        Text statsText = CreateUIText(panel.transform, "StatsText", "", new Vector2(0f, 250f));
+        // --- Mission info, top of panel ("data name and task") ---
+        Text missionInfoText = CreateUIText(panel.transform, "MissionInfoText", "Loading mission...", new Vector2(0f, 380f));
+        missionInfoText.fontSize = 20;
+        missionInfoText.rectTransform.sizeDelta = new Vector2(900f, 90f);
 
-        Toggle dropDup = CreateUIToggle(panel.transform, "DropDuplicatesToggle", "Drop Duplicates", new Vector2(-150f, 180f));
-        Toggle fillMissing = CreateUIToggle(panel.transform, "FillMissingToggle", "Fill Missing", new Vector2(-150f, 140f));
-        Toggle encode = CreateUIToggle(panel.transform, "EncodeToggle", "Encode Categorical", new Vector2(-150f, 100f));
-        Toggle scale = CreateUIToggle(panel.transform, "ScaleToggle", "Scale Features", new Vector2(-150f, 60f));
+        Text statsText = CreateUIText(panel.transform, "StatsText", "", new Vector2(0f, 320f));
 
-        Dropdown algoDropdown = CreateUIDropdown(panel.transform, "AlgorithmDropdown", new Vector2(150f, 140f));
+        // --- Code editor: TMP_InputField (invisible text) + TMP overlay (highlighted) ---
+        GameObject editorRoot = new GameObject("CodeEditorField", typeof(RectTransform));
+        editorRoot.transform.SetParent(panel.transform, false);
+        RectTransform editorRect = editorRoot.GetComponent<RectTransform>();
+        editorRect.anchoredPosition = new Vector2(0f, -20f);
+        editorRect.sizeDelta = new Vector2(900f, 480f);
 
-        Button runButton = CreateUIButton(panel.transform, "RunButton", "Run", new Vector2(-80f, -150f));
-        Button closeButton = CreateUIButton(panel.transform, "CloseButton", "Close", new Vector2(80f, -150f));
+        Image editorBg = editorRoot.AddComponent<Image>();
+        editorBg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
 
-        Text resultText = CreateUIText(panel.transform, "ResultText", "", new Vector2(0f, -220f));
+        // Highlighted overlay (behind, renders the colored text)
+        GameObject overlayObj = new GameObject("HighlightOverlay", typeof(RectTransform));
+        overlayObj.transform.SetParent(editorRoot.transform, false);
+        RectTransform overlayRect = overlayObj.GetComponent<RectTransform>();
+        overlayRect.anchorMin = Vector2.zero;
+        overlayRect.anchorMax = Vector2.one;
+        overlayRect.offsetMin = new Vector2(10f, 10f);
+        overlayRect.offsetMax = new Vector2(-10f, -10f);
+        TMPro.TextMeshProUGUI overlayText = overlayObj.AddComponent<TMPro.TextMeshProUGUI>();
+        overlayText.fontSize = 16;
+        overlayText.richText = true;
+        overlayText.raycastTarget = false;
+        overlayText.color = Color.white;
+        overlayText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+
+        // Actual editable field (in front, text made invisible so only the overlay is seen)
+        GameObject fieldTextObj = new GameObject("Text", typeof(RectTransform));
+        fieldTextObj.transform.SetParent(editorRoot.transform, false);
+        RectTransform fieldTextRect = fieldTextObj.GetComponent<RectTransform>();
+        fieldTextRect.anchorMin = Vector2.zero;
+        fieldTextRect.anchorMax = Vector2.one;
+        fieldTextRect.offsetMin = new Vector2(10f, 10f);
+        fieldTextRect.offsetMax = new Vector2(-10f, -10f);
+        TMPro.TextMeshProUGUI fieldText = fieldTextObj.AddComponent<TMPro.TextMeshProUGUI>();
+        fieldText.fontSize = 16;
+        fieldText.color = new Color(1f, 1f, 1f, 0f); // invisible — the overlay shows the highlighted version
+        fieldText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+
+        TMPro.TMP_InputField inputField = editorRoot.AddComponent<TMPro.TMP_InputField>();
+        inputField.textComponent = fieldText;
+        inputField.textViewport = editorRect;
+        inputField.lineType = TMPro.TMP_InputField.LineType.MultiLineNewline;
+        inputField.fontAsset = fieldText.font;
+
+        CodeEditorField codeEditor = editorRoot.AddComponent<CodeEditorField>();
+        codeEditor.inputField = inputField;
+        codeEditor.highlightOverlay = overlayText;
+
+        // --- Buttons + result text, bottom of panel ---
+        Button runButton = CreateUIButton(panel.transform, "RunButton", "Run", new Vector2(-80f, -290f));
+        Button closeButton = CreateUIButton(panel.transform, "CloseButton", "Close", new Vector2(80f, -290f));
+        Text resultText = CreateUIText(panel.transform, "ResultText", "", new Vector2(0f, -340f));
+        resultText.rectTransform.sizeDelta = new Vector2(900f, 60f);
 
         MLPuzzleUI puzzleUI = canvasObj.AddComponent<MLPuzzleUI>();
         puzzleUI.panelRoot = panel;
-        puzzleUI.datasetPreviewText = datasetPreviewText;
+        puzzleUI.missionInfoText = missionInfoText;
         puzzleUI.statsText = statsText;
-        puzzleUI.dropDuplicatesToggle = dropDup;
-        puzzleUI.fillMissingToggle = fillMissing;
-        puzzleUI.encodeToggle = encode;
-        puzzleUI.scaleToggle = scale;
-        puzzleUI.algorithmDropdown = algoDropdown;
+        puzzleUI.codeEditor = codeEditor;
         puzzleUI.resultText = resultText;
         puzzleUI.runButton = runButton;
         puzzleUI.closeButton = closeButton;
