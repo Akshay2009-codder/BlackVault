@@ -5,7 +5,7 @@ split out of main.py for readability.
 
 from models.preprocess_models import PreprocessRequest
 from models.train_models import TrainRequest
-from models.mission_models import Mission, BossMissionResponse
+from models.mission_models import MissionConfig as Mission, BossMissionResponse
 from models.event_models import CorruptRequest
 from models.code_models import CodeExecuteRequest
 
