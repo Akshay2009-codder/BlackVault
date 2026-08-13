@@ -8,12 +8,20 @@
 // a keyword-looking word inside a string doesn't get colored as a
 // keyword.
 //
+// FIX (v2): placeholder markers now use letters (base-26), not digits.
+// The original digit-based markers (\u0001{index}\u0001) were themselves
+// matched by NumberRegex during the keyword/number highlighting pass,
+// which injected a <color> tag INSIDE the marker and broke the final
+// restore step — leaving literal \u0001 characters in the output (seen
+// as "unicode \u0001 not found in font" warnings in Unity). Letters
+// can't collide with NumberRegex, and the "PH" prefix ensures the
+// marker text can never exactly match a keyword or provided-name word.
+//
 // Usage: PythonSyntaxHighlighter.Highlight(rawCode) -> rich-text string
 // Feed the result into a TextMeshProUGUI with richText enabled — see
 // CodeEditorField.cs for how this is layered under an invisible
 // TMP_InputField to create the actual editable-with-highlighting effect.
 
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 
@@ -63,43 +71,45 @@ public static class PythonSyntaxHighlighter
     private static readonly Regex ProvidedNameRegex =
         new Regex(@"\b(" + string.Join("|", ProvidedNames) + @")\b", RegexOptions.Compiled);
 
+    // Placeholder marker regex/prefix. "PH" prefix + letters-only index
+    // guarantees this can never collide with a real keyword, provided
+    // name, or number — see fix note above.
+    private const string MarkerPrefix = "PH";
+    private static readonly Regex RestoreRegex =
+        new Regex("\u0001PH([A-Za-z]+)\u0001", RegexOptions.Compiled);
+
     public static string Highlight(string code)
     {
         if (string.IsNullOrEmpty(code)) return code;
 
-        // Protect strings and comments from further regex passes by
-        // temporarily replacing them with placeholder tokens, coloring
-        // them directly, then restoring at the end. This avoids
-        // accidentally keyword-coloring text that's inside a string
-        // (e.g. a string that happens to contain the word "def").
         var placeholders = new List<string>();
 
         string masked = StringRegex.Replace(code, m =>
         {
             string colored = $"<color={ColorString}>{EscapeForRichText(m.Value)}</color>";
             placeholders.Add(colored);
-            return $"\u0001{placeholders.Count - 1}\u0001";
+            return $"\u0001{MarkerPrefix}{ToLetters(placeholders.Count - 1)}\u0001";
         });
 
         masked = CommentRegex.Replace(masked, m =>
         {
             string colored = $"<color={ColorComment}>{EscapeForRichText(m.Value)}</color>";
             placeholders.Add(colored);
-            return $"\u0001{placeholders.Count - 1}\u0001";
+            return $"\u0001{MarkerPrefix}{ToLetters(placeholders.Count - 1)}\u0001";
         });
 
         // Function calls first (so a keyword like "list" used as list()
         // still gets function-call coloring rather than falling through) —
-        // then keywords, then provided names, then numbers.
+        // then keywords, then provided names, then numbers. None of these
+        // can match inside the \u0001PH...\u0001 markers now.
         masked = FunctionCallRegex.Replace(masked, m => $"<color={ColorFunction}>{m.Value}</color>");
         masked = KeywordRegex.Replace(masked, m => $"<color={ColorKeyword}>{m.Value}</color>");
         masked = ProvidedNameRegex.Replace(masked, m => $"<color={ColorBuiltin}>{m.Value}</color>");
         masked = NumberRegex.Replace(masked, m => $"<color={ColorNumber}>{m.Value}</color>");
 
         // Restore the protected string/comment placeholders.
-        var sb = new StringBuilder(masked);
-        string restored = Regex.Replace(masked, "\u0001(\\d+)\u0001", m =>
-            placeholders[int.Parse(m.Groups[1].Value)]);
+        string restored = RestoreRegex.Replace(masked, m =>
+            placeholders[FromLetters(m.Groups[1].Value)]);
 
         return restored;
     }
@@ -110,5 +120,28 @@ public static class PythonSyntaxHighlighter
         // appear literally in player-typed strings/comments so they
         // don't get misinterpreted as (possibly malformed) tags.
         return text.Replace("<", "<\u200B").Replace(">", "\u200B>");
+    }
+
+    // Base-26 letter encoding (A, B, ... Z, AA, AB, ...) — used instead
+    // of digits so placeholder markers are immune to NumberRegex.
+    private static string ToLetters(int index)
+    {
+        string result = "";
+        index += 1; // 1-based so index 0 -> "A", not ""
+        while (index > 0)
+        {
+            int rem = (index - 1) % 26;
+            result = (char)('A' + rem) + result;
+            index = (index - 1) / 26;
+        }
+        return result;
+    }
+
+    private static int FromLetters(string letters)
+    {
+        int result = 0;
+        foreach (char c in letters)
+            result = result * 26 + (c - 'A' + 1);
+        return result - 1; // back to 0-based
     }
 }
