@@ -316,6 +316,8 @@ public static class LevelBuilder
         GameObject editorRoot = new GameObject("CodeEditorField", typeof(RectTransform));
         editorRoot.transform.SetParent(panel.transform, false);
         RectTransform editorRect = editorRoot.GetComponent<RectTransform>();
+        editorRect.anchorMin = new Vector2(0.5f, 0.5f);
+        editorRect.anchorMax = new Vector2(0.5f, 0.5f);
         editorRect.anchoredPosition = new Vector2(0f, -20f);
         editorRect.sizeDelta = new Vector2(900f, 480f);
 
