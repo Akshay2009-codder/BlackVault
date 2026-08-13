@@ -92,6 +92,16 @@ public static class LevelBuilder
     // ------------------------------------------------------------------
     private static void BuildEnvironment(out GameObject door)
     {
+        // Without this, a freshly-created "Empty" scene has no skybox
+        // material and no light — the world renders pure black, which
+        // makes any near-black UI panel visually blend into the void
+        // and look like a broken fullscreen overlay. Always add one.
+        GameObject lightObj = new GameObject("Directional Light");
+        Light dirLight = lightObj.AddComponent<Light>();
+        dirLight.type = LightType.Directional;
+        dirLight.intensity = 1.2f;
+        lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
         floor.transform.position = new Vector3(0, -0.05f, 0);
@@ -110,6 +120,19 @@ public static class LevelBuilder
         wall.name = name;
         wall.transform.position = position;
         wall.transform.localScale = scale;
+    }
+
+    /// <summary>
+    /// Sets a solid, non-black background instead of relying on Skybox
+    /// rendering — a fresh "Empty" scene template has no skybox material
+    /// assigned, and Skybox clear mode with no material renders pure
+    /// black, which visually merges with any dark UI panel and looks
+    /// like a broken fullscreen overlay. Solid Color is more robust.
+    /// </summary>
+    private static void ApplyDefaultCameraBackground(Camera camera)
+    {
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = new Color(0.35f, 0.4f, 0.5f); // dark blue-gray, clearly not black
     }
 
     private static GameObject BuildDoor()
@@ -219,6 +242,7 @@ public static class LevelBuilder
         fpCamObj.transform.SetParent(fpRig.transform);
         fpCamObj.transform.localPosition = Vector3.zero;
         Camera fpCam = fpCamObj.AddComponent<Camera>();
+        ApplyDefaultCameraBackground(fpCam);
         fpCamObj.AddComponent<AudioListener>();
 
         GameObject tpRig = new GameObject("ThirdPersonCameraRig");
@@ -228,6 +252,7 @@ public static class LevelBuilder
         tpCamObj.transform.SetParent(tpRig.transform);
         tpCamObj.transform.localPosition = Vector3.zero;
         Camera tpCam = tpCamObj.AddComponent<Camera>();
+        ApplyDefaultCameraBackground(tpCam);
         tpCamObj.SetActive(false); // first-person is the default start mode
 
         PlayerController controller = player.AddComponent<PlayerController>();
