@@ -20,4 +20,4 @@ class PreprocessResponse(BaseModel):
     missing_after: int
     duplicates_removed: int
     dtypes: Dict[str, str]
-    preview: List[dict],
+    preview: List[dict]
