@@ -312,8 +312,11 @@ public static class LevelBuilder
 
         Text statsText = CreateUIText(panel.transform, "StatsText", "", new Vector2(0f, 320f));
 
-        // --- Code editor: TMP_InputField (invisible text) + TMP overlay (highlighted) ---
-        GameObject editorRoot = new GameObject("CodeEditorField", typeof(RectTransform));
+        // --- Code editor: plain legacy InputField, multi-line, no highlighting.
+        // Deliberately simple — same Text/Image components already proven to
+        // work elsewhere in this file, to eliminate any TMP-related rendering
+        // issues rather than keep debugging them under time pressure.
+        GameObject editorRoot = new GameObject("CodeEditorField");
         editorRoot.transform.SetParent(panel.transform, false);
         RectTransform editorRect = editorRoot.GetComponent<RectTransform>();
         editorRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -324,43 +327,24 @@ public static class LevelBuilder
         Image editorBg = editorRoot.AddComponent<Image>();
         editorBg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
 
-        // Highlighted overlay (behind, renders the colored text)
-        GameObject overlayObj = new GameObject("HighlightOverlay", typeof(RectTransform));
-        overlayObj.transform.SetParent(editorRoot.transform, false);
-        RectTransform overlayRect = overlayObj.GetComponent<RectTransform>();
-        overlayRect.anchorMin = Vector2.zero;
-        overlayRect.anchorMax = Vector2.one;
-        overlayRect.offsetMin = new Vector2(10f, 10f);
-        overlayRect.offsetMax = new Vector2(-10f, -10f);
-        TMPro.TextMeshProUGUI overlayText = overlayObj.AddComponent<TMPro.TextMeshProUGUI>();
-        overlayText.fontSize = 16;
-        overlayText.richText = true;
-        overlayText.raycastTarget = false;
-        overlayText.color = Color.white;
-        overlayText.alignment = TMPro.TextAlignmentOptions.TopLeft;
-
-        // Actual editable field (in front, text made invisible so only the overlay is seen)
-        GameObject fieldTextObj = new GameObject("Text", typeof(RectTransform));
+        GameObject fieldTextObj = new GameObject("Text");
         fieldTextObj.transform.SetParent(editorRoot.transform, false);
+        Text fieldText = fieldTextObj.AddComponent<Text>();
+        fieldText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        fieldText.fontSize = 16;
+        fieldText.color = Color.white;
+        fieldText.alignment = TextAnchor.UpperLeft;
+        fieldText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        fieldText.verticalOverflow = VerticalWrapMode.Overflow;
         RectTransform fieldTextRect = fieldTextObj.GetComponent<RectTransform>();
         fieldTextRect.anchorMin = Vector2.zero;
         fieldTextRect.anchorMax = Vector2.one;
         fieldTextRect.offsetMin = new Vector2(10f, 10f);
         fieldTextRect.offsetMax = new Vector2(-10f, -10f);
-        TMPro.TextMeshProUGUI fieldText = fieldTextObj.AddComponent<TMPro.TextMeshProUGUI>();
-        fieldText.fontSize = 16;
-        fieldText.color = new Color(1f, 1f, 1f, 0f); // invisible — the overlay shows the highlighted version
-        fieldText.alignment = TMPro.TextAlignmentOptions.TopLeft;
 
-        TMPro.TMP_InputField inputField = editorRoot.AddComponent<TMPro.TMP_InputField>();
-        inputField.textComponent = fieldText;
-        inputField.textViewport = editorRect;
-        inputField.lineType = TMPro.TMP_InputField.LineType.MultiLineNewline;
-        inputField.fontAsset = fieldText.font;
-
-        CodeEditorField codeEditor = editorRoot.AddComponent<CodeEditorField>();
-        codeEditor.inputField = inputField;
-        codeEditor.highlightOverlay = overlayText;
+        InputField codeEditor = editorRoot.AddComponent<InputField>();
+        codeEditor.textComponent = fieldText;
+        codeEditor.lineType = InputField.LineType.MultiLineNewline;
 
         // --- Buttons + result text, bottom of panel ---
         Button runButton = CreateUIButton(panel.transform, "RunButton", "Run", new Vector2(-80f, -290f));
