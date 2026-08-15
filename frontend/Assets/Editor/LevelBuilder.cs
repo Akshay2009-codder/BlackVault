@@ -289,68 +289,67 @@ public static class LevelBuilder
     // ------------------------------------------------------------------
     private static GameObject BuildMLPuzzleCanvas(GameObject player)
     {
+        // DefaultControls is the SAME internal factory Unity's own
+        // "GameObject > UI > ..." menu items call. Using it directly
+        // guarantees correctly-configured RectTransforms (anchors,
+        // pivots, sizes) because it's Unity's own tested code path —
+        // not hand-rolled math that can silently produce a 0-size or
+        // oversized element. Left with default (null-sprite) Resources,
+        // so elements are functional but visually plain — fine for now.
+        var uiResources = new DefaultControls.Resources();
+
         GameObject canvasObj = new GameObject("Canvas_MLPuzzle");
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvasObj.AddComponent<CanvasScaler>();
         canvasObj.AddComponent<GraphicRaycaster>();
 
-        GameObject panel = new GameObject("PuzzlePanel");
+        GameObject panel = DefaultControls.CreatePanel(uiResources);
+        panel.name = "PuzzlePanel";
         panel.transform.SetParent(canvasObj.transform, false);
-        Image panelBg = panel.AddComponent<Image>();
-        panelBg.color = new Color(0.05f, 0.05f, 0.07f, 0.95f);
+        panel.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.07f, 0.95f);
         RectTransform panelRect = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0.08f, 0.06f);
-        panelRect.anchorMax = new Vector2(0.92f, 0.94f);
-        panelRect.offsetMin = Vector2.zero;
-        panelRect.offsetMax = Vector2.zero;
+        // CreatePanel defaults to full-stretch (fills the whole Canvas) —
+        // pull the edges in so it reads as a bordered panel, not fullscreen.
+        panelRect.offsetMin = new Vector2(150f, 100f);
+        panelRect.offsetMax = new Vector2(-150f, -100f);
 
-        // --- Mission info, top of panel ("data name and task") ---
-        Text missionInfoText = CreateUIText(panel.transform, "MissionInfoText", "Loading mission...", new Vector2(0f, 380f));
-        missionInfoText.fontSize = 20;
-        missionInfoText.rectTransform.sizeDelta = new Vector2(900f, 90f);
+        Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText", "Loading mission...", 0f, 100f, 20);
+        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", -100f, 30f, 14);
 
-        Text statsText = CreateUIText(panel.transform, "StatsText", "", new Vector2(0f, 320f));
-
-        // --- Code editor: plain legacy InputField, multi-line, no highlighting.
-        // Deliberately simple — same Text/Image components already proven to
-        // work elsewhere in this file, to eliminate any TMP-related rendering
-        // issues rather than keep debugging them under time pressure.
-        GameObject editorRoot = new GameObject("CodeEditorField");
-        editorRoot.transform.SetParent(panel.transform, false);
-        RectTransform editorRect = editorRoot.GetComponent<RectTransform>();
-        editorRect.anchorMin = new Vector2(0.5f, 0.5f);
-        editorRect.anchorMax = new Vector2(0.5f, 0.5f);
-        editorRect.anchoredPosition = new Vector2(0f, -20f);
-        editorRect.sizeDelta = new Vector2(900f, 480f);
-
-        Image editorBg = editorRoot.AddComponent<Image>();
-        editorBg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
-
-        GameObject fieldTextObj = new GameObject("Text");
-        fieldTextObj.transform.SetParent(editorRoot.transform, false);
-        Text fieldText = fieldTextObj.AddComponent<Text>();
-        fieldText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        fieldText.fontSize = 16;
-        fieldText.color = Color.white;
-        fieldText.alignment = TextAnchor.UpperLeft;
-        fieldText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        fieldText.verticalOverflow = VerticalWrapMode.Overflow;
-        RectTransform fieldTextRect = fieldTextObj.GetComponent<RectTransform>();
-        fieldTextRect.anchorMin = Vector2.zero;
-        fieldTextRect.anchorMax = Vector2.one;
-        fieldTextRect.offsetMin = new Vector2(10f, 10f);
-        fieldTextRect.offsetMax = new Vector2(-10f, -10f);
-
-        InputField codeEditor = editorRoot.AddComponent<InputField>();
-        codeEditor.textComponent = fieldText;
+        GameObject codeEditorObj = DefaultControls.CreateInputField(uiResources);
+        codeEditorObj.name = "CodeEditorField";
+        codeEditorObj.transform.SetParent(panel.transform, false);
+        InputField codeEditor = codeEditorObj.GetComponent<InputField>();
         codeEditor.lineType = InputField.LineType.MultiLineNewline;
+        codeEditorObj.GetComponent<Image>().color = new Color(0.08f, 0.08f, 0.1f, 1f);
+        RectTransform codeEditorRect = codeEditorObj.GetComponent<RectTransform>();
+        codeEditorRect.anchorMin = new Vector2(0f, 0f);
+        codeEditorRect.anchorMax = new Vector2(1f, 1f);
+        codeEditorRect.offsetMin = new Vector2(20f, 70f);   // leaves room for buttons/result below
+        codeEditorRect.offsetMax = new Vector2(-20f, -140f); // leaves room for mission/stats above
 
-        // --- Buttons + result text, bottom of panel ---
-        Button runButton = CreateUIButton(panel.transform, "RunButton", "Run", new Vector2(-80f, -290f));
-        Button closeButton = CreateUIButton(panel.transform, "CloseButton", "Close", new Vector2(80f, -290f));
-        Text resultText = CreateUIText(panel.transform, "ResultText", "", new Vector2(0f, -340f));
-        resultText.rectTransform.sizeDelta = new Vector2(900f, 60f);
+        GameObject runObj = DefaultControls.CreateButton(uiResources);
+        runObj.name = "RunButton";
+        runObj.transform.SetParent(panel.transform, false);
+        Button runButton = runObj.GetComponent<Button>();
+        runObj.GetComponentInChildren<Text>().text = "Run";
+        RectTransform runRect = runObj.GetComponent<RectTransform>();
+        runRect.anchorMin = runRect.anchorMax = new Vector2(0.5f, 0f);
+        runRect.pivot = new Vector2(0.5f, 0f);
+        runRect.anchoredPosition = new Vector2(-90f, 15f);
+
+        GameObject closeObj = DefaultControls.CreateButton(uiResources);
+        closeObj.name = "CloseButton";
+        closeObj.transform.SetParent(panel.transform, false);
+        Button closeButton = closeObj.GetComponent<Button>();
+        closeObj.GetComponentInChildren<Text>().text = "Close";
+        RectTransform closeRect = closeObj.GetComponent<RectTransform>();
+        closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 0f);
+        closeRect.pivot = new Vector2(0.5f, 0f);
+        closeRect.anchoredPosition = new Vector2(90f, 15f);
+
+        Text resultText = CreateTopText(uiResources, panel.transform, "ResultText", "", -55f, 30f, 14);
 
         MLPuzzleUI puzzleUI = canvasObj.AddComponent<MLPuzzleUI>();
         puzzleUI.panelRoot = panel;
@@ -365,6 +364,35 @@ public static class LevelBuilder
         panel.SetActive(false);
 
         return canvasObj;
+    }
+
+    /// <summary>
+    /// Creates a Text element anchored to the top of its parent, offset
+    /// downward by yOffsetFromTop, with a fixed height. Used for the
+    /// mission info / stats / result labels that stack vertically.
+    /// </summary>
+    private static Text CreateTopText(DefaultControls.Resources uiResources, Transform parent,
+                                       string name, string content, float yOffsetFromTop, float height, int fontSize)
+    {
+        GameObject obj = DefaultControls.CreateText(uiResources);
+        obj.name = name;
+        obj.transform.SetParent(parent, false);
+        Text text = obj.GetComponent<Text>();
+        text.text = content;
+        text.fontSize = fontSize;
+        text.color = Color.white;
+        text.alignment = TextAnchor.UpperLeft;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, -20f + yOffsetFromTop);
+        rect.sizeDelta = new Vector2(-40f, height); // -40 = 20px margin each side
+
+        return text;
     }
 
     private static void WireTerminal(GameObject terminal, GameObject canvas, GameObject door)
