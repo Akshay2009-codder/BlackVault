@@ -12,10 +12,9 @@
 // player edits and clicks Run -> POST /train/code -> show result.
 //
 // Setup in Unity:
-//   1. Build the panel with: a mission info Text, a stats Text, a
-//      CodeEditorField (see that script's own setup instructions for
-//      the TMP_InputField + overlay wiring), a Run button, a Close
-//      button, and a result Text.
+//   1. Build the panel with: a mission info Text, a stats Text, a plain
+//      multi-line InputField (no syntax highlighting — kept simple for
+//      reliability), a Run button, a Close button, and a result Text.
 //   2. Attach this script to the Canvas/panel root.
 //   3. Wire every field below to the matching UI element in the Inspector.
 
@@ -36,7 +35,7 @@ public class MLPuzzleUI : MonoBehaviour
     [Header("UI References")]
     public Text missionInfoText;      // title + description from the mission config
     public Text statsText;            // raw row/missing count, informational only
-    public CodeEditorField codeEditor; // the syntax-highlighted code editor (see CodeEditorField.cs)
+    public InputField codeEditor; // plain multi-line text box (no syntax highlighting — dropped for reliability/speed)
     public Text resultText;
     public Button runButton;
     public Button closeButton;
@@ -136,7 +135,7 @@ public class MLPuzzleUI : MonoBehaviour
         if (resultText != null) resultText.text = "";
         if (statsText != null) statsText.text = "";
         if (missionInfoText != null) missionInfoText.text = "Loading mission...";
-        if (codeEditor != null) codeEditor.Text = "";
+        if (codeEditor != null) codeEditor.text = "";
 
         StartCoroutine(FetchMissionThenPreview(level));
     }
@@ -172,7 +171,7 @@ public class MLPuzzleUI : MonoBehaviour
 
         if (codeEditor != null)
         {
-            codeEditor.Text = BuildStarterTemplate(_mission);
+            codeEditor.text = BuildStarterTemplate(_mission);
         }
 
         yield return FetchPreview();
@@ -244,7 +243,7 @@ public class MLPuzzleUI : MonoBehaviour
         {
             dataset = _mission.dataset,
             problem_type = _mission.problem_type,
-            code = codeEditor != null ? codeEditor.Text : "",
+            code = codeEditor != null ? codeEditor.text : "",
             target_col = _mission.target_col,
             feature_cols = _mission.feature_cols,
             target_metric = string.IsNullOrEmpty(_mission.target_metric) ? "accuracy" : _mission.target_metric,
