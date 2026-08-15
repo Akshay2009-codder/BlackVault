@@ -165,24 +165,5 @@ pytest
 
 ---
 
-## Development Phases
-
-- [x] **Phase 0** — Backend + Unity HTTP connectivity proof-of-concept (`ApiTester.cs`)
-- [x] **Phase 1 (code)** — Player/Terminal/Door/MLPuzzleUI scripts written, field names
-      verified against the real backend, auto-scene-builder (`LevelBuilder.cs`) written
-- [ ] **Phase 1 (in-editor)** — Not yet built/tested inside the Unity Editor — the real
-      next milestone. Run `BlackVault > Build Level 1 Scene`, save it, press Play,
-      and verify: movement works, `V` toggles camera mode, the terminal prompt
-      appears, the puzzle panel opens and shows mission data, and a passing
-      `/train` result unlocks the door.
-- [x] **Phase 2** — Boss Room backend: `GET /mission/generate/boss` generates a fresh
-      unknown dataset per attempt, stores the true problem type server-side only
-      (`BOSS_MISSIONS`), and `/train` scores it without ever leaking the answer to
-      Unity. `BossPuzzleUI.cs` calls this endpoint on open. Not yet playtested.
-- [ ] **Phase 3** — All 5 levels playtested end-to-end in-engine
-- [ ] **Phase 4** — Dynamic mission system + random mid-mission events
-- [ ] **Phase 5** — Rewards/XP/save system, leaderboard, polish
-
----
 
 *Built as a final-year college project. Designed for expansion into a commercial educational platform.*
