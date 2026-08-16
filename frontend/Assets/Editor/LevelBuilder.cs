@@ -326,49 +326,100 @@ public static class LevelBuilder
         GameObject panel = DefaultControls.CreatePanel(uiResources);
         panel.name = "PuzzlePanel";
         panel.transform.SetParent(canvasObj.transform, false);
-        panel.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.07f, 0.95f);
+        panel.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.14f, 0.98f); // dark IDE chrome
         RectTransform panelRect = panel.GetComponent<RectTransform>();
-        // CreatePanel defaults to full-stretch (fills the whole Canvas) —
-        // pull the edges in so it reads as a bordered panel, not fullscreen.
-        panelRect.offsetMin = new Vector2(150f, 100f);
-        panelRect.offsetMax = new Vector2(-150f, -100f);
+        panelRect.offsetMin = new Vector2(40f, 30f);
+        panelRect.offsetMax = new Vector2(-40f, -30f);
 
-        Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText", "Loading mission...", 0f, 100f, 20);
-        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", -100f, 30f, 14);
+        // --- Layout, all measured from top or bottom explicitly (no more
+        // ambiguous "yOffsetFromTop with a negative number" bug) ---
+        Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText",
+            "Loading mission...", 20f, 100f, 24);
+        missionInfoText.fontStyle = FontStyle.Bold;
+        missionInfoText.color = new Color(0.4f, 0.9f, 0.5f); // terminal-green accent
+        missionInfoText.supportRichText = true;
+
+        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", 130f, 26f, 14);
+        statsText.color = new Color(0.65f, 0.65f, 0.7f);
 
         GameObject codeEditorObj = DefaultControls.CreateInputField(uiResources);
         codeEditorObj.name = "CodeEditorField";
         codeEditorObj.transform.SetParent(panel.transform, false);
         InputField codeEditor = codeEditorObj.GetComponent<InputField>();
         codeEditor.lineType = InputField.LineType.MultiLineNewline;
-        codeEditorObj.GetComponent<Image>().color = new Color(0.08f, 0.08f, 0.1f, 1f);
+        codeEditorObj.GetComponent<Image>().color = new Color(0.15f, 0.16f, 0.18f, 1f);
         RectTransform codeEditorRect = codeEditorObj.GetComponent<RectTransform>();
         codeEditorRect.anchorMin = new Vector2(0f, 0f);
         codeEditorRect.anchorMax = new Vector2(1f, 1f);
-        codeEditorRect.offsetMin = new Vector2(20f, 70f);   // leaves room for buttons/result below
-        codeEditorRect.offsetMax = new Vector2(-20f, -140f); // leaves room for mission/stats above
+        codeEditorRect.offsetMin = new Vector2(20f, 95f);   // room for result + buttons below
+        codeEditorRect.offsetMax = new Vector2(-20f, -170f); // room for title + stats above
+
+        // The InputField's own text becomes invisible — the colored
+        // overlay (below) is what's actually seen. This is the same
+        // "invisible input + colored overlay on top" trick as before,
+        // but built with DefaultControls throughout this time instead
+        // of hand-placed RectTransforms, so it inherits the same
+        // reliable anchoring that fixed the panel and the buttons.
+        Text inputVisibleText = codeEditor.textComponent as Text;
+        if (inputVisibleText != null)
+        {
+            inputVisibleText.color = new Color(1f, 1f, 1f, 0f);
+            inputVisibleText.fontSize = 15;
+        }
+
+        GameObject overlayObj = DefaultControls.CreateText(uiResources);
+        overlayObj.name = "HighlightOverlay";
+        overlayObj.transform.SetParent(codeEditorObj.transform, false);
+        Text overlayText = overlayObj.GetComponent<Text>();
+        overlayText.supportRichText = true;
+        overlayText.fontSize = 15;
+        overlayText.alignment = TextAnchor.UpperLeft;
+        overlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        overlayText.verticalOverflow = VerticalWrapMode.Overflow;
+        overlayText.raycastTarget = false; // must not block clicks/typing into the field below it
+        RectTransform overlayRect = overlayObj.GetComponent<RectTransform>();
+        overlayRect.anchorMin = Vector2.zero;
+        overlayRect.anchorMax = Vector2.one;
+        overlayRect.offsetMin = new Vector2(10f, 6f);
+        overlayRect.offsetMax = new Vector2(-10f, -7f);
+
+        PythonHighlighter highlighter = codeEditorObj.AddComponent<PythonHighlighter>();
+        highlighter.inputField = codeEditor;
+        highlighter.overlayText = overlayText;
 
         GameObject runObj = DefaultControls.CreateButton(uiResources);
         runObj.name = "RunButton";
         runObj.transform.SetParent(panel.transform, false);
         Button runButton = runObj.GetComponent<Button>();
-        runObj.GetComponentInChildren<Text>().text = "Run";
+        Text runLabel = runObj.GetComponentInChildren<Text>();
+        runLabel.text = "▶  Run";
+        runLabel.fontStyle = FontStyle.Bold;
+        runLabel.color = Color.white;
+        runObj.GetComponent<Image>().color = new Color(0.2f, 0.65f, 0.35f);
         RectTransform runRect = runObj.GetComponent<RectTransform>();
         runRect.anchorMin = runRect.anchorMax = new Vector2(0.5f, 0f);
         runRect.pivot = new Vector2(0.5f, 0f);
-        runRect.anchoredPosition = new Vector2(-90f, 15f);
+        runRect.anchoredPosition = new Vector2(-100f, 20f);
+        runRect.sizeDelta = new Vector2(150f, 45f);
 
         GameObject closeObj = DefaultControls.CreateButton(uiResources);
         closeObj.name = "CloseButton";
         closeObj.transform.SetParent(panel.transform, false);
         Button closeButton = closeObj.GetComponent<Button>();
-        closeObj.GetComponentInChildren<Text>().text = "Close";
+        Text closeLabel = closeObj.GetComponentInChildren<Text>();
+        closeLabel.text = "Close";
+        closeLabel.color = Color.white;
+        closeObj.GetComponent<Image>().color = new Color(0.3f, 0.3f, 0.34f);
         RectTransform closeRect = closeObj.GetComponent<RectTransform>();
         closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 0f);
         closeRect.pivot = new Vector2(0.5f, 0f);
-        closeRect.anchoredPosition = new Vector2(90f, 15f);
+        closeRect.anchoredPosition = new Vector2(100f, 20f);
+        closeRect.sizeDelta = new Vector2(150f, 45f);
 
-        Text resultText = CreateTopText(uiResources, panel.transform, "ResultText", "", -55f, 30f, 14);
+        // Anchored to the BOTTOM this time (not top) — sits just above
+        // the buttons row. This is what was overlapping the title before.
+        Text resultText = CreateBottomText(uiResources, panel.transform, "ResultText", "", 75f, 28f, 15);
+        resultText.fontStyle = FontStyle.Bold;
 
         MLPuzzleUI puzzleUI = canvasObj.AddComponent<MLPuzzleUI>();
         puzzleUI.panelRoot = panel;
@@ -386,12 +437,11 @@ public static class LevelBuilder
     }
 
     /// <summary>
-    /// Creates a Text element anchored to the top of its parent, offset
-    /// downward by yOffsetFromTop, with a fixed height. Used for the
-    /// mission info / stats / result labels that stack vertically.
+    /// Creates a Text element anchored to the TOP of its parent.
+    /// distanceFromTop is a POSITIVE number of pixels down from the top edge.
     /// </summary>
     private static Text CreateTopText(DefaultControls.Resources uiResources, Transform parent,
-                                       string name, string content, float yOffsetFromTop, float height, int fontSize)
+                                       string name, string content, float distanceFromTop, float height, int fontSize)
     {
         GameObject obj = DefaultControls.CreateText(uiResources);
         obj.name = name;
@@ -408,8 +458,36 @@ public static class LevelBuilder
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -20f + yOffsetFromTop);
-        rect.sizeDelta = new Vector2(-40f, height); // -40 = 20px margin each side
+        rect.anchoredPosition = new Vector2(0f, -distanceFromTop);
+        rect.sizeDelta = new Vector2(-40f, height);
+
+        return text;
+    }
+
+    /// <summary>
+    /// Same idea, anchored to the BOTTOM instead. distanceFromBottom is a
+    /// POSITIVE number of pixels up from the bottom edge.
+    /// </summary>
+    private static Text CreateBottomText(DefaultControls.Resources uiResources, Transform parent,
+                                          string name, string content, float distanceFromBottom, float height, int fontSize)
+    {
+        GameObject obj = DefaultControls.CreateText(uiResources);
+        obj.name = name;
+        obj.transform.SetParent(parent, false);
+        Text text = obj.GetComponent<Text>();
+        text.text = content;
+        text.fontSize = fontSize;
+        text.color = Color.white;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = new Vector2(0f, distanceFromBottom);
+        rect.sizeDelta = new Vector2(-40f, height);
 
         return text;
     }
