@@ -75,6 +75,8 @@ public static class LevelBuilder
             return;
         }
 
+        EnsureEventSystem();
+
         BuildEnvironment(out GameObject door);
         GameObject terminal = BuildTerminal(door, config.level);
         GameObject player = BuildPlayer();
@@ -85,6 +87,23 @@ public static class LevelBuilder
         Debug.Log($"[BlackVault] Level {levelNumber} scene built. " +
                   $"Save it as {config.sceneName}.unity, then check the " +
                   "Test Checklist in Level1_Scene_Setup_Guide.md.");
+    }
+
+    /// <summary>
+    /// Unity's UI (buttons, input fields, everything) cannot receive any
+    /// clicks or input without an EventSystem in the scene. Building UI
+    /// through Unity's own "GameObject > UI > ..." menu items adds one
+    /// automatically — building it via script (like this file does) does
+    /// NOT, so without this check every panel would look right but be
+    /// completely unclickable, which is exactly the bug this fixes.
+    /// </summary>
+    private static void EnsureEventSystem()
+    {
+        if (UnityEngine.EventSystems.EventSystem.current != null) return;
+
+        GameObject esObj = new GameObject("EventSystem");
+        esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
     }
 
     // ------------------------------------------------------------------
