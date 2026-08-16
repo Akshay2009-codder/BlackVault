@@ -334,9 +334,9 @@ public static class LevelBuilder
         // --- Layout, all measured from top or bottom explicitly (no more
         // ambiguous "yOffsetFromTop with a negative number" bug) ---
         Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText",
-            "Loading mission...", 20f, 100f, 24);
+            "Loading mission...", 20f, 100f, 20);
         missionInfoText.fontStyle = FontStyle.Bold;
-        missionInfoText.color = new Color(0.4f, 0.9f, 0.5f); // terminal-green accent
+        missionInfoText.color = new Color(0.95f, 0.35f, 0.35f); // alert-red — matches "security breach" theme
         missionInfoText.supportRichText = true;
 
         Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", 130f, 26f, 14);
