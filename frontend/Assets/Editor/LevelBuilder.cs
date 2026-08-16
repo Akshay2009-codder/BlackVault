@@ -326,49 +326,70 @@ public static class LevelBuilder
         GameObject panel = DefaultControls.CreatePanel(uiResources);
         panel.name = "PuzzlePanel";
         panel.transform.SetParent(canvasObj.transform, false);
-        panel.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.07f, 0.95f);
+        panel.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.14f, 0.98f); // dark IDE chrome
         RectTransform panelRect = panel.GetComponent<RectTransform>();
-        // CreatePanel defaults to full-stretch (fills the whole Canvas) —
-        // pull the edges in so it reads as a bordered panel, not fullscreen.
-        panelRect.offsetMin = new Vector2(150f, 100f);
-        panelRect.offsetMax = new Vector2(-150f, -100f);
+        // Near-fullscreen — small margin so the 3D world peeks around the edge
+        // (confirms the game is still "there"), without feeling like a small dialog.
+        panelRect.offsetMin = new Vector2(40f, 30f);
+        panelRect.offsetMax = new Vector2(-40f, -30f);
 
-        Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText", "Loading mission...", 0f, 100f, 20);
-        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", -100f, 30f, 14);
+        // Title: bold, larger, accent-green (readable as "the important line",
+        // and matches the hacker-terminal aesthetic from the game's story).
+        Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText",
+            "Loading mission...", 0f, 110f, 26);
+        missionInfoText.fontStyle = FontStyle.Bold;
+        missionInfoText.color = new Color(0.4f, 0.9f, 0.5f); // terminal-green accent
+        missionInfoText.supportRichText = true;
+
+        // Stats: smaller, muted gray — reads as secondary/meta info.
+        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", -110f, 26f, 14);
+        statsText.color = new Color(0.65f, 0.65f, 0.7f);
 
         GameObject codeEditorObj = DefaultControls.CreateInputField(uiResources);
         codeEditorObj.name = "CodeEditorField";
         codeEditorObj.transform.SetParent(panel.transform, false);
         InputField codeEditor = codeEditorObj.GetComponent<InputField>();
         codeEditor.lineType = InputField.LineType.MultiLineNewline;
-        codeEditorObj.GetComponent<Image>().color = new Color(0.08f, 0.08f, 0.1f, 1f);
+        codeEditorObj.GetComponent<Image>().color = new Color(0.15f, 0.16f, 0.18f, 1f); // classic dark-editor gray
+        codeEditorObj.GetComponentInChildren<Text>().color = new Color(0.85f, 0.85f, 0.88f); // soft off-white
+        codeEditorObj.GetComponentInChildren<Text>().fontSize = 15;
         RectTransform codeEditorRect = codeEditorObj.GetComponent<RectTransform>();
         codeEditorRect.anchorMin = new Vector2(0f, 0f);
         codeEditorRect.anchorMax = new Vector2(1f, 1f);
-        codeEditorRect.offsetMin = new Vector2(20f, 70f);   // leaves room for buttons/result below
-        codeEditorRect.offsetMax = new Vector2(-20f, -140f); // leaves room for mission/stats above
+        codeEditorRect.offsetMin = new Vector2(20f, 80f);   // leaves room for buttons/result below
+        codeEditorRect.offsetMax = new Vector2(-20f, -150f); // leaves room for mission/stats above
 
         GameObject runObj = DefaultControls.CreateButton(uiResources);
         runObj.name = "RunButton";
         runObj.transform.SetParent(panel.transform, false);
         Button runButton = runObj.GetComponent<Button>();
-        runObj.GetComponentInChildren<Text>().text = "Run";
+        Text runLabel = runObj.GetComponentInChildren<Text>();
+        runLabel.text = "▶  Run";
+        runLabel.fontStyle = FontStyle.Bold;
+        runLabel.color = Color.white;
+        runObj.GetComponent<Image>().color = new Color(0.2f, 0.65f, 0.35f); // green — clearly the "go" action
         RectTransform runRect = runObj.GetComponent<RectTransform>();
         runRect.anchorMin = runRect.anchorMax = new Vector2(0.5f, 0f);
         runRect.pivot = new Vector2(0.5f, 0f);
-        runRect.anchoredPosition = new Vector2(-90f, 15f);
+        runRect.anchoredPosition = new Vector2(-100f, 20f);
+        runRect.sizeDelta = new Vector2(150f, 45f);
 
         GameObject closeObj = DefaultControls.CreateButton(uiResources);
         closeObj.name = "CloseButton";
         closeObj.transform.SetParent(panel.transform, false);
         Button closeButton = closeObj.GetComponent<Button>();
-        closeObj.GetComponentInChildren<Text>().text = "Close";
+        Text closeLabel = closeObj.GetComponentInChildren<Text>();
+        closeLabel.text = "Close";
+        closeLabel.color = Color.white;
+        closeObj.GetComponent<Image>().color = new Color(0.3f, 0.3f, 0.34f); // neutral gray — secondary action
         RectTransform closeRect = closeObj.GetComponent<RectTransform>();
         closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 0f);
         closeRect.pivot = new Vector2(0.5f, 0f);
-        closeRect.anchoredPosition = new Vector2(90f, 15f);
+        closeRect.anchoredPosition = new Vector2(100f, 20f);
+        closeRect.sizeDelta = new Vector2(150f, 45f);
 
-        Text resultText = CreateTopText(uiResources, panel.transform, "ResultText", "", -55f, 30f, 14);
+        Text resultText = CreateTopText(uiResources, panel.transform, "ResultText", "", -65f, 30f, 15);
+        resultText.fontStyle = FontStyle.Bold;
 
         MLPuzzleUI puzzleUI = canvasObj.AddComponent<MLPuzzleUI>();
         puzzleUI.panelRoot = panel;
