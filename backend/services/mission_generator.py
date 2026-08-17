@@ -102,6 +102,15 @@ def generate_challenge_mission(
     player_xp: int = 0,
     seed: Optional[int] = None,
 ) -> Dict[str, Any]:
+    """Generates a procedural challenge mission tailored to player XP.
+
+    Args:
+        player_xp: Accumulated experience points used to set difficulty.
+        seed: Optional integer seed for deterministic mission parameters.
+
+    Returns:
+        Dictionary payload containing complete mission metadata and constraints.
+    """
     rng = random.Random(seed)
     difficulty = _xp_to_difficulty(player_xp)
     dataset_config = rng.choice(CHALLENGE_DATASETS)
@@ -135,6 +144,11 @@ def generate_challenge_mission(
 
 
 def generate_daily_challenge() -> Dict[str, Any]:
+    """Generates the global daily challenge mission based on UTC calendar date.
+
+    Returns:
+        Dictionary payload containing daily mission specification.
+    """
     today = date.today().isoformat()
     seed = int(hashlib.sha256(today.encode()).hexdigest()[:8], 16)
 
@@ -154,6 +168,7 @@ def generate_daily_challenge() -> Dict[str, Any]:
 
 
 def _xp_to_difficulty(xp: int) -> str:
+    """Maps player XP to difficulty level string (easy, medium, hard)."""
     if xp >= 2000:
         return "hard"
     elif xp >= 500:
