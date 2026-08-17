@@ -53,11 +53,12 @@ def xp_to_rank(xp: int) -> str:
     """Maps total accumulated experience points to player rank tier.
 
     Args:
-        xp: Total experience points earned.
+        xp: Total experience points earned (non-negative).
 
     Returns:
         Rank title string (e.g. Recruit, Operative, Elite Hacker).
     """
+    xp = max(0, xp)
     rank = RANK_THRESHOLDS[0][1]
     for threshold, name in RANK_THRESHOLDS:
         if xp >= threshold:
