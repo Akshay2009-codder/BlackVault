@@ -134,6 +134,16 @@ def get_random_event(
     problem_type: Optional[str] = None,
     seed: Optional[int] = None,
 ) -> RandomEventConfig:
+    """Selects an eligible random corruption event based on mission difficulty.
+
+    Args:
+        difficulty: Mission difficulty tier (easy, medium, hard, boss).
+        problem_type: Machine learning task type (classification, regression, etc).
+        seed: Optional integer seed for pseudo-random event sampling.
+
+    Returns:
+        Configured RandomEventConfig object.
+    """
     if seed is not None:
         random.seed(seed)
 
@@ -167,6 +177,14 @@ def get_random_event(
 
 
 def get_event_probability(difficulty: str) -> float:
+    """Returns the trigger probability of random events for a given difficulty tier.
+
+    Args:
+        difficulty: Mission difficulty string.
+
+    Returns:
+        Float probability between 0.0 and 1.0.
+    """
     probabilities = {
         "easy": 0.1,
         "medium": 0.25,
