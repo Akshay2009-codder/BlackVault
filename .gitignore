@@ -27,6 +27,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+.system_generated/
 
 # ── Generated datasets (re-created by generate_datasets.py) ──
 backend/data/
