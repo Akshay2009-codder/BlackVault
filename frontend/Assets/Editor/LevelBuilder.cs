@@ -373,6 +373,7 @@ public static class LevelBuilder
         Text overlayText = overlayObj.GetComponent<Text>();
         overlayText.supportRichText = true;
         overlayText.fontSize = 15;
+        overlayText.color = new Color(0.85f, 0.85f, 0.88f); // was defaulting to dark gray — invisible on a dark background
         overlayText.alignment = TextAnchor.UpperLeft;
         overlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
         overlayText.verticalOverflow = VerticalWrapMode.Overflow;

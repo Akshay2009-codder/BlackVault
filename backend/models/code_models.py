@@ -13,9 +13,16 @@ from typing import Optional, Literal
 
 class CodeExecuteRequest(BaseModel):
     """Payload model for executing raw Python code against dataset."""
-    mission_id: str = Field(..., description="Unique mission identifier")
-    level_id: str = Field(..., description="Problem category (classification, regression, clustering, anomaly_detection)")
-    code: str = Field(..., description="Python source code snippet submitted by player")
+    mission_id: Optional[str] = "LVL_1"
+    level_id: Optional[str] = "1"
+    dataset: Optional[str] = "credit_card"
+    problem_type: Optional[str] = "anomaly_detection"
+    code: str = Field("", description="Python source code snippet submitted by player")
+    target_col: Optional[str] = None
+    feature_cols: Optional[list[str]] = None
+    target_metric: Optional[str] = "accuracy"
+    target_metric_value: Optional[float] = 0.75
+    metric_direction: Optional[str] = "higher_is_better"
 
 
 class CodeExecutionSuccess(BaseModel):

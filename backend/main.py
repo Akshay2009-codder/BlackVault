@@ -413,5 +413,80 @@ def train_code(req: CodeExecuteRequest):
     services/code_executor.py for the safety model), then scores
     whatever result variables their code produced.
     """
-    df = load_dataset(req.dataset)
-    return run_player_code(df, req)
+    dataset_name = req.dataset or "credit_card"
+    df = load_dataset(dataset_name)
+    feature_cols = req.feature_cols or [c for c in df.columns if c != req.target_col]
+    problem = req.problem_type or req.level_id or "anomaly_detection"
+
+    res = run_player_code(
+        code=req.code,
+        df=df,
+        feature_cols=feature_cols,
+        target_col=req.target_col,
+        level_id=problem,
+    )
+
+    if not res.get("success"):
+        return {
+            "error": res.get("message", "Execution error"),
+            "stdout": res.get("stdout", ""),
+            "door_status": "LOCKED",
+            "passed": False,
+            "achieved": 0.0,
+            "target_value": req.target_metric_value or 0.75,
+            "target_metric": req.target_metric or "accuracy"
+        }
+
+    outputs = res.get("outputs", {})
+    achieved = 0.0
+    passed = False
+    target_metric = req.target_metric or "metric"
+    target_val = req.target_metric_value if (req.target_metric_value is not None and req.target_metric_value > 0) else 0.75
+
+    if problem == "anomaly_detection":
+        import numpy as np
+        anomaly_flags = outputs.get("anomaly_flags", [])
+        clean_df = df.dropna()
+        eval_df = clean_df if (len(anomaly_flags) != len(df) and len(anomaly_flags) == len(clean_df)) else df
+        if len(anomaly_flags) == len(eval_df):
+            flags_arr = np.array(anomaly_flags)
+            anomaly_rate = float((flags_arr == 1).mean()) if len(flags_arr) > 0 else 0.0
+            if "Class" in eval_df.columns:
+                from sklearn.metrics import recall_score
+                recall = float(recall_score(eval_df["Class"], flags_arr, zero_division=0))
+                achieved = recall if target_metric in ("recall", "f1") else anomaly_rate
+            else:
+                achieved = anomaly_rate
+        passed = achieved >= target_val or (0.02 <= anomaly_rate <= 0.15)
+    elif problem in ("classification", "regression"):
+        y_test = outputs.get("y_test", [])
+        y_pred = outputs.get("y_pred", [])
+        if len(y_test) > 0 and len(y_test) == len(y_pred):
+            if problem == "classification":
+                from sklearn.metrics import accuracy_score
+                achieved = float(accuracy_score(y_test, y_pred))
+            else:
+                from sklearn.metrics import r2_score
+                achieved = float(r2_score(y_test, y_pred))
+        passed = achieved >= target_val
+    elif problem == "clustering":
+        labels = outputs.get("labels", [])
+        if len(labels) == len(df):
+            from sklearn.metrics import silhouette_score
+            numeric_cols = df.select_dtypes(include=["number"]).columns
+            X = df[numeric_cols].dropna()
+            if len(X) == len(labels) and len(set(labels)) > 1:
+                achieved = float(silhouette_score(X, labels))
+        passed = achieved >= target_val
+
+    door_status = "UNLOCKED" if passed else "LOCKED"
+
+    return {
+        "target_metric": target_metric,
+        "target_value": target_val,
+        "achieved": achieved,
+        "passed": passed,
+        "door_status": door_status,
+        "error": None,
+        "stdout": res.get("stdout", "")
+    }
