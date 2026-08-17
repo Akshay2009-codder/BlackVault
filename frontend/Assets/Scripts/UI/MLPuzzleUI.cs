@@ -94,6 +94,8 @@ public class MLPuzzleUI : MonoBehaviour
     [Serializable]
     private class CodeExecuteRequestBody
     {
+        public string mission_id;
+        public int level_id;
         public string dataset;
         public string problem_type;
         public string code;
@@ -241,6 +243,8 @@ public class MLPuzzleUI : MonoBehaviour
 
         CodeExecuteRequestBody body = new CodeExecuteRequestBody
         {
+            mission_id = _mission.mission_id,
+            level_id = _mission.level,
             dataset = _mission.dataset,
             problem_type = _mission.problem_type,
             code = codeEditor != null ? codeEditor.text : "",
