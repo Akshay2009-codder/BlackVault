@@ -30,18 +30,16 @@ FIRST_ATTEMPT_BONUS = 1.5  # rewards solving it right the first time
 
 def calculate_xp(level: str, difficulty: str = "easy", passed: bool = True,
                   attempt_number: int = 1) -> int:
-    """
-    XP awarded for one mission attempt.
+    """Calculates XP earned for a completed or failed mission attempt.
 
-    - Failed attempts always award a flat FAILED_ATTEMPT_XP, regardless
-      of level/difficulty — trying and failing still teaches something.
-    - Passed attempts scale with difficulty, and get a bonus for solving
-      it on the first try (attempt_number == 1).
+    Args:
+        level: Level identifier string.
+        difficulty: Mission difficulty rating (easy, medium, hard).
+        passed: Whether the player achieved the target metric value.
+        attempt_number: 1-indexed count of player attempts.
 
-    `level` is accepted (and typically logged alongside XP in
-    MissionAttempt) but doesn't currently affect the formula — difficulty
-    already captures how hard a mission is. Kept as a parameter so
-    call sites don't need to change if per-level scaling is added later.
+    Returns:
+        Integer experience points (XP) awarded.
     """
     if not passed:
         return FAILED_ATTEMPT_XP
@@ -51,23 +49,15 @@ def calculate_xp(level: str, difficulty: str = "easy", passed: bool = True,
     return round(BASE_XP * multiplier * bonus)
 
 
-# ---------------------------------------------------------------------------
-# Rank ladder
-# ---------------------------------------------------------------------------
-
-# Ordered low -> high. xp_to_rank() returns the highest rank whose
-# threshold the player's XP meets or exceeds.
-RANK_THRESHOLDS = [
-    (0, "Recruit"),
-    (150, "Trainee"),
-    (500, "Operative"),
-    (1500, "Specialist"),
-    (3000, "Elite Hacker"),
-    (5000, "Legendary Hacker"),
-]
-
-
 def xp_to_rank(xp: int) -> str:
+    """Maps total accumulated experience points to player rank tier.
+
+    Args:
+        xp: Total experience points earned.
+
+    Returns:
+        Rank title string (e.g. Recruit, Operative, Elite Hacker).
+    """
     rank = RANK_THRESHOLDS[0][1]
     for threshold, name in RANK_THRESHOLDS:
         if xp >= threshold:
