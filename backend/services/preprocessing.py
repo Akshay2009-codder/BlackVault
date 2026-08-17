@@ -20,6 +20,17 @@ DATA_DIR = os.path.join(
 
 
 def load_dataset(name: str) -> pd.DataFrame:
+    """Loads a CSV dataset from the backend data directory.
+
+    Args:
+        name: Name of the dataset file (without .csv extension).
+
+    Returns:
+        pd.DataFrame containing the dataset content.
+
+    Raises:
+        HTTPException(404): If the requested CSV dataset does not exist.
+    """
     path = os.path.join(DATA_DIR, f"{name}.csv")
     if not os.path.exists(path):
         raise HTTPException(
@@ -35,6 +46,19 @@ def load_dataset(name: str) -> pd.DataFrame:
 def apply_preprocessing(df: pd.DataFrame, missing_strategy: str,
                          remove_duplicates: bool, outlier_strategy: str,
                          encoding: str, scaling: str) -> pd.DataFrame:
+    """Applies specified data cleaning, encoding, and scaling transformations.
+
+    Args:
+        df: Input DataFrame to preprocess.
+        missing_strategy: Handling method for missing values (drop_rows, fill_mean, fill_median, fill_mode).
+        remove_duplicates: Boolean flag indicating whether to drop duplicate rows.
+        outlier_strategy: Method for handling numerical outliers (clip_iqr, remove_iqr, or none).
+        encoding: Categorical encoding strategy (label, onehot, or none).
+        scaling: Feature scaling technique (standard, minmax, or none).
+
+    Returns:
+        Preprocessed DataFrame copy.
+    """
     df = df.copy()
 
     if remove_duplicates:
