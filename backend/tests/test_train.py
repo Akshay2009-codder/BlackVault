@@ -18,6 +18,7 @@ client = TestClient(app)
 
 
 def test_mission_generate_returns_a_mission():
+    """Tests generating a level 2 mission metadata payload."""
     response = client.get("/mission/generate?level=2")
     assert response.status_code == 200
     body = response.json()
@@ -26,11 +27,13 @@ def test_mission_generate_returns_a_mission():
 
 
 def test_mission_generate_unknown_level_returns_404():
+    """Tests that requesting an invalid level ID returns 404 Not Found."""
     response = client.get("/mission/generate?level=99")
     assert response.status_code == 404
 
 
 def test_train_regression_returns_door_status():
+    """Tests training a regression model and receiving unlock status."""
     response = client.post(
         "/train",
         json={
@@ -50,6 +53,7 @@ def test_train_regression_returns_door_status():
 
 
 def test_train_classification_returns_accuracy_metric():
+    """Tests training a classification model and verifying accuracy metric output."""
     response = client.post(
         "/train",
         json={
@@ -66,6 +70,7 @@ def test_train_classification_returns_accuracy_metric():
 
 
 def test_train_unknown_algorithm_returns_400():
+    """Tests that passing an unsupported algorithm returns 400 Bad Request."""
     response = client.post(
         "/train",
         json={
