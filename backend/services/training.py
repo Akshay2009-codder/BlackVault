@@ -27,7 +27,16 @@ from sklearn.metrics import (
 )
 
 
-def train_regression(df, req):
+def train_regression(df, req) -> dict:
+    """Trains a regression model and evaluates Root Mean Squared Error (RMSE).
+
+    Args:
+        df: Pandas DataFrame containing feature and target columns.
+        req: TrainRequest model containing hyperparameter specifications.
+
+    Returns:
+        Dict containing model evaluation metrics and UNLOCKED/LOCKED status.
+    """
     REGRESSORS = {
         "linear_regression": LinearRegression(),
         "decision_tree": DecisionTreeRegressor(random_state=42),
