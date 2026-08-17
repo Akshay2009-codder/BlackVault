@@ -86,7 +86,8 @@ def apply_named_event(df: pd.DataFrame, event_type: str, params: dict = None) ->
     """
     params = params or {}
     df = df.copy()
-    rng = np.random.default_rng()
+    seed = params.get("seed")
+    rng = np.random.default_rng(seed if seed is not None else None)
 
     if event_type == "inject_missing":
         rate = float(params.get("missing_rate", 0.05))
