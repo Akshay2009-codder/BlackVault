@@ -11,6 +11,7 @@ from services.rewards import calculate_xp, xp_to_rank
 
 
 def test_xp_calculation():
+    """Tests experience points (XP) calculation logic for pass and fail states."""
     xp_passed = calculate_xp(level="1", difficulty="easy", passed=True, attempt_number=1)
     assert xp_passed == 150  # 100 base * 1.0 * 1.5 first attempt bonus
 
@@ -19,6 +20,7 @@ def test_xp_calculation():
 
 
 def test_rank_thresholds():
+    """Tests mapping accumulated XP to corresponding player rank titles."""
     assert xp_to_rank(0) == "Recruit"
     assert xp_to_rank(150) == "Trainee"
     assert xp_to_rank(5000) == "Legendary Hacker"
