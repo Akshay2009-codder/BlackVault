@@ -1,8 +1,7 @@
-"""
-Database package for BlackVault backend — SQLite persistence via
-SQLAlchemy. NOT YET IMPORTED BY main.py — see the wiring notes in
-db/models.py for the two lines that connect this to /train and a new
-/progress endpoint when you're ready to add mission-history logging.
+"""Database package for BlackVault backend.
+
+Provides SQLAlchemy engine, session management, database setup helpers,
+and ORM data models (MissionAttempt, PlayerProgress, BossMission, Achievement).
 """
 
 from db.database import Base, engine, SessionLocal, get_db, init_db
