@@ -102,12 +102,11 @@ public class PythonHighlighter : MonoBehaviour
             return "";
         }
 
-        // Normalize newlines
+        // Fast newline normalization
         code = code.Replace("\r\n", "\n").Replace('\r', '\n');
         currentErrorHint = "";
         errorLines.Clear();
 
-        // Extract tokens (Comments, Strings, Numbers, Keywords, Builtins, Errors)
         List<string> tokens = new List<string>();
 
         // 1. Comments (# to end of line)
@@ -138,11 +137,14 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         }, RegexOptions.Singleline);
 
-        // Check for unclosed quotes on remaining text
+        // Fast line scan for missing colons and unclosed strings
         string[] lines = code.Split('\n');
         for (int l = 0; l < lines.Length; l++)
         {
             string line = lines[l];
+            string lineTrimmed = line.Trim();
+
+            // Unclosed string check
             int singleQuotes = 0;
             int doubleQuotes = 0;
             for (int c = 0; c < line.Length; c++)
@@ -155,33 +157,29 @@ public class PythonHighlighter : MonoBehaviour
                 errorLines.Add(l + 1);
                 if (string.IsNullOrEmpty(currentErrorHint))
                 {
-                    currentErrorHint = $"PyCharm Suggestion: EOL while scanning string literal on line {l + 1}";
+                    currentErrorHint = $"PyCharm Suggestion: Unclosed string literal on line {l + 1}";
                 }
             }
-        }
 
-        // 4. Missing Colon check on block header keywords
-        for (int l = 0; l < lines.Length; l++)
-        {
-            string lineTrimmed = lines[l].Trim();
-            if (string.IsNullOrEmpty(lineTrimmed) || lineTrimmed.StartsWith("#")) continue;
-
-            foreach (string blockKw in BlockKeywords)
+            // Missing colon check on block keywords (only if line doesn't end with :)
+            if (!string.IsNullOrEmpty(lineTrimmed) && !lineTrimmed.StartsWith("#"))
             {
-                if (Regex.IsMatch(lineTrimmed, $@"\b{blockKw}\b") && !lineTrimmed.EndsWith(":") && !lineTrimmed.EndsWith(@"\"))
+                foreach (string blockKw in BlockKeywords)
                 {
-                    // Check if colon missing at line end
-                    errorLines.Add(l + 1);
-                    if (string.IsNullOrEmpty(currentErrorHint))
+                    if (Regex.IsMatch(lineTrimmed, $@"\b{blockKw}\b") && !lineTrimmed.EndsWith(":") && !lineTrimmed.EndsWith(@"\"))
                     {
-                        currentErrorHint = $"PyCharm Suggestion: Expected ':' at end of line {l + 1} ('{blockKw}' statement)";
+                        errorLines.Add(l + 1);
+                        if (string.IsNullOrEmpty(currentErrorHint))
+                        {
+                            currentErrorHint = $"PyCharm Suggestion: Expected ':' at end of line {l + 1}";
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
 
-        // 5. Numbers
+        // 4. Numbers
         code = Regex.Replace(code, @"\b(\d+\.?\d*)\b", m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
@@ -189,17 +187,16 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         });
 
-        // 6. Keywords
+        // 5. Keywords
         string kwRegex = $@"\b({string.Join("|", Keywords)})\b";
         code = Regex.Replace(code, kwRegex, m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
-            // If block keyword is on a line marked with error, apply red underline!
             tokens.Add($"<color={ColorKeyword}>{m.Value}</color>");
             return token;
         });
 
-        // 7. Builtins / Functions
+        // 6. Builtins / Functions
         string builtinRegex = $@"\b({string.Join("|", Builtins)})\b";
         code = Regex.Replace(code, builtinRegex, m =>
         {
@@ -208,21 +205,7 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         });
 
-        // 8. Apply Red Squiggly Underlines to lines with syntax errors
-        if (errorLines.Count > 0)
-        {
-            lines = code.Split('\n');
-            for (int l = 0; l < lines.Length; l++)
-            {
-                if (errorLines.Contains(l + 1))
-                {
-                    lines[l] = $"<color={ColorError}><u>{lines[l]}</u></color>";
-                }
-            }
-            code = string.Join("\n", lines);
-        }
-
-        // Substitute placeholders back
+        // Substitute placeholders back (clean, fast token replacement)
         for (int i = 0; i < tokens.Count; i++)
         {
             string token = ((char)(0xE000 + i)).ToString();

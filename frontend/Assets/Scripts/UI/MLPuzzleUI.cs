@@ -319,7 +319,7 @@ public class MLPuzzleUI : MonoBehaviour
             codeEditor.caretBlinkRate = 0.85f;
             codeEditor.selectionColor = new Color(0.21f, 0.31f, 0.45f, 0.6f);
 
-            // The invisible input text (typing happens here)
+            // The input text component (typing happens here)
             Text inputText = codeEditor.textComponent as Text;
             if (inputText != null)
             {
@@ -327,6 +327,10 @@ public class MLPuzzleUI : MonoBehaviour
                 inputText.fontSize = 18;
                 inputText.lineSpacing = 1.2f;
                 inputText.color = new Color(1f, 1f, 1f, 0f); // invisible — overlay shows colored version
+                inputText.supportRichText = false; // MUST be false so InputField caret math stays 100% accurate
+                inputText.alignment = TextAnchor.UpperLeft;
+                inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                inputText.verticalOverflow = VerticalWrapMode.Truncate;
             }
 
             // Wire up the PythonHighlighter
@@ -343,6 +347,10 @@ public class MLPuzzleUI : MonoBehaviour
                 overlayText.fontSize = 18;
                 overlayText.lineSpacing = 1.2f;
                 overlayText.color = new Color(0.66f, 0.72f, 0.78f); // #A9B7C6
+                overlayText.supportRichText = true;
+                overlayText.alignment = TextAnchor.UpperLeft;
+                overlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                overlayText.verticalOverflow = VerticalWrapMode.Truncate;
                 overlayText.raycastTarget = false;
                 highlighter.overlayText = overlayText;
             }
@@ -392,21 +400,6 @@ public class MLPuzzleUI : MonoBehaviour
                 textRect.anchorMax = Vector2.one;
                 textRect.offsetMin = new Vector2(4f, 6f);
                 textRect.offsetMax = new Vector2(-8f, -6f);
-
-                // Push InputField text and overlay right of the gutter
-                float leftPad = 58f;
-                if (codeEditor.textComponent != null)
-                {
-                    RectTransform inputRect = codeEditor.textComponent.GetComponent<RectTransform>();
-                    inputRect.offsetMin = new Vector2(leftPad, 6f);
-                    inputRect.offsetMax = new Vector2(-10f, -6f);
-                }
-                if (overlayText != null)
-                {
-                    RectTransform overlayRect = overlayText.GetComponent<RectTransform>();
-                    overlayRect.offsetMin = new Vector2(leftPad, 6f);
-                    overlayRect.offsetMax = new Vector2(-10f, -6f);
-                }
             }
             else
             {
@@ -422,6 +415,21 @@ public class MLPuzzleUI : MonoBehaviour
                         lineNumsText.lineSpacing = 1.2f;
                     }
                 }
+            }
+
+            // Guarantee left padding layout alignment on every init pass
+            float leftPad = 58f;
+            if (codeEditor.textComponent != null)
+            {
+                RectTransform inputRect = codeEditor.textComponent.GetComponent<RectTransform>();
+                inputRect.offsetMin = new Vector2(leftPad, 6f);
+                inputRect.offsetMax = new Vector2(-10f, -6f);
+            }
+            if (overlayText != null)
+            {
+                RectTransform overlayRect = overlayText.GetComponent<RectTransform>();
+                overlayRect.offsetMin = new Vector2(leftPad, 6f);
+                overlayRect.offsetMax = new Vector2(-10f, -6f);
             }
 
             if (lineNumsText != null)
