@@ -39,6 +39,7 @@ from db.database import Base
 
 
 class MissionAttempt(Base):
+    """ORM table recording every mission execution attempt and metric result."""
     __tablename__ = "mission_attempts"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -55,6 +56,7 @@ class MissionAttempt(Base):
 
 
 class PlayerProgress(Base):
+    """ORM table tracking player experience points, rank progress, and pass counts."""
     __tablename__ = "player_progress"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -67,6 +69,7 @@ class PlayerProgress(Base):
 
 
 class BossMission(Base):
+    """ORM table storing server-side state and secret parameters for procedural boss levels."""
     __tablename__ = "boss_missions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -79,6 +82,7 @@ class BossMission(Base):
 
 
 class Achievement(Base):
+    """ORM table for recording player achievement unlocks."""
     __tablename__ = "achievements"
 
     id = Column(Integer, primary_key=True, index=True)
