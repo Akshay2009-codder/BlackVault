@@ -33,12 +33,14 @@ client = TestClient(app)
 
 
 def test_ping():
+    """Verifies that the /ping endpoint responds with HTTP 200 and online status."""
     response = client.get("/ping")
     assert response.status_code == 200
     assert response.json()["status"] == "online"
 
 
 def test_health():
+    """Verifies that the /health endpoint responds with HTTP 200 and ok status."""
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
