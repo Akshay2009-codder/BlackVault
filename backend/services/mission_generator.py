@@ -174,3 +174,18 @@ def _xp_to_difficulty(xp: int) -> str:
     elif xp >= 500:
         return "medium"
     return "easy"
+
+
+def get_mission_template_by_id(dataset_name: str) -> Optional[Dict[str, Any]]:
+    """Looks up challenge dataset configuration by name.
+
+    Args:
+        dataset_name: Name of target dataset.
+
+    Returns:
+        Dataset template dict or None if unavailable.
+    """
+    for template in CHALLENGE_DATASETS:
+        if template["name"] == dataset_name:
+            return template
+    return None
