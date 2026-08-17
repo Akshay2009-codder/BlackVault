@@ -7,6 +7,7 @@ from services.preprocessing import load_dataset, apply_preprocessing, DATA_DIR
 from services.training import train_model
 from services.corruption_engine import inject_boss_level_issues, apply_named_event
 from services.rewards import calculate_xp, xp_to_rank
+from services.code_executor import run_player_code
 
 __all__ = [
     "load_dataset",
@@ -17,4 +18,5 @@ __all__ = [
     "apply_named_event",
     "calculate_xp",
     "xp_to_rank",
+    "run_player_code",
 ]
