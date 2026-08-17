@@ -29,8 +29,8 @@ from fastapi import FastAPI, HTTPException
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import PreprocessRequest, TrainRequest, CorruptRequest
-from services import load_dataset, apply_preprocessing, train_model, apply_named_event, DATA_DIR
+from models import PreprocessRequest, TrainRequest, CorruptRequest, CodeExecuteRequest
+from services import load_dataset, apply_preprocessing, train_model, apply_named_event, run_player_code, DATA_DIR
 from generate_datasets import gen_boss_dataset
 
 # ---------------------------------------------------------------------------
@@ -403,3 +403,15 @@ def train(req: TrainRequest):
     # Raises HTTPException(400) for an unknown algorithm or problem_type,
     # same as the original inline version.
     return train_model(df, req)
+
+
+@app.post("/train/code")
+def train_code(req: CodeExecuteRequest):
+    """
+    Full-freedom code editor mode: executes the player's raw Python
+    against the dataset in a sandboxed subprocess (see
+    services/code_executor.py for the safety model), then scores
+    whatever result variables their code produced.
+    """
+    df = load_dataset(req.dataset)
+    return run_player_code(df, req)
