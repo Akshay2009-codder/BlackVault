@@ -192,3 +192,18 @@ def get_event_probability(difficulty: str) -> float:
         "boss": 0.6,
     }
     return probabilities.get(difficulty, 0.2)
+
+
+def get_event_by_id(event_id: str) -> Optional[dict]:
+    """Retrieves an event dictionary from the event pool by event ID.
+
+    Args:
+        event_id: Unique event identifier string (e.g. EVT_MISSING_VALUES).
+
+    Returns:
+        Event definition dictionary or None if not found.
+    """
+    for event in EVENT_POOL:
+        if event["event_id"] == event_id:
+            return event
+    return None
