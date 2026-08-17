@@ -29,9 +29,17 @@ def load_dataset(name: str) -> pd.DataFrame:
         pd.DataFrame containing the dataset content.
 
     Raises:
+        HTTPException(400): If dataset name contains directory traversal characters.
         HTTPException(404): If the requested CSV dataset does not exist.
     """
-    path = os.path.join(DATA_DIR, f"{name}.csv")
+    safe_name = os.path.basename(name)
+    if safe_name != name:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid dataset name. Directory traversal is prohibited."
+        )
+
+    path = os.path.join(DATA_DIR, f"{safe_name}.csv")
     if not os.path.exists(path):
         raise HTTPException(
             status_code=404,
