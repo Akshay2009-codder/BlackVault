@@ -271,10 +271,27 @@ public class MLPuzzleUI : MonoBehaviour
             rt.anchoredPosition = new Vector2(0f, 58f);
             rt.sizeDelta = new Vector2(-40f, 70f);
 
-            // Add background image to make it look like a distinct terminal output window
-            Image consoleBg = resultText.GetComponent<Image>();
-            if (consoleBg == null) consoleBg = resultText.gameObject.AddComponent<Image>();
-            consoleBg.color = new Color(0.08f, 0.08f, 0.09f, 0.95f);
+            // Add background image behind resultText to make it look like a distinct terminal output window
+            Transform bgTransform = resultText.transform.parent != null ? resultText.transform.parent.Find("ConsoleBackground") : null;
+            Image consoleBg = bgTransform != null ? bgTransform.GetComponent<Image>() : null;
+            if (consoleBg == null && resultText.transform.parent != null)
+            {
+                GameObject bgObj = new GameObject("ConsoleBackground", typeof(RectTransform), typeof(Image));
+                bgObj.transform.SetParent(resultText.transform.parent, false);
+                bgObj.transform.SetSiblingIndex(resultText.transform.GetSiblingIndex());
+                consoleBg = bgObj.GetComponent<Image>();
+            }
+
+            if (consoleBg != null)
+            {
+                RectTransform bgRt = consoleBg.rectTransform;
+                bgRt.anchorMin = rt.anchorMin;
+                bgRt.anchorMax = rt.anchorMax;
+                bgRt.pivot = rt.pivot;
+                bgRt.anchoredPosition = rt.anchoredPosition;
+                bgRt.sizeDelta = rt.sizeDelta;
+                consoleBg.color = new Color(0.08f, 0.08f, 0.09f, 0.95f);
+            }
         }
 
         // 6. Code Editor Field & Line Numbers Gutter — fill middle area
@@ -294,6 +311,13 @@ public class MLPuzzleUI : MonoBehaviour
             // Editor background
             Image editorBg = codeEditor.GetComponent<Image>();
             if (editorBg != null) editorBg.color = new Color(0.118f, 0.122f, 0.133f, 1f);
+
+            // Configure visible IDE caret cursor and selection
+            codeEditor.customCaretColor = true;
+            codeEditor.caretColor = new Color(0.95f, 0.95f, 0.95f, 1f); // Bright white PyCharm cursor
+            codeEditor.caretWidth = 2; // 2px IDE width
+            codeEditor.caretBlinkRate = 0.85f;
+            codeEditor.selectionColor = new Color(0.21f, 0.31f, 0.45f, 0.6f);
 
             // The invisible input text (typing happens here)
             Text inputText = codeEditor.textComponent as Text;
@@ -403,6 +427,61 @@ public class MLPuzzleUI : MonoBehaviour
             if (lineNumsText != null)
             {
                 highlighter.lineNumbersText = lineNumsText;
+            }
+        }
+    }
+
+    private float currentScrollY = 0f;
+
+    private void Update()
+    {
+        if (codeEditor != null && panelRoot != null && panelRoot.activeInHierarchy)
+        {
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(scroll) > 0.001f)
+            {
+                currentScrollY = Mathf.Max(0f, currentScrollY - scroll * 120f);
+                ApplyEditorScroll();
+            }
+
+            PythonHighlighter highlighter = codeEditor.GetComponent<PythonHighlighter>();
+            if (highlighter != null && !string.IsNullOrEmpty(highlighter.currentErrorHint))
+            {
+                if (resultText != null && (string.IsNullOrEmpty(resultText.text) || resultText.text.StartsWith("<color=#7A7E85>") || resultText.text.StartsWith("<color=#FF5252>")))
+                {
+                    resultText.text = $"<color=#FF5252>● {highlighter.currentErrorHint}</color>";
+                }
+            }
+        }
+    }
+
+    private void ApplyEditorScroll()
+    {
+        if (codeEditor == null || codeEditor.textComponent == null) return;
+
+        RectTransform inputRect = codeEditor.textComponent.GetComponent<RectTransform>();
+        if (inputRect != null)
+        {
+            inputRect.anchoredPosition = new Vector2(inputRect.anchoredPosition.x, currentScrollY);
+        }
+
+        Transform overlayTr = codeEditor.transform.Find("HighlightOverlay");
+        if (overlayTr != null)
+        {
+            RectTransform overlayRect = overlayTr.GetComponent<RectTransform>();
+            if (overlayRect != null)
+            {
+                overlayRect.anchoredPosition = new Vector2(overlayRect.anchoredPosition.x, currentScrollY);
+            }
+        }
+
+        Transform gutterTr = codeEditor.transform.Find("LineNumbersGutter/LineNumbersText");
+        if (gutterTr != null)
+        {
+            RectTransform gutterRect = gutterTr.GetComponent<RectTransform>();
+            if (gutterRect != null)
+            {
+                gutterRect.anchoredPosition = new Vector2(gutterRect.anchoredPosition.x, currentScrollY);
             }
         }
     }
