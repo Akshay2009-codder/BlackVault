@@ -30,9 +30,20 @@ import contextlib
 from typing import Optional
 
 
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    """Safe import hook allowing standard ML/data libraries while blocking unauthorized modules."""
+    allowed_modules = {
+        "pandas", "numpy", "sklearn", "math", "random", "scipy", "statsmodels",
+        "datetime", "typing", "collections", "itertools"
+    }
+    top_level = name.split(".")[0]
+    if top_level in allowed_modules:
+        return __import__(name, globals, locals, fromlist, level)
+    raise ImportError(f"Import of module '{name}' is restricted in sandbox.")
+
+
 # Builtins deliberately allowed in player code. Anything not listed here
-# is unavailable — including __import__, open, exec, eval, compile, input,
-# getattr/setattr are also excluded to reduce reflection-based escapes.
+# is unavailable — open, exec, eval, compile, input, os/sys are excluded.
 SAFE_BUILTINS = {
     "range": range, "len": len, "print": print, "min": min, "max": max,
     "sum": sum, "abs": abs, "round": round, "sorted": sorted,
@@ -42,6 +53,7 @@ SAFE_BUILTINS = {
     "True": True, "False": False, "None": None,
     "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
     "KeyError": KeyError, "IndexError": IndexError,
+    "__import__": _safe_import,
 }
 
 REQUIRED_OUTPUTS = {
@@ -164,47 +176,63 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
 
 def run_player_code(code: str, df, feature_cols: list[str], target_col: Optional[str],
                      level_id: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> dict:
-    """Executes player code safely inside an isolated process.
+    """Executes player code safely and returns output variables or error details."""
+    import concurrent.futures
 
-    Parameters:
-        code: Python source code submitted by the player.
-        df: Pandas DataFrame containing level dataset.
-        feature_cols: List of feature column names.
-        target_col: Name of the target column or None.
-        level_id: Type of problem (e.g. classification, regression).
-        timeout_seconds: Hard execution timeout in seconds.
+    def _execute():
+        stdout_capture = io.StringIO()
+        try:
+            namespace = _build_namespace(df, feature_cols, target_col)
+            namespace["__builtins__"] = SAFE_BUILTINS
 
-    Returns:
-        Dictionary containing execution status, output variables, or error details.
-    """
-    ctx = multiprocessing.get_context("spawn")  # 'spawn' is safer/more
-    # portable across platforms than 'fork' for this kind of isolation.
-    result_queue = ctx.Queue()
-    df_dict = df.to_dict()
+            try:
+                compiled = compile(code, "<player_code>", "exec")
+            except SyntaxError as e:
+                return {
+                    "success": False, "error_type": "syntax_error",
+                    "message": f"Line {e.lineno}: {e.msg}", "stdout": ""
+                }
 
-    process = ctx.Process(
-        target=_worker,
-        args=(code, df_dict, feature_cols, target_col, level_id, result_queue)
-    )
-    process.start()
-    process.join(timeout_seconds)
+            with contextlib.redirect_stdout(stdout_capture):
+                exec(compiled, namespace)
 
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        return {
-            "success": False, "error_type": "timeout",
-            "message": f"Code did not finish within {timeout_seconds} seconds.",
-            "stdout": ""
-        }
+            required = REQUIRED_OUTPUTS.get(level_id, [])
+            missing = [v for v in required if v not in namespace]
+            if missing:
+                return {
+                    "success": False, "error_type": "missing_output",
+                    "message": f"Your code must define: {', '.join(missing)}",
+                    "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+                }
 
-    if not result_queue.empty():
-        return result_queue.get()
+            outputs = {}
+            for v in required:
+                val = namespace[v]
+                try:
+                    outputs[v] = list(val)
+                except TypeError:
+                    outputs[v] = val
 
-    # Process died without putting anything on the queue (segfault-like
-    # failure, killed by OS, etc.) — still return a clean error.
-    return {
-        "success": False, "error_type": "runtime_error",
-        "message": "Code execution failed unexpectedly (no result returned).",
-        "stdout": ""
-    }
+            return {
+                "success": True,
+                "outputs": outputs,
+                "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+            }
+
+        except Exception as e:
+            return {
+                "success": False, "error_type": "runtime_error",
+                "message": f"{type(e).__name__}: {e}",
+                "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+            }
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_execute)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            return {
+                "success": False, "error_type": "timeout",
+                "message": f"Code did not finish within {timeout_seconds} seconds.",
+                "stdout": ""
+            }
