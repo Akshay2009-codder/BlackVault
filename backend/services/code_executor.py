@@ -162,16 +162,20 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
         })
 
 
-def run_player_code(code: str, df, feature_cols, target_col: Optional[str],
+def run_player_code(code: str, df, feature_cols: list[str], target_col: Optional[str],
                      level_id: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> dict:
-    """
-    Public entry point. Returns a dict matching either
-    CodeExecutionSuccess-ish shape ({"success": True, "outputs": {...}, "stdout": ...})
-    or CodeExecutionFailure-ish shape ({"success": False, "error_type": ..., "message": ..., "stdout": ...}).
+    """Executes player code safely inside an isolated process.
 
-    The caller (main.py's /train/code endpoint) is responsible for taking
-    `outputs` and computing the actual metric via ml/train.py-style logic,
-    then building the final CodeExecutionSuccess response.
+    Parameters:
+        code: Python source code submitted by the player.
+        df: Pandas DataFrame containing level dataset.
+        feature_cols: List of feature column names.
+        target_col: Name of the target column or None.
+        level_id: Type of problem (e.g. classification, regression).
+        timeout_seconds: Hard execution timeout in seconds.
+
+    Returns:
+        Dictionary containing execution status, output variables, or error details.
     """
     ctx = multiprocessing.get_context("spawn")  # 'spawn' is safer/more
     # portable across platforms than 'fork' for this kind of isolation.
