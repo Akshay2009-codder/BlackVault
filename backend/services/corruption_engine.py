@@ -71,15 +71,18 @@ def inject_standard_issues(df: pd.DataFrame, rng: np.random.Generator,
 
 
 def apply_named_event(df: pd.DataFrame, event_type: str, params: dict = None) -> pd.DataFrame:
-    """
-    Applies a single named corruption event to a COPY of df and returns
-    it — used by the POST /corrupt endpoint so a player-facing "random
-    event" (missing values appear, duplicates injected, outliers spike)
-    can be previewed/applied on demand mid-mission, matching the PRD's
-    "Random Events" system, rather than only at dataset-generation time.
+    """Applies a named corruption event to a dataset copy.
 
-    Raises ValueError for an unrecognized event_type — main.py catches
-    this and converts it to an HTTP 400.
+    Args:
+        df: Input Pandas DataFrame.
+        event_type: Type of corruption event (e.g. inject_missing, inject_duplicates, inject_outliers).
+        params: Event specific options dictionary.
+
+    Returns:
+        Corrupted DataFrame.
+
+    Raises:
+        ValueError: If event_type is unsupported.
     """
     params = params or {}
     df = df.copy()
