@@ -14,12 +14,16 @@ public class PythonHighlighter : MonoBehaviour
     [Tooltip("Turn off to show plain (uncolored) text in the overlay if highlighting ever misbehaves.")]
     public bool enableHighlighting = true;
 
+    public string currentErrorHint = "";
+    public List<int> errorLines = new List<int>();
+
     // PyCharm Darcula Palette
     private const string ColorKeyword  = "#CC7832"; // PyCharm Orange
     private const string ColorComment  = "#7A7E85"; // PyCharm Muted Gray
     private const string ColorString   = "#6A8759"; // PyCharm Green String
     private const string ColorNumber   = "#6897BB"; // PyCharm Cyan/Blue Number
     private const string ColorBuiltin  = "#FFC66D"; // PyCharm Gold Function/Builtin
+    private const string ColorError    = "#FF5252"; // PyCharm Red Error Squiggly
 
     private static readonly string[] Keywords =
     {
@@ -37,6 +41,11 @@ public class PythonHighlighter : MonoBehaviour
         "LogisticRegression", "RandomForestClassifier", "StandardScaler",
         "LabelEncoder", "KMeans", "target_col", "feature_cols", "y_test",
         "y_pred", "labels", "anomaly_flags", "int", "float", "str", "list", "dict"
+    };
+
+    private static readonly string[] BlockKeywords =
+    {
+        "def", "if", "elif", "else", "for", "while", "class", "try", "except", "finally", "with"
     };
 
     private void Start()
@@ -71,20 +80,34 @@ public class PythonHighlighter : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= lineCount; i++)
         {
-            sb.AppendLine(i.ToString());
+            bool hasError = errorLines.Contains(i);
+            if (hasError)
+            {
+                sb.AppendLine($"<color={ColorError}><b>{i}</b></color>");
+            }
+            else
+            {
+                sb.AppendLine(i.ToString());
+            }
         }
         lineNumbersText.text = sb.ToString();
     }
 
     private string Highlight(string code)
     {
-        if (string.IsNullOrEmpty(code)) return "";
+        if (string.IsNullOrEmpty(code))
+        {
+            currentErrorHint = "";
+            errorLines.Clear();
+            return "";
+        }
 
         // Normalize newlines
         code = code.Replace("\r\n", "\n").Replace('\r', '\n');
+        currentErrorHint = "";
+        errorLines.Clear();
 
-        // Extract tokens (Comments, Strings, Numbers, Keywords, Builtins)
-        // We use placeholders \uE000{index}\uE001 so regex passes don't corrupt hex color tags.
+        // Extract tokens (Comments, Strings, Numbers, Keywords, Builtins, Errors)
         List<string> tokens = new List<string>();
 
         // 1. Comments (# to end of line)
@@ -95,7 +118,19 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         }, RegexOptions.Multiline);
 
-        // 2. Strings (double or single quotes, multiline handling)
+        // 2. Syntax Check & Error Squiggly: Invalid C-style Operators (&&, ||, !)
+        code = Regex.Replace(code, @"(&&|\|\||!(?!=))", m =>
+        {
+            string token = ((char)(0xE000 + tokens.Count)).ToString();
+            tokens.Add($"<color={ColorError}><u>{m.Value}</u></color>");
+            if (string.IsNullOrEmpty(currentErrorHint))
+            {
+                currentErrorHint = $"SyntaxError: Use Python logical operators 'and', 'or', 'not' instead of '{m.Value}'";
+            }
+            return token;
+        });
+
+        // 3. Strings (double or single quotes)
         code = Regex.Replace(code, @"("".*?""|'.*?')", m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
@@ -103,7 +138,50 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         }, RegexOptions.Singleline);
 
-        // 3. Numbers
+        // Check for unclosed quotes on remaining text
+        string[] lines = code.Split('\n');
+        for (int l = 0; l < lines.Length; l++)
+        {
+            string line = lines[l];
+            int singleQuotes = 0;
+            int doubleQuotes = 0;
+            for (int c = 0; c < line.Length; c++)
+            {
+                if (line[c] == '\'' && (c == 0 || line[c - 1] != '\\')) singleQuotes++;
+                if (line[c] == '"' && (c == 0 || line[c - 1] != '\\')) doubleQuotes++;
+            }
+            if (singleQuotes % 2 != 0 || doubleQuotes % 2 != 0)
+            {
+                errorLines.Add(l + 1);
+                if (string.IsNullOrEmpty(currentErrorHint))
+                {
+                    currentErrorHint = $"PyCharm Suggestion: EOL while scanning string literal on line {l + 1}";
+                }
+            }
+        }
+
+        // 4. Missing Colon check on block header keywords
+        for (int l = 0; l < lines.Length; l++)
+        {
+            string lineTrimmed = lines[l].Trim();
+            if (string.IsNullOrEmpty(lineTrimmed) || lineTrimmed.StartsWith("#")) continue;
+
+            foreach (string blockKw in BlockKeywords)
+            {
+                if (Regex.IsMatch(lineTrimmed, $@"\b{blockKw}\b") && !lineTrimmed.EndsWith(":") && !lineTrimmed.EndsWith(@"\"))
+                {
+                    // Check if colon missing at line end
+                    errorLines.Add(l + 1);
+                    if (string.IsNullOrEmpty(currentErrorHint))
+                    {
+                        currentErrorHint = $"PyCharm Suggestion: Expected ':' at end of line {l + 1} ('{blockKw}' statement)";
+                    }
+                    break;
+                }
+            }
+        }
+
+        // 5. Numbers
         code = Regex.Replace(code, @"\b(\d+\.?\d*)\b", m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
@@ -111,16 +189,17 @@ public class PythonHighlighter : MonoBehaviour
             return token;
         });
 
-        // 4. Keywords
+        // 6. Keywords
         string kwRegex = $@"\b({string.Join("|", Keywords)})\b";
         code = Regex.Replace(code, kwRegex, m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
+            // If block keyword is on a line marked with error, apply red underline!
             tokens.Add($"<color={ColorKeyword}>{m.Value}</color>");
             return token;
         });
 
-        // 5. Builtins / Functions
+        // 7. Builtins / Functions
         string builtinRegex = $@"\b({string.Join("|", Builtins)})\b";
         code = Regex.Replace(code, builtinRegex, m =>
         {
@@ -128,6 +207,20 @@ public class PythonHighlighter : MonoBehaviour
             tokens.Add($"<color={ColorBuiltin}>{m.Value}</color>");
             return token;
         });
+
+        // 8. Apply Red Squiggly Underlines to lines with syntax errors
+        if (errorLines.Count > 0)
+        {
+            lines = code.Split('\n');
+            for (int l = 0; l < lines.Length; l++)
+            {
+                if (errorLines.Contains(l + 1))
+                {
+                    lines[l] = $"<color={ColorError}><u>{lines[l]}</u></color>";
+                }
+            }
+            code = string.Join("\n", lines);
+        }
 
         // Substitute placeholders back
         for (int i = 0; i < tokens.Count; i++)
@@ -138,4 +231,5 @@ public class PythonHighlighter : MonoBehaviour
 
         return code;
     }
+}
 }
