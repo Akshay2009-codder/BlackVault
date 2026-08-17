@@ -55,9 +55,12 @@ DEFAULT_TIMEOUT_SECONDS = 10
 MAX_STDOUT_CHARS = 2000
 
 
-def _build_namespace(df, feature_cols, target_col):
-    """Everything player code is allowed to see. Must stay in sync with
-    CODE_EDITOR_CONTRACT.md and PythonSyntaxHighlighter.ProvidedNames."""
+def _build_namespace(df, feature_cols: list, target_col: Optional[str]) -> dict:
+    """Builds and returns the sandboxed global execution namespace.
+    
+    Provides player code with pre-imported data structures, scikit-learn models,
+    and preprocessing tools while strictly controlling allowed dependencies.
+    """
     import pandas as pd
     import numpy as np
     from sklearn.model_selection import train_test_split
