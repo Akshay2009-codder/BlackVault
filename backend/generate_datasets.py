@@ -34,7 +34,12 @@ os.makedirs(OUT, exist_ok=True)
 # ---------------------------------------------------------------------------
 # 1. House Prices  (regression)
 # ---------------------------------------------------------------------------
-def gen_house_prices(n=500):
+def gen_house_prices(n: int = 500) -> None:
+    """Generates synthetic house prices CSV dataset with realistic nulls and outliers.
+
+    Args:
+        n: Number of base rows to generate before duplicates.
+    """
     area = rng.integers(500, 4000, n).astype(float)
     bedrooms = rng.integers(1, 6, n).astype(float)
     bathrooms = rng.integers(1, 4, n).astype(float)
