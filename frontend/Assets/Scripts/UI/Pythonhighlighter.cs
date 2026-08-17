@@ -231,5 +231,4 @@ public class PythonHighlighter : MonoBehaviour
 
         return code;
     }
-}
 }
