@@ -140,6 +140,17 @@ Train an ML model. Returns `passed` (bool) and `door_status` (UNLOCKED/LOCKED).
 }
 ```
 
+### `POST /train/code`
+Full-freedom code editor mode. Runs player Python code in a sandboxed process.
+
+```json
+{
+  "mission_id": "LVL_3",
+  "level_id": "classification",
+  "code": "model = RandomForestClassifier().fit(X_train, y_train)"
+}
+```
+
 ---
 
 ## Levels Overview
