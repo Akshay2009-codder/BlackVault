@@ -153,10 +153,18 @@ def train_anomaly_detection(df, req):
     }
 
 
-def train_model(df, req):
-    """
-    Dispatches to the right training function based on req.problem_type.
-    Same behavior as the original inline if/elif chain in main.py.
+def train_model(df, req) -> dict:
+    """Dispatches dataset training request to the matching problem type pipeline.
+
+    Args:
+        df: Pandas DataFrame containing dataset.
+        req: TrainRequest containing algorithm and hyperparameter options.
+
+    Returns:
+        Dict with metrics, target_metric, achieved score, passed flag, and door_status.
+
+    Raises:
+        HTTPException(400): If problem_type or algorithm is unsupported.
     """
     problem = req.problem_type
 
@@ -168,9 +176,8 @@ def train_model(df, req):
         return train_clustering(df, req)
     elif problem == "anomaly_detection":
         return train_anomaly_detection(df, req)
-    else:
-        raise HTTPException(
-            400,
-            f"Unknown problem_type '{problem}'. "
-            "Use: regression | classification | clustering | anomaly_detection",
-        )
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unknown problem type '{problem}'. Allowed: regression, classification, clustering, anomaly_detection",
+    )
