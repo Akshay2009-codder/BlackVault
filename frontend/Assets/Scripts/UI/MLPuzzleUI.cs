@@ -540,6 +540,16 @@ public class MLPuzzleUI : MonoBehaviour
 
         switch (mission.problem_type)
         {
+            case "cleaning":
+            case "data_cleaning":
+                sb.AppendLine("#");
+                sb.AppendLine("# Your code must end with this variable set:");
+                sb.AppendLine("#   is_clean -> 1 (or True) if missing values & duplicates are removed");
+                sb.AppendLine("#   (or clean_df -> the cleaned DataFrame)");
+                sb.AppendLine();
+                sb.AppendLine("# Write your solution below:");
+                sb.AppendLine();
+                break;
             case "regression":
             case "classification":
                 sb.AppendLine("#");
@@ -593,6 +603,10 @@ public class MLPuzzleUI : MonoBehaviour
     {
         if (resultText != null) resultText.text = "<color=#FFC66D>▶ Running script on backend...</color>";
 
+        bool isCleaning = _mission.problem_type == "cleaning" || _mission.problem_type == "data_cleaning" || _mission.level == 1;
+        string defaultMetric = isCleaning ? "is_clean" : (_mission.problem_type == "regression" ? "rmse" : "accuracy");
+        float defaultTarget = isCleaning ? 1.0f : (_mission.problem_type == "regression" ? 30000.0f : 0.75f);
+
         CodeExecuteRequestBody body = new CodeExecuteRequestBody
         {
             mission_id = _mission.mission_id,
@@ -602,8 +616,8 @@ public class MLPuzzleUI : MonoBehaviour
             code = codeEditor != null ? codeEditor.text : "",
             target_col = _mission.target_col,
             feature_cols = _mission.feature_cols,
-            target_metric = string.IsNullOrEmpty(_mission.target_metric) ? "accuracy" : _mission.target_metric,
-            target_metric_value = _mission.target_metric_value > 0 ? _mission.target_metric_value : 0.75f,
+            target_metric = string.IsNullOrEmpty(_mission.target_metric) ? defaultMetric : _mission.target_metric,
+            target_metric_value = _mission.target_metric_value > 0 ? _mission.target_metric_value : defaultTarget,
             metric_direction = string.IsNullOrEmpty(_mission.metric_direction) ? "higher_is_better" : _mission.metric_direction,
         };
 
