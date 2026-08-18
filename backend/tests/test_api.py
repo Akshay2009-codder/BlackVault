@@ -17,6 +17,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./test_blackvault.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 
@@ -46,22 +47,32 @@ def test_health():
     assert response.json()["status"] == "ok"
 
 
-# def test_player_progress():
-#     response = client.get("/player/progress")
-#     assert response.status_code == 200
-#     body = response.json()
-#     assert "xp" in body
-#     assert "rank" in body
+def test_player_progress():
+    """Verifies that /player/progress returns player XP, rank, and cosmetic unlocks."""
+    response = client.get("/player/progress")
+    assert response.status_code == 200
+    body = response.json()
+    assert "xp" in body
+    assert "rank" in body
+    assert "unlocked_skins" in body
+    assert "unlocked_badges" in body
 
 
-# def test_achievements():
-#     response = client.get("/player/achievements")
-#     assert response.status_code == 200
-#     assert isinstance(response.json(), list)
+def test_achievements():
+    """Verifies that /player/achievements returns the player's achievement list."""
+    response = client.get("/player/achievements")
+    assert response.status_code == 200
+    body = response.json()
+    assert "achievements" in body
+    assert isinstance(body["achievements"], list)
 
 
-# def test_daily_mission():
-#     response = client.get("/mission/daily")
-#     assert response.status_code == 200
-#     assert "Daily Challenge" in response.json()["title"]
+def test_leaderboard():
+    """Verifies that /leaderboard returns top player rankings."""
+    response = client.get("/leaderboard")
+    assert response.status_code == 200
+    body = response.json()
+    assert "leaderboard" in body
+    assert isinstance(body["leaderboard"], list)
+
 

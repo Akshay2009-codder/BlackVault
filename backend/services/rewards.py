@@ -19,6 +19,16 @@ from db.models import MissionAttempt, PlayerProgress, Achievement
 BASE_XP = 100
 FAILED_ATTEMPT_XP = 10  # flat consolation XP so failing still feels like progress, not punishment
 
+RANK_THRESHOLDS = [
+    (0, "Recruit"),
+    (100, "Trainee"),
+    (300, "Operative"),
+    (600, "Specialist"),
+    (1000, "Elite Hacker"),
+    (5000, "Legendary Hacker"),
+]
+
+
 DIFFICULTY_MULTIPLIERS = {
     "easy": 1.0,
     "medium": 1.5,

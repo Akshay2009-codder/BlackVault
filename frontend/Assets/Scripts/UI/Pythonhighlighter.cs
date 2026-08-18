@@ -161,12 +161,12 @@ public class PythonHighlighter : MonoBehaviour
                 }
             }
 
-            // Missing colon check on block keywords (only if line doesn't end with :)
+            // Missing colon check on block keywords (only if line starts with block keyword and doesn't end with :)
             if (!string.IsNullOrEmpty(lineTrimmed) && !lineTrimmed.StartsWith("#"))
             {
                 foreach (string blockKw in BlockKeywords)
                 {
-                    if (Regex.IsMatch(lineTrimmed, $@"\b{blockKw}\b") && !lineTrimmed.EndsWith(":") && !lineTrimmed.EndsWith(@"\"))
+                    if (Regex.IsMatch(lineTrimmed, $@"^\s*\b{blockKw}\b") && !lineTrimmed.EndsWith(":") && !lineTrimmed.EndsWith(@"\"))
                     {
                         errorLines.Add(l + 1);
                         if (string.IsNullOrEmpty(currentErrorHint))

@@ -57,6 +57,10 @@ SAFE_BUILTINS = {
 }
 
 REQUIRED_OUTPUTS = {
+    "cleaning": ["is_clean"],
+    "data_cleaning": ["is_clean"],
+    "L1_CLEANING_HOUSE": ["is_clean"],
+    "1": ["is_clean"],
     "classification": ["y_test", "y_pred"],
     "regression": ["y_test", "y_pred"],
     "clustering": ["labels"],
@@ -65,6 +69,43 @@ REQUIRED_OUTPUTS = {
 
 DEFAULT_TIMEOUT_SECONDS = 10
 MAX_STDOUT_CHARS = 2000
+
+
+def _extract_outputs(level_id: str, namespace: dict) -> tuple[bool, Optional[str], dict]:
+    """Validates required output variables for level_id in namespace and returns:
+    (success, error_message, outputs_dict)
+    """
+    key = str(level_id or "").lower()
+    if key in ("1", "l1_cleaning_house", "cleaning", "data_cleaning"):
+        if "is_clean" in namespace:
+            try:
+                val = int(bool(namespace["is_clean"]))
+                return True, None, {"is_clean": val}
+            except Exception:
+                pass
+        if "clean_df" in namespace:
+            cdf = namespace["clean_df"]
+            try:
+                missing = int(cdf.isnull().sum().sum())
+                dups = int(cdf.duplicated().sum())
+                return True, None, {"clean_df_stats": {"missing": missing, "duplicates": dups}}
+            except Exception:
+                pass
+        return False, "Your code must define 'is_clean' (1 if clean, 0 if not) or 'clean_df'", {}
+
+    required = REQUIRED_OUTPUTS.get(level_id, REQUIRED_OUTPUTS.get(key, []))
+    missing = [v for v in required if v not in namespace]
+    if missing:
+        return False, f"Your code must define: {', '.join(missing)}", {}
+
+    outputs = {}
+    for v in required:
+        val = namespace[v]
+        try:
+            outputs[v] = list(val)
+        except TypeError:
+            outputs[v] = val
+    return True, None, outputs
 
 
 def _build_namespace(df, feature_cols: list, target_col: Optional[str]) -> dict:
@@ -138,25 +179,14 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
             })
             return
 
-        required = REQUIRED_OUTPUTS.get(level_id, [])
-        missing = [v for v in required if v not in namespace]
-        if missing:
+        valid, err_msg, outputs = _extract_outputs(level_id, namespace)
+        if not valid:
             result_queue.put({
                 "success": False, "error_type": "missing_output",
-                "message": f"Your code must define: {', '.join(missing)}",
+                "message": err_msg,
                 "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
             })
             return
-
-        # Only pass back small, serializable outputs — never the full
-        # namespace (could contain unpicklable sklearn objects/large data).
-        outputs = {}
-        for v in required:
-            val = namespace[v]
-            try:
-                outputs[v] = list(val)  # works for arrays/Series/lists
-            except TypeError:
-                outputs[v] = val
 
         result_queue.put({
             "success": True,
@@ -165,8 +195,6 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
         })
 
     except Exception as e:
-        # Catch-all: anything unexpected still returns a clean error
-        # instead of the process just dying silently.
         result_queue.put({
             "success": False, "error_type": "runtime_error",
             "message": f"Unexpected error: {e}",
@@ -196,22 +224,13 @@ def run_player_code(code: str, df, feature_cols: list[str], target_col: Optional
             with contextlib.redirect_stdout(stdout_capture):
                 exec(compiled, namespace)
 
-            required = REQUIRED_OUTPUTS.get(level_id, [])
-            missing = [v for v in required if v not in namespace]
-            if missing:
+            valid, err_msg, outputs = _extract_outputs(level_id, namespace)
+            if not valid:
                 return {
                     "success": False, "error_type": "missing_output",
-                    "message": f"Your code must define: {', '.join(missing)}",
+                    "message": err_msg,
                     "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
                 }
-
-            outputs = {}
-            for v in required:
-                val = namespace[v]
-                try:
-                    outputs[v] = list(val)
-                except TypeError:
-                    outputs[v] = val
 
             return {
                 "success": True,
