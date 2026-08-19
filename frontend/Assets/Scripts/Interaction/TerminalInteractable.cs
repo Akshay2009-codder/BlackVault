@@ -6,6 +6,13 @@
 
 using UnityEngine;
 
+public enum TerminalType
+{
+    Preprocess,
+    Train,
+    Corrupt
+}
+
 [RequireComponent(typeof(Collider))]
 public class TerminalInteractable : MonoBehaviour
 {

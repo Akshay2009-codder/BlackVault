@@ -1,4 +1,4 @@
-﻿// PlayerController.cs — BlackVault Phase 1
+// PlayerController.cs — BlackVault Phase 1
 
 using UnityEngine;
 
@@ -136,5 +136,10 @@ public class PlayerController : MonoBehaviour
         inputEnabled = enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !enabled;
+    }
+
+    public void SetInteractingState(bool interacting)
+    {
+        SetInputEnabled(!interacting);
     }
 }
