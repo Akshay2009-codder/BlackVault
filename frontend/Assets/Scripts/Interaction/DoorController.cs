@@ -42,9 +42,14 @@ public class DoorController : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by TerminalInteractable when the linked puzzle is solved.
+    /// Called by TerminalInteractable or IDEController when the linked puzzle is solved.
     /// </summary>
     public void Unlock()
+    {
+        UnlockDoor(null);
+    }
+
+    public void UnlockDoor(string challengeId = null)
     {
         if (_isUnlocked) return;
         _isUnlocked = true;

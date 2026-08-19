@@ -1,20 +1,4 @@
 // PlayerController.cs — BlackVault Phase 1
-//
-// A CharacterController-based movement script that supports BOTH
-// first-person and third-person camera modes, switchable at runtime
-// by the player (default key: V). Movement logic is shared between
-// both modes — only the camera rig and look behavior differ.
-//
-// Setup in Unity:
-//   1. Create a Capsule (or your player model) — this is the player body.
-//   2. Add a CharacterController component to it.
-//   3. Attach this script to the same object.
-//   4. Create TWO child empty GameObjects under the player:
-//        - "FirstPersonCameraRig" positioned at head height (e.g. y=1.6)
-//        - "ThirdPersonCameraRig" positioned behind/above (e.g. z=-4, y=2)
-//   5. Create a Camera as a child of EACH rig, both disabled by default
-//      except the one matching startInFirstPerson.
-//   6. Drag the two Camera components into the fields below in the Inspector.
 
 using UnityEngine;
 
@@ -22,17 +6,9 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [Header("Camera References")]
-    [Tooltip("Camera used in first-person mode (child of FirstPersonCameraRig)")]
     public Camera firstPersonCamera;
-
-    [Tooltip("Camera used in third-person mode (child of ThirdPersonCameraRig)")]
     public Camera thirdPersonCamera;
-
-    [Tooltip("The pivot the third-person camera orbits around (usually the player's head)")]
     public Transform thirdPersonLookTarget;
-
-    [Tooltip("The player's visible body mesh — hidden in first-person (so the camera isn't " +
-             "looking at the inside of your own model) and shown in third-person.")]
     public GameObject playerModel;
 
     [Header("Movement Settings")]
@@ -54,12 +30,10 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController _controller;
     private Vector3 _velocity;
-    private float _pitch; // up/down look angle
-    private float _yaw;   // left/right look angle (used for first-person; body rotation for third-person)
+    private float _pitch;
+    private float _yaw;
     private bool _isFirstPerson;
 
-    // Set to false while the ML Puzzle UI (or any menu) is open,
-    // so the player doesn't move the camera/character underneath it.
     public bool inputEnabled = true;
 
     private void Start()
@@ -76,7 +50,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!inputEnabled)
         {
-            return; // frozen while a UI panel (e.g. ML Puzzle) has focus
+            return;
         }
 
         HandleCameraToggle();
@@ -97,9 +71,6 @@ public class PlayerController : MonoBehaviour
     {
         if (firstPersonCamera != null) firstPersonCamera.gameObject.SetActive(_isFirstPerson);
         if (thirdPersonCamera != null) thirdPersonCamera.gameObject.SetActive(!_isFirstPerson);
-
-        // Hide your own body in first-person (you'd otherwise see the
-        // inside of your own capsule mesh); show it in third-person.
         if (playerModel != null) playerModel.SetActive(!_isFirstPerson);
     }
 
@@ -121,8 +92,6 @@ public class PlayerController : MonoBehaviour
         else
         {
             _pitch = Mathf.Clamp(_pitch, thirdPersonMinPitch, thirdPersonMaxPitch);
-            // Body still turns with yaw so movement direction feels correct;
-            // camera orbits around the body using pitch + fixed distance.
             transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
 
             if (thirdPersonCamera != null && thirdPersonLookTarget != null)
@@ -142,15 +111,13 @@ public class PlayerController : MonoBehaviour
         bool isGrounded = _controller.isGrounded;
         if (isGrounded && _velocity.y < 0)
         {
-            _velocity.y = -2f; // small downward force to keep grounded flag stable
+            _velocity.y = -2f;
         }
 
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
         bool isRunning = Input.GetKey(KeyCode.LeftShift);
 
-        // Movement is always relative to the player body's forward direction,
-        // which is correct for both camera modes since the body rotates with yaw.
         Vector3 move = transform.right * horizontal + transform.forward * vertical;
         float speed = isRunning ? runSpeed : walkSpeed;
         _controller.Move(move * speed * Time.deltaTime);
@@ -164,15 +131,15 @@ public class PlayerController : MonoBehaviour
         _controller.Move(_velocity * Time.deltaTime);
     }
 
-    /// <summary>
-    /// Call this from the ML Puzzle UI when it opens/closes, so the
-    /// player can't walk around or spin the camera while typing/clicking
-    /// in the puzzle panel. Also unlocks the cursor for UI interaction.
-    /// </summary>
     public void SetInputEnabled(bool enabled)
     {
         inputEnabled = enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !enabled;
+    }
+
+    public void SetInteractingState(bool interacting)
+    {
+        SetInputEnabled(!interacting);
     }
 }
