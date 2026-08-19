@@ -68,28 +68,24 @@ public static class MissionHubBuilder
         titleRect.anchoredPosition = new Vector2(0f, -60f);
         titleRect.sizeDelta = new Vector2(-80f, 60f);
 
+        MissionHubUI hubUI = canvasObj.AddComponent<MissionHubUI>();
+        hubUI.levelButtons = new MissionHubUI.LevelButtonEntry[Levels.Length];
+
         for (int i = 0; i < Levels.Length; i++)
         {
             var (level, levelTitle, sceneName) = Levels[i];
-            bool isComplete = PlayerPrefs.GetInt($"BV_Level{level}_Complete", 0) == 1;
-            bool isUnlocked = level == 1 || PlayerPrefs.GetInt($"BV_Level{level - 1}_Complete", 0) == 1;
 
             GameObject btnObj = DefaultControls.CreateButton(uiResources);
             btnObj.name = $"Level{level}Button";
             btnObj.transform.SetParent(canvasObj.transform, false);
 
-            string label = isComplete ? $"✔ {levelTitle}  [COMPLETE]"
-                          : isUnlocked ? levelTitle
-                          : $"🔒 {levelTitle}  [LOCKED]";
             Text btnLabel = btnObj.GetComponentInChildren<Text>();
-            btnLabel.text = label;
+            btnLabel.text = levelTitle;
             btnLabel.color = Color.white;
             btnLabel.fontSize = 16;
 
             Image btnBg = btnObj.GetComponent<Image>();
-            btnBg.color = isComplete ? new Color(0.2f, 0.55f, 0.3f)
-                         : isUnlocked ? new Color(0.25f, 0.3f, 0.4f)
-                         : new Color(0.2f, 0.2f, 0.22f);
+            btnBg.color = new Color(0.25f, 0.3f, 0.4f);
 
             RectTransform btnRect = btnObj.GetComponent<RectTransform>();
             btnRect.anchorMin = btnRect.anchorMax = new Vector2(0.5f, 1f);
@@ -98,12 +94,19 @@ public static class MissionHubBuilder
             btnRect.sizeDelta = new Vector2(500f, 55f);
 
             Button button = btnObj.GetComponent<Button>();
-            button.interactable = isUnlocked;
-            string capturedSceneName = sceneName; // avoid closure-over-loop-variable bug
-            button.onClick.AddListener(() => SceneManager.LoadScene(capturedSceneName));
+
+            hubUI.levelButtons[i] = new MissionHubUI.LevelButtonEntry
+            {
+                level = level,
+                title = levelTitle,
+                sceneName = sceneName,
+                button = button,
+                labelText = btnLabel,
+                bgImage = btnBg
+            };
         }
 
-        Debug.Log("[BlackVault] Mission Hub built. Save as 00_MissionHub.unity, " +
+        Debug.Log("[BlackVault] Mission Hub built with runtime MissionHubUI attached. Save as 00_MissionHub.unity, " +
                    "then add it (and all 5 level scenes) to File > Build Settings.");
     }
 

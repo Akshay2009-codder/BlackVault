@@ -81,8 +81,9 @@ public static class LevelBuilder
         GameObject terminal = BuildTerminal(door, config.level);
         GameObject player = BuildPlayer();
         GameObject canvas = BuildMLPuzzleCanvas(player);
+        MissionCompleteOverlay overlay = BuildMissionCompleteOverlay(canvas);
 
-        WireTerminal(terminal, canvas, door);
+        WireTerminal(terminal, canvas, door, overlay);
 
         Debug.Log($"[BlackVault] Level {levelNumber} scene built. " +
                   $"Save it as {config.sceneName}.unity, then check the " +
@@ -493,10 +494,82 @@ public static class LevelBuilder
         return text;
     }
 
-    private static void WireTerminal(GameObject terminal, GameObject canvas, GameObject door)
+    private static MissionCompleteOverlay BuildMissionCompleteOverlay(GameObject canvasObj)
+    {
+        var uiResources = new DefaultControls.Resources();
+
+        GameObject overlayPanel = DefaultControls.CreatePanel(uiResources);
+        overlayPanel.name = "MissionCompletePanel";
+        overlayPanel.transform.SetParent(canvasObj.transform, false);
+        overlayPanel.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.1f, 0.95f);
+        RectTransform panelRect = overlayPanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        GameObject titleObj = DefaultControls.CreateText(uiResources);
+        titleObj.name = "TransmissionTitle";
+        titleObj.transform.SetParent(overlayPanel.transform, false);
+        Text titleText = titleObj.GetComponent<Text>();
+        titleText.text = "INCOMING TRANSMISSION";
+        titleText.fontSize = 28;
+        titleText.fontStyle = FontStyle.Bold;
+        titleText.color = new Color(0.35f, 0.85f, 0.45f);
+        titleText.alignment = TextAnchor.MiddleCenter;
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -80f);
+        titleRect.sizeDelta = new Vector2(-80f, 50f);
+
+        GameObject msgObj = DefaultControls.CreateText(uiResources);
+        msgObj.name = "MessageText";
+        msgObj.transform.SetParent(overlayPanel.transform, false);
+        Text messageText = msgObj.GetComponent<Text>();
+        messageText.text = "...";
+        messageText.fontSize = 18;
+        messageText.color = new Color(0.85f, 0.9f, 0.95f);
+        messageText.alignment = TextAnchor.MiddleCenter;
+        messageText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        messageText.verticalOverflow = VerticalWrapMode.Overflow;
+        RectTransform msgRect = msgObj.GetComponent<RectTransform>();
+        msgRect.anchorMin = new Vector2(0.1f, 0.3f);
+        msgRect.anchorMax = new Vector2(0.9f, 0.8f);
+        msgRect.offsetMin = Vector2.zero;
+        msgRect.offsetMax = Vector2.zero;
+
+        GameObject btnObj = DefaultControls.CreateButton(uiResources);
+        btnObj.name = "ContinueButton";
+        btnObj.transform.SetParent(overlayPanel.transform, false);
+        Button continueButton = btnObj.GetComponent<Button>();
+        Text btnLabel = btnObj.GetComponentInChildren<Text>();
+        btnLabel.text = "RETURN TO MISSION HUB";
+        btnLabel.fontStyle = FontStyle.Bold;
+        btnLabel.color = Color.white;
+        btnObj.GetComponent<Image>().color = new Color(0.2f, 0.6f, 0.35f);
+        RectTransform btnRect = btnObj.GetComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0.5f, 0.15f);
+        btnRect.anchorMax = new Vector2(0.5f, 0.15f);
+        btnRect.pivot = new Vector2(0.5f, 0.5f);
+        btnRect.sizeDelta = new Vector2(260f, 50f);
+
+        MissionCompleteOverlay overlay = canvasObj.AddComponent<MissionCompleteOverlay>();
+        overlay.panelRoot = overlayPanel;
+        overlay.messageText = messageText;
+        overlay.continueButton = continueButton;
+
+        overlayPanel.SetActive(false);
+
+        return overlay;
+    }
+
+    private static void WireTerminal(GameObject terminal, GameObject canvas, GameObject door, MissionCompleteOverlay overlay)
     {
         TerminalInteractable interactable = terminal.GetComponent<TerminalInteractable>();
         interactable.mlPuzzleUI = canvas.GetComponent<MLPuzzleUI>();
+        interactable.missionCompleteOverlay = overlay;
     }
 
     // ------------------------------------------------------------------

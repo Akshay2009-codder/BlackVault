@@ -23,6 +23,7 @@ public class TerminalInteractable : MonoBehaviour
     public GameObject interactPrompt;
     public MLPuzzleUI mlPuzzleUI;
     public DoorController linkedDoor;
+    public MissionCompleteOverlay missionCompleteOverlay;
 
     [Header("Debug / Deadline Safety Net")]
     [Tooltip("TEMPORARY: when true, pressing E unlocks the door immediately, " +
@@ -38,6 +39,10 @@ public class TerminalInteractable : MonoBehaviour
     private void Start()
     {
         if (interactPrompt != null) interactPrompt.SetActive(false);
+        if (missionCompleteOverlay == null)
+        {
+            missionCompleteOverlay = FindObjectOfType<MissionCompleteOverlay>();
+        }
     }
 
     private void Update()
@@ -76,10 +81,14 @@ public class TerminalInteractable : MonoBehaviour
             Debug.Log($"[BlackVault] debugSkipPuzzle is ON — unlocking {name} without opening the puzzle panel.");
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
+            if (missionCompleteOverlay != null) missionCompleteOverlay.Show(level);
             return;
         }
 
-        mlPuzzleUI.Open(level, OnPuzzleResult);
+        if (mlPuzzleUI != null)
+        {
+            mlPuzzleUI.Open(level, OnPuzzleResult);
+        }
     }
 
     private void OnPuzzleResult(bool doorUnlocked)
@@ -88,6 +97,10 @@ public class TerminalInteractable : MonoBehaviour
         {
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
+            if (missionCompleteOverlay != null)
+            {
+                missionCompleteOverlay.Show(level);
+            }
         }
         else
         {
