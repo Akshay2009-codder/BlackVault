@@ -167,7 +167,7 @@ namespace BlackVault.UI
                 associatedDoor.UnlockDoor(currentChallengeId);
             }
             
-            PlayerHUD hud = FindObjectOfType<PlayerHUD>();
+            PlayerHUD hud = FindAnyObjectByType<PlayerHUD>();
             if (hud != null)
             {
                 hud.RefreshHUD();

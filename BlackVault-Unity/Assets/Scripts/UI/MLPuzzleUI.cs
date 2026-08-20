@@ -424,7 +424,8 @@ public class MLPuzzleUI : MonoBehaviour
                 overlayRect.offsetMax = new Vector2(-10f, -6f);
             }
 
-        UpdateTopLayout();
+            UpdateTopLayout();
+        }
     }
 
     public void UpdateTopLayout()
