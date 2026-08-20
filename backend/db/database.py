@@ -8,8 +8,9 @@ player-progress persistence layer described in docs/BlackVault_PRD.md
 bottom of db/models.py for the two lines that go in main.py.
 """
 
+from typing import Generator
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 DATABASE_URL = "sqlite:///./blackvault.db"
 
@@ -25,14 +26,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db():
-    """
-    FastAPI dependency — yields a session, closes it after the request
-    finishes even if an error occurred. Use like:
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency yielding an isolated SQLAlchemy database session.
 
-        @app.post("/train")
-        def train(req: TrainRequest, db: Session = Depends(get_db)):
-            ...
+    Yields:
+        Session: Database session instance.
+
+    Ensures session is properly closed after request execution finishes.
     """
     db = SessionLocal()
     try:
@@ -41,11 +41,10 @@ def get_db():
         db.close()
 
 
-def init_db():
-    """
-    Creates all tables defined in db/models.py if they don't already
-    exist. Call this once at app startup. Safe to call every time the
-    app starts — it won't touch existing data.
+def init_db() -> None:
+    """Initializes database tables defined in db.models schema if missing.
+
+    Safe to run repeatedly during application startup.
     """
     import db.models  # noqa: F401 — ensures models are registered on Base before create_all
     Base.metadata.create_all(bind=engine)

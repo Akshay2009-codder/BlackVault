@@ -17,6 +17,11 @@ public class TerminalInteractable : MonoBehaviour
     public MLPuzzleUI mlPuzzleUI;
     public DoorController linkedDoor;
 
+    [Tooltip("Optional — the 'incoming transmission' screen shown after this " +
+             "terminal's puzzle is solved. Wired automatically by " +
+             "BlackVault > Add Mission Complete Overlay To This Scene.")]
+    public MissionCompleteOverlay missionCompleteOverlay;
+
     [Header("Debug / Deadline Safety Net")]
     [Tooltip("TEMPORARY: when true, pressing E unlocks the door immediately, " +
              "skipping the ML puzzle panel entirely.")]
@@ -81,6 +86,14 @@ public class TerminalInteractable : MonoBehaviour
         {
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
+
+            if (missionCompleteOverlay != null)
+            {
+                missionCompleteOverlay.Show(
+                    level,
+                    $"Incoming transmission... Sector {level} secured. Proceed to the next checkpoint."
+                );
+            }
         }
         else
         {

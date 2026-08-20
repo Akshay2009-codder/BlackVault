@@ -30,9 +30,20 @@ import contextlib
 from typing import Optional
 
 
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    """Safe import hook allowing standard ML/data libraries while blocking unauthorized modules."""
+    allowed_modules = {
+        "pandas", "numpy", "sklearn", "math", "random", "scipy", "statsmodels",
+        "datetime", "typing", "collections", "itertools"
+    }
+    top_level = name.split(".")[0]
+    if top_level in allowed_modules:
+        return __import__(name, globals, locals, fromlist, level)
+    raise ImportError(f"Import of module '{name}' is restricted in sandbox.")
+
+
 # Builtins deliberately allowed in player code. Anything not listed here
-# is unavailable — including __import__, open, exec, eval, compile, input,
-# getattr/setattr are also excluded to reduce reflection-based escapes.
+# is unavailable — open, exec, eval, compile, input, os/sys are excluded.
 SAFE_BUILTINS = {
     "range": range, "len": len, "print": print, "min": min, "max": max,
     "sum": sum, "abs": abs, "round": round, "sorted": sorted,
@@ -42,9 +53,14 @@ SAFE_BUILTINS = {
     "True": True, "False": False, "None": None,
     "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
     "KeyError": KeyError, "IndexError": IndexError,
+    "__import__": _safe_import,
 }
 
 REQUIRED_OUTPUTS = {
+    "cleaning": ["is_clean"],
+    "data_cleaning": ["is_clean"],
+    "L1_CLEANING_HOUSE": ["is_clean"],
+    "1": ["is_clean"],
     "classification": ["y_test", "y_pred"],
     "regression": ["y_test", "y_pred"],
     "clustering": ["labels"],
@@ -55,9 +71,49 @@ DEFAULT_TIMEOUT_SECONDS = 10
 MAX_STDOUT_CHARS = 2000
 
 
-def _build_namespace(df, feature_cols, target_col):
-    """Everything player code is allowed to see. Must stay in sync with
-    CODE_EDITOR_CONTRACT.md and PythonSyntaxHighlighter.ProvidedNames."""
+def _extract_outputs(level_id: str, namespace: dict) -> tuple[bool, Optional[str], dict]:
+    """Validates required output variables for level_id in namespace and returns:
+    (success, error_message, outputs_dict)
+    """
+    key = str(level_id or "").lower()
+    if key in ("1", "l1_cleaning_house", "cleaning", "data_cleaning"):
+        if "is_clean" in namespace:
+            try:
+                val = int(bool(namespace["is_clean"]))
+                return True, None, {"is_clean": val}
+            except Exception:
+                pass
+        if "clean_df" in namespace:
+            cdf = namespace["clean_df"]
+            try:
+                missing = int(cdf.isnull().sum().sum())
+                dups = int(cdf.duplicated().sum())
+                return True, None, {"clean_df_stats": {"missing": missing, "duplicates": dups}}
+            except Exception:
+                pass
+        return False, "Your code must define 'is_clean' (1 if clean, 0 if not) or 'clean_df'", {}
+
+    required = REQUIRED_OUTPUTS.get(level_id, REQUIRED_OUTPUTS.get(key, []))
+    missing = [v for v in required if v not in namespace]
+    if missing:
+        return False, f"Your code must define: {', '.join(missing)}", {}
+
+    outputs = {}
+    for v in required:
+        val = namespace[v]
+        try:
+            outputs[v] = list(val)
+        except TypeError:
+            outputs[v] = val
+    return True, None, outputs
+
+
+def _build_namespace(df, feature_cols: list, target_col: Optional[str]) -> dict:
+    """Builds and returns the sandboxed global execution namespace.
+    
+    Provides player code with pre-imported data structures, scikit-learn models,
+    and preprocessing tools while strictly controlling allowed dependencies.
+    """
     import pandas as pd
     import numpy as np
     from sklearn.model_selection import train_test_split
@@ -123,25 +179,14 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
             })
             return
 
-        required = REQUIRED_OUTPUTS.get(level_id, [])
-        missing = [v for v in required if v not in namespace]
-        if missing:
+        valid, err_msg, outputs = _extract_outputs(level_id, namespace)
+        if not valid:
             result_queue.put({
                 "success": False, "error_type": "missing_output",
-                "message": f"Your code must define: {', '.join(missing)}",
+                "message": err_msg,
                 "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
             })
             return
-
-        # Only pass back small, serializable outputs — never the full
-        # namespace (could contain unpicklable sklearn objects/large data).
-        outputs = {}
-        for v in required:
-            val = namespace[v]
-            try:
-                outputs[v] = list(val)  # works for arrays/Series/lists
-            except TypeError:
-                outputs[v] = val
 
         result_queue.put({
             "success": True,
@@ -150,8 +195,6 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
         })
 
     except Exception as e:
-        # Catch-all: anything unexpected still returns a clean error
-        # instead of the process just dying silently.
         result_queue.put({
             "success": False, "error_type": "runtime_error",
             "message": f"Unexpected error: {e}",
@@ -159,45 +202,56 @@ def _worker(code: str, df_dict, feature_cols, target_col, level_id, result_queue
         })
 
 
-def run_player_code(code: str, df, feature_cols, target_col: Optional[str],
+def run_player_code(code: str, df, feature_cols: list[str], target_col: Optional[str],
                      level_id: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> dict:
-    """
-    Public entry point. Returns a dict matching either
-    CodeExecutionSuccess-ish shape ({"success": True, "outputs": {...}, "stdout": ...})
-    or CodeExecutionFailure-ish shape ({"success": False, "error_type": ..., "message": ..., "stdout": ...}).
+    """Executes player code safely and returns output variables or error details."""
+    import concurrent.futures
 
-    The caller (main.py's /train/code endpoint) is responsible for taking
-    `outputs` and computing the actual metric via ml/train.py-style logic,
-    then building the final CodeExecutionSuccess response.
-    """
-    ctx = multiprocessing.get_context("spawn")  # 'spawn' is safer/more
-    # portable across platforms than 'fork' for this kind of isolation.
-    result_queue = ctx.Queue()
-    df_dict = df.to_dict()
+    def _execute():
+        stdout_capture = io.StringIO()
+        try:
+            namespace = _build_namespace(df, feature_cols, target_col)
+            namespace["__builtins__"] = SAFE_BUILTINS
 
-    process = ctx.Process(
-        target=_worker,
-        args=(code, df_dict, feature_cols, target_col, level_id, result_queue)
-    )
-    process.start()
-    process.join(timeout_seconds)
+            try:
+                compiled = compile(code, "<player_code>", "exec")
+            except SyntaxError as e:
+                return {
+                    "success": False, "error_type": "syntax_error",
+                    "message": f"Line {e.lineno}: {e.msg}", "stdout": ""
+                }
 
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        return {
-            "success": False, "error_type": "timeout",
-            "message": f"Code did not finish within {timeout_seconds} seconds.",
-            "stdout": ""
-        }
+            with contextlib.redirect_stdout(stdout_capture):
+                exec(compiled, namespace)
 
-    if not result_queue.empty():
-        return result_queue.get()
+            valid, err_msg, outputs = _extract_outputs(level_id, namespace)
+            if not valid:
+                return {
+                    "success": False, "error_type": "missing_output",
+                    "message": err_msg,
+                    "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+                }
 
-    # Process died without putting anything on the queue (segfault-like
-    # failure, killed by OS, etc.) — still return a clean error.
-    return {
-        "success": False, "error_type": "runtime_error",
-        "message": "Code execution failed unexpectedly (no result returned).",
-        "stdout": ""
-    }
+            return {
+                "success": True,
+                "outputs": outputs,
+                "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+            }
+
+        except Exception as e:
+            return {
+                "success": False, "error_type": "runtime_error",
+                "message": f"{type(e).__name__}: {e}",
+                "stdout": stdout_capture.getvalue()[:MAX_STDOUT_CHARS]
+            }
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_execute)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            return {
+                "success": False, "error_type": "timeout",
+                "message": f"Code did not finish within {timeout_seconds} seconds.",
+                "stdout": ""
+            }

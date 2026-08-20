@@ -1,23 +1,29 @@
 """
-generate_datasets.py  —  BlackVault backend helper
+generate_datasets.py — BlackVault Dataset Generator
 ===================================================
-Creates realistic (but synthetic) CSV datasets in ./data/
-so the backend can run without downloading anything from the internet.
 
-Usage:
-    python generate_datasets.py
+This module creates synthetic RAW CSV datasets stored in `./data/`.
+RAW data simulates dirty, real-world data collected from real systems.
 
-Generates (offline, deterministic):
-    data/house_prices.csv     (regression)
-    data/heart_disease.csv    (classification)
-    data/mall_customers.csv   (clustering)
-    data/credit_card.csv      (anomaly detection)
+Why RAW Data Has Flaws:
+-----------------------
+Real-world data is rarely clean! It contains:
+1. Missing Values (NaN): Unfilled fields or sensor glitches (e.g., empty bedroom count).
+2. Duplicate Rows: Accidental repeated records caused by network or system retries.
+3. Extreme Outliers: Erroneous spikes or extreme values (e.g., $9,500,000 house price).
+4. Categorical Text: Text labels like "urban" or "suburban" that ML models cannot process without encoding.
+5. Unscaled Numbers: Features with wildly different scales (e.g., square feet ~ 3000 vs. bedrooms ~ 3).
 
-Boss dataset (called at runtime, non-deterministic):
-    gen_boss_dataset(seed)  — returns (DataFrame, true_problem_type)
-    Used by /mission/generate when level == 'boss'. The true problem
-    type must stay server-side and must NOT be sent to Unity until
-    after the player submits their answer via /train.
+Generated CSV Datasets:
+-----------------------
+- data/house_prices.csv   -> Regression & Cleaning (Target: price)
+- data/heart_disease.csv  -> Classification (Target: target, 0=Healthy, 1=Disease)
+- data/mall_customers.csv -> Clustering (Target: None, Features: income & spending score)
+- data/credit_card.csv    -> Anomaly Detection (Target: is_fraud, 0=Normal, 1=Fraud)
+
+Runtime Boss Dataset:
+---------------------
+- gen_boss_dataset(seed)  -> Dynamically generates corrupted datasets for the Boss Room fight.
 """
 
 import os
@@ -34,7 +40,12 @@ os.makedirs(OUT, exist_ok=True)
 # ---------------------------------------------------------------------------
 # 1. House Prices  (regression)
 # ---------------------------------------------------------------------------
-def gen_house_prices(n=500):
+def gen_house_prices(n: int = 500) -> None:
+    """Generates synthetic house prices CSV dataset with realistic nulls and outliers.
+
+    Args:
+        n: Number of base rows to generate before duplicates.
+    """
     area = rng.integers(500, 4000, n).astype(float)
     bedrooms = rng.integers(1, 6, n).astype(float)
     bathrooms = rng.integers(1, 4, n).astype(float)

@@ -1,71 +1,99 @@
-using UnityEngine;
-using BlackVault.Player;
-using BlackVault.UI;
+// TerminalInteractable.cs — BlackVault
+//
+// Attach to a security terminal object in the level. Uses a trigger
+// collider to detect when the player is nearby, shows a "Press E to
+// interact" prompt, and opens the ML Puzzle UI on interact.
 
-namespace BlackVault.Interaction
+using UnityEngine;
+
+public enum TerminalType
 {
-    public enum TerminalType
+    Preprocess,
+    Train,
+    Corrupt
+}
+
+[RequireComponent(typeof(Collider))]
+public class TerminalInteractable : MonoBehaviour
+{
+    [Header("Mission Config")]
+    public int level = 1;
+
+    [Header("References")]
+    public GameObject interactPrompt;
+    public MLPuzzleUI mlPuzzleUI;
+    public DoorController linkedDoor;
+
+    [Header("Debug / Deadline Safety Net")]
+    [Tooltip("TEMPORARY: when true, pressing E unlocks the door immediately, " +
+             "skipping the ML puzzle panel entirely.")]
+    public bool debugSkipPuzzle = false;
+
+    [Header("Input")]
+    public KeyCode interactKey = KeyCode.E;
+
+    private bool _playerInRange;
+    private bool _puzzleSolved;
+
+    private void Start()
     {
-        Preprocess,
-        Train,
-        Corrupt
+        if (interactPrompt != null) interactPrompt.SetActive(false);
     }
 
-    [RequireComponent(typeof(BoxCollider2D))]
-    public class TerminalInteractable : MonoBehaviour
+    private void Update()
     {
-        public string associatedChallengeId;
-        public TerminalType terminalType = TerminalType.Preprocess;
-        
-        private bool isPlayerNear = false;
-        private PlayerController player;
-        
-        [Header("UI References")]
-        public IDEController ideController;
-
-        void Start()
+        if (_playerInRange && !_puzzleSolved && Input.GetKeyDown(interactKey))
         {
-            // Ensure collider is set to trigger
-            var col = GetComponent<BoxCollider2D>();
-            if (col != null) col.isTrigger = true;
+            OpenTerminal();
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+
+        _playerInRange = true;
+        if (!_puzzleSolved && interactPrompt != null)
+        {
+            interactPrompt.SetActive(true);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+
+        _playerInRange = false;
+        if (interactPrompt != null) interactPrompt.SetActive(false);
+    }
+
+    private void OpenTerminal()
+    {
+        if (interactPrompt != null) interactPrompt.SetActive(false);
+
+        if (debugSkipPuzzle)
+        {
+            Debug.Log($"[BlackVault] debugSkipPuzzle is ON — unlocking {name} without opening the puzzle panel.");
+            _puzzleSolved = true;
+            if (linkedDoor != null) linkedDoor.Unlock();
+            return;
         }
 
-        void Update()
-        {
-            if (isPlayerNear && Input.GetKeyDown(KeyCode.E))
-            {
-                if (ideController != null && player != null)
-                {
-                    // Open the IDE UI and pass the terminal type
-                    ideController.OpenIDE(associatedChallengeId, terminalType);
-                    
-                    // Lock player movement and trigger typing animation
-                    player.SetInteractingState(true);
-                    
-                    // Unlock cursor
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                }
-            }
-        }
+        mlPuzzleUI.Open(level, OnPuzzleResult);
+    }
 
-        private void OnTriggerEnter2D(Collider2D other)
+    private void OnPuzzleResult(bool doorUnlocked)
+    {
+        if (doorUnlocked)
         {
-            if (other.CompareTag("Player"))
-            {
-                isPlayerNear = true;
-                player = other.GetComponent<PlayerController>();
-                // TODO: Show UI prompt (e.g., "Press E to Interact")
-            }
+            _puzzleSolved = true;
+            if (linkedDoor != null) linkedDoor.Unlock();
         }
-
-        private void OnTriggerExit2D(Collider2D other)
+        else
         {
-            if (other.CompareTag("Player"))
+            if (_playerInRange && interactPrompt != null)
             {
-                isPlayerNear = false;
-                player = null;
-                // TODO: Hide UI prompt
+                interactPrompt.SetActive(true);
             }
         }
     }

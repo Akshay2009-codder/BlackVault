@@ -134,6 +134,16 @@ def get_random_event(
     problem_type: Optional[str] = None,
     seed: Optional[int] = None,
 ) -> RandomEventConfig:
+    """Selects an eligible random corruption event based on mission difficulty.
+
+    Args:
+        difficulty: Mission difficulty tier (easy, medium, hard, boss).
+        problem_type: Machine learning task type (classification, regression, etc).
+        seed: Optional integer seed for pseudo-random event sampling.
+
+    Returns:
+        Configured RandomEventConfig object.
+    """
     if seed is not None:
         random.seed(seed)
 
@@ -167,6 +177,14 @@ def get_random_event(
 
 
 def get_event_probability(difficulty: str) -> float:
+    """Returns the trigger probability of random events for a given difficulty tier.
+
+    Args:
+        difficulty: Mission difficulty string.
+
+    Returns:
+        Float probability between 0.0 and 1.0.
+    """
     probabilities = {
         "easy": 0.1,
         "medium": 0.25,
@@ -174,3 +192,18 @@ def get_event_probability(difficulty: str) -> float:
         "boss": 0.6,
     }
     return probabilities.get(difficulty, 0.2)
+
+
+def get_event_by_id(event_id: str) -> Optional[dict]:
+    """Retrieves an event dictionary from the event pool by event ID.
+
+    Args:
+        event_id: Unique event identifier string (e.g. EVT_MISSING_VALUES).
+
+    Returns:
+        Event definition dictionary or None if not found.
+    """
+    for event in EVENT_POOL:
+        if event["event_id"] == event_id:
+            return event
+    return None
