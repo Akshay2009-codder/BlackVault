@@ -6,13 +6,6 @@
 
 using UnityEngine;
 
-public enum TerminalType
-{
-    Preprocess,
-    Train,
-    Corrupt
-}
-
 [RequireComponent(typeof(Collider))]
 public class TerminalInteractable : MonoBehaviour
 {
@@ -23,6 +16,10 @@ public class TerminalInteractable : MonoBehaviour
     public GameObject interactPrompt;
     public MLPuzzleUI mlPuzzleUI;
     public DoorController linkedDoor;
+
+    [Tooltip("Optional — the 'incoming transmission' screen shown after this " +
+             "terminal's puzzle is solved. Wired automatically by " +
+             "BlackVault > Add Mission Complete Overlay To This Scene.")]
     public MissionCompleteOverlay missionCompleteOverlay;
 
     [Header("Debug / Deadline Safety Net")]
@@ -39,10 +36,6 @@ public class TerminalInteractable : MonoBehaviour
     private void Start()
     {
         if (interactPrompt != null) interactPrompt.SetActive(false);
-        if (missionCompleteOverlay == null)
-        {
-            missionCompleteOverlay = FindObjectOfType<MissionCompleteOverlay>();
-        }
     }
 
     private void Update()
@@ -81,14 +74,10 @@ public class TerminalInteractable : MonoBehaviour
             Debug.Log($"[BlackVault] debugSkipPuzzle is ON — unlocking {name} without opening the puzzle panel.");
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
-            if (missionCompleteOverlay != null) missionCompleteOverlay.Show(level);
             return;
         }
 
-        if (mlPuzzleUI != null)
-        {
-            mlPuzzleUI.Open(level, OnPuzzleResult);
-        }
+        mlPuzzleUI.Open(level, OnPuzzleResult);
     }
 
     private void OnPuzzleResult(bool doorUnlocked)
@@ -97,9 +86,13 @@ public class TerminalInteractable : MonoBehaviour
         {
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
+
             if (missionCompleteOverlay != null)
             {
-                missionCompleteOverlay.Show(level);
+                missionCompleteOverlay.Show(
+                    level,
+                    $"Incoming transmission... Sector {level} secured. Proceed to the next checkpoint."
+                );
             }
         }
         else
