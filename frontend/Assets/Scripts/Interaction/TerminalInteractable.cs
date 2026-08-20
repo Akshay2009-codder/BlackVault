@@ -1,10 +1,11 @@
-// TerminalInteractable.cs — BlackVault
-//
-// Attach to a security terminal object in the level. Uses a trigger
-// collider to detect when the player is nearby, shows a "Press E to
-// interact" prompt, and opens the ML Puzzle UI on interact.
-
 using UnityEngine;
+
+public enum TerminalType
+{
+    Preprocess,
+    Train,
+    Corrupt
+}
 
 [RequireComponent(typeof(Collider))]
 public class TerminalInteractable : MonoBehaviour
