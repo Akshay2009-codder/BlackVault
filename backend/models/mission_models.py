@@ -14,50 +14,50 @@ returns to Unity — deliberately excludes true_problem_type/target_col,
 which stay server-side in main.py's BOSS_MISSIONS registry.
 """
 
-from typing import Optional, List
-
-from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field
 
 
 class MissionConfig(BaseModel):
-    mission_id: str
-    level: int
-    title: str
-    description: str
-    problem_type: str
-    dataset: str
-    target_col: Optional[str] = None
-    feature_cols: Optional[List[str]] = None
-    algorithms_allowed: Optional[List[str]] = None
-    target_metric: Optional[str] = None
-    target_metric_value: Optional[float] = None
-    metric_direction: Optional[str] = None
-    k_range: Optional[List[int]] = None
-    difficulty: str
-    time_limit_seconds: int
-    max_retries: int
-    hints_available: bool
+    """Configuration schema for game missions and challenges."""
+    mission_id: str = Field(..., description="Unique mission identifier")
+    level: int = Field(..., description="Level numeric index")
+    title: str = Field(..., description="Player-facing mission title")
+    description: str = Field(..., description="Mission brief and narrative description")
+    problem_type: str = Field(..., description="Machine learning problem type")
+    dataset: str = Field(..., description="Dataset name associated with mission")
+    target_col: Optional[str] = Field(None, description="Name of target label column")
+    feature_cols: Optional[List[str]] = Field(None, description="List of allowed feature column names")
+    algorithms_allowed: Optional[List[str]] = Field(None, description="List of algorithm choices available")
+    target_metric: Optional[str] = Field(None, description="Primary performance metric to pass level")
+    target_metric_value: Optional[float] = Field(None, description="Target performance score threshold")
+    metric_direction: Optional[str] = Field(None, description="Direction of target metric (higher_is_better/lower_is_better)")
+    k_range: Optional[List[int]] = Field(None, description="Range of k values for clustering missions")
+    difficulty: str = Field(..., description="Difficulty rating (easy, medium, hard, boss)")
+    time_limit_seconds: int = Field(..., description="Time limit allocated to complete mission")
+    max_retries: int = Field(..., description="Maximum allowed attempts before lockout")
+    hints_available: bool = Field(..., description="Whether hint system is unlocked for this level")
 
 
 class BossMissionResponse(BaseModel):
-    mission_id: str
-    level: str = "boss"
-    title: str
-    description: str
-    dataset: str
-    time_limit_seconds: int
-    max_retries: int
-    hints_available: bool
+    """Response payload for procedural boss level creation."""
+    mission_id: str = Field(..., description="Boss mission unique ID")
+    level: str = Field("boss", description="Level type constant")
+    title: str = Field(..., description="Boss level title")
+    description: str = Field(..., description="Boss level narrative brief")
+    dataset: str = Field(..., description="Corrupted boss dataset name")
+    time_limit_seconds: int = Field(..., description="Time limit allocated for boss level")
+    max_retries: int = Field(..., description="Maximum attempts allowed")
+    hints_available: bool = Field(..., description="Hint availability flag")
 
-class CorruptRequest(BaseModel):
-    dataset: str
-    event_type: str
-    target_col: Optional[str] = None
-    params: dict = {}
 
 class RandomEventConfig(BaseModel):
-    event_type: str
-    description: str
-    affected_column: Optional[str] = None
-    severity: str
-    duration_seconds: int
+    """Configuration model for random data corruption events."""
+    event_id: Optional[str] = Field(None, description="Unique event identifier")
+    event_type: str = Field(..., description="Category of corruption event")
+    title: Optional[str] = Field(None, description="Player facing alert title")
+    description: str = Field(..., description="Narrative description of data anomaly")
+    affected_column: Optional[str] = Field(None, description="Target column affected by event")
+    severity: str = Field(..., description="Severity tier (low, medium, high)")
+    affects_dataset: bool = Field(True, description="Whether event mutates dataset contents")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Event configuration parameters")
