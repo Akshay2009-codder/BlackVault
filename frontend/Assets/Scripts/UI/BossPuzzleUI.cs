@@ -77,6 +77,14 @@ public class BossPuzzleUI : MonoBehaviour
     // --- Request/response classes — field names match backend/main.py exactly ---
 
     [Serializable]
+    private class BossMissionConfig
+    {
+        public string mission_id;
+        public string dataset;
+        public int time_limit_seconds;
+    }
+
+    [Serializable]
     private class PreprocessRequestBody
     {
         public string dataset;
@@ -153,20 +161,43 @@ public class BossPuzzleUI : MonoBehaviour
     {
         _onResultCallback = onResult;
         _submitted = false;
-        _timeRemaining = timeLimitSeconds;
 
         if (panelRoot != null) panelRoot.SetActive(true);
         if (player != null) player.SetInputEnabled(false);
-        if (resultText != null) resultText.text = "";
+        if (resultText != null) resultText.text = "Establishing connection to main vault mainframe...";
         if (statsText != null) statsText.text = "";
 
         // No hint given — player sees raw data only, must decide the
         // problem type themselves before algorithm options populate.
         OnProblemTypeChanged(0);
-        StartCoroutine(FetchPreview());
+        StartCoroutine(FetchBossMissionThenPreview());
 
         if (_timerCoroutine != null) StopCoroutine(_timerCoroutine);
         _timerCoroutine = StartCoroutine(RunTimer());
+    }
+
+    private IEnumerator FetchBossMissionThenPreview()
+    {
+        using (UnityWebRequest request = UnityWebRequest.Get($"{BaseUrl}/mission/generate/boss"))
+        {
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                if (resultText != null)
+                {
+                    resultText.text = $"<color=#F55A5A>Failed to load boss mission: {request.error}</color>";
+                }
+                yield break;
+            }
+
+            BossMissionConfig config = JsonUtility.FromJson<BossMissionConfig>(request.downloadHandler.text);
+            bossDatasetId = config.dataset;
+            timeLimitSeconds = config.time_limit_seconds;
+            _timeRemaining = timeLimitSeconds;
+        }
+
+        yield return FetchPreview();
     }
 
     public void Close()

@@ -16,6 +16,7 @@ public class TerminalInteractable : MonoBehaviour
     [Header("References")]
     public GameObject interactPrompt;
     public MLPuzzleUI mlPuzzleUI;
+    public BossPuzzleUI bossPuzzleUI;
     public DoorController linkedDoor;
 
     [Tooltip("Optional — the 'incoming transmission' screen shown after this " +
@@ -78,7 +79,14 @@ public class TerminalInteractable : MonoBehaviour
             return;
         }
 
-        mlPuzzleUI.Open(level, OnPuzzleResult);
+        if (bossPuzzleUI != null)
+        {
+            bossPuzzleUI.Open(OnPuzzleResult);
+        }
+        else
+        {
+            mlPuzzleUI.Open(level, OnPuzzleResult);
+        }
     }
 
     private void OnPuzzleResult(bool doorUnlocked)

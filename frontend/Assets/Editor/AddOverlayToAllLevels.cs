@@ -20,6 +20,7 @@ public static class AddOverlayToAllLevels
         "Assets/Scenes/03_Level3_Classification.unity",
         "Assets/Scenes/04_Level4_Clustering.unity",
         "Assets/Scenes/05_Level5_Anomaly.unity",
+        "Assets/Scenes/06_BossRoom.unity",
     };
 
     [MenuItem("BlackVault/Add Mission Complete Overlay To ALL Level Scenes")]
