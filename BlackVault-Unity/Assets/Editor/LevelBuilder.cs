@@ -1,32 +1,20 @@
-// LevelBuilder.cs — BlackVault Editor Tool
+// LevelBuilder.cs — BlackVault Editor Tool (v3 — Full Mega-Lab)
 //
-// Auto-builds the Level 1 scene hierarchy described in
-// Level1_Scene_Setup_Guide.md: environment, door, terminal, player
-// (with dual camera rig), and the ML Puzzle UI canvas — with scripts
-// attached and most fields wired automatically.
+// Builds ALL 5 mission labs into ONE connected scene:
 //
-// This MUST go in an "Editor" folder (e.g. Assets/Editor/LevelBuilder.cs)
-// so Unity treats it as editor-only tooling, not part of the game build.
+//   [Level 1] → [Level 2] → [Level 3] → [Level 4] → [Level 5]
+//
+// Each level section has:
+//   Entry Corridor → Ante-Chamber [D1] → Main Lab [D2] → Exit Chamber [D3]
+//
+// The exit chamber of Level N connects to the entry corridor of Level N+1.
+// D1 is auto-open, D2 is puzzle-locked, D3 chains from D2.
 //
 // Usage:
-//   1. Place this file at Assets/Editor/LevelBuilder.cs
-//   2. Make sure PlayerController.cs, TerminalInteractable.cs,
-//      DoorController.cs, and MLPuzzleUI.cs already exist in your project
-//      (Assets/Scripts/...), since this references those types directly.
-//   3. In Unity's top menu bar: BlackVault > Build Level 1 Scene
-//   4. Save the resulting scene as 01_Level1_DataCleaning.unity
-//   5. Open the guide's Test Checklist and verify each item —
-//      this script sets up structure, but you should still eyeball
-//      positions/scales and adjust to taste.
-//
-// What this script does NOT do (still manual, on purpose):
-//   - Import real art assets (Mixamo/Kenney models) — it uses primitives
-//   - Create the "Player" tag if your project doesn't have one yet
-//     (Unity doesn't allow creating tags via the public scripting API;
-//     add it manually via Edit > Project Settings > Tags and Layers
-//     BEFORE running this, or the script will warn and skip tagging)
-//   - Fine-tune UI layout/anchoring — it creates the elements, you'll
-//     want to adjust RectTransform anchors/sizes for a clean look
+//   1. File → New Scene → Empty
+//   2. BlackVault → Build Complete Facility (All Levels)
+//   3. Save as one scene
+//   4. Hit Play — walk through all 5 labs!
 
 using UnityEditor;
 using UnityEngine;
@@ -34,69 +22,538 @@ using UnityEngine.UI;
 
 public static class LevelBuilder
 {
-    // Level number -> suggested scene file name. Dataset id is no longer
-    // set here — MLPuzzleUI fetches it from GET /mission/generate at
-    // runtime, so the builder doesn't need to guess it.
-    private static readonly (int level, string sceneName)[] Levels = new[]
+    // =====================================================================
+    // Level Theme Configuration
+    // =====================================================================
+
+    private struct LevelTheme
     {
-        (1, "01_Level1_DataCleaning"),
-        (2, "02_Level2_Regression"),
-        (3, "03_Level3_Classification"),
-        (4, "04_Level4_Clustering"),
-        (5, "05_Level5_Anomaly"),
+        public int level;
+        public string sceneName;
+        public string zoneName;
+        public Color accentColor;
+        public Color ambientColor;
+        public Color fogColor;
+        public string doorLabel1;
+        public string doorLabel2;
+        public string doorLabel3;
+        public Color wallTint;
+        public Color floorTint;
+    }
+
+    private static readonly LevelTheme[] Themes = new[]
+    {
+        new LevelTheme
+        {
+            level = 1, sceneName = "01_Level1_DataCleaning",
+            zoneName = "DATA PROCESSING LAB",
+            accentColor = new Color(0f, 0.85f, 0.85f),
+            ambientColor = new Color(0.05f, 0.12f, 0.14f),
+            fogColor = new Color(0.02f, 0.06f, 0.08f),
+            doorLabel1 = "DATA INTAKE", doorLabel2 = "PROCESSING CORE", doorLabel3 = "SECTOR 1 EXIT",
+            wallTint = new Color(0.13f, 0.16f, 0.18f),
+            floorTint = new Color(0.10f, 0.13f, 0.15f)
+        },
+        new LevelTheme
+        {
+            level = 2, sceneName = "02_Level2_Regression",
+            zoneName = "ANALYTICS WING",
+            accentColor = new Color(1f, 0.6f, 0.15f),
+            ambientColor = new Color(0.10f, 0.07f, 0.03f),
+            fogColor = new Color(0.06f, 0.04f, 0.02f),
+            doorLabel1 = "ANALYTICS PREP", doorLabel2 = "REGRESSION LAB", doorLabel3 = "SECTOR 2 EXIT",
+            wallTint = new Color(0.16f, 0.14f, 0.12f),
+            floorTint = new Color(0.13f, 0.11f, 0.09f)
+        },
+        new LevelTheme
+        {
+            level = 3, sceneName = "03_Level3_Classification",
+            zoneName = "MEDICAL RESEARCH WING",
+            accentColor = new Color(0.9f, 0.15f, 0.2f),
+            ambientColor = new Color(0.10f, 0.04f, 0.04f),
+            fogColor = new Color(0.06f, 0.02f, 0.02f),
+            doorLabel1 = "BIO-SCAN PREP", doorLabel2 = "DIAGNOSTIC LAB", doorLabel3 = "SECTOR 3 EXIT",
+            wallTint = new Color(0.17f, 0.13f, 0.13f),
+            floorTint = new Color(0.14f, 0.10f, 0.10f)
+        },
+        new LevelTheme
+        {
+            level = 4, sceneName = "04_Level4_Clustering",
+            zoneName = "MARKET INTELLIGENCE CENTER",
+            accentColor = new Color(0.6f, 0.25f, 0.9f),
+            ambientColor = new Color(0.07f, 0.04f, 0.10f),
+            fogColor = new Color(0.04f, 0.02f, 0.06f),
+            doorLabel1 = "INTEL BRIEFING", doorLabel2 = "CLUSTER ANALYSIS", doorLabel3 = "SECTOR 4 EXIT",
+            wallTint = new Color(0.15f, 0.13f, 0.18f),
+            floorTint = new Color(0.12f, 0.10f, 0.15f)
+        },
+        new LevelTheme
+        {
+            level = 5, sceneName = "05_Level5_Anomaly",
+            zoneName = "FINANCIAL SECURITY VAULT",
+            accentColor = new Color(1f, 0.8f, 0.1f),
+            ambientColor = new Color(0.10f, 0.08f, 0.03f),
+            fogColor = new Color(0.06f, 0.05f, 0.02f),
+            doorLabel1 = "SECURITY CHECK", doorLabel2 = "FRAUD DETECTION", doorLabel3 = "VAULT EXIT",
+            wallTint = new Color(0.16f, 0.15f, 0.11f),
+            floorTint = new Color(0.13f, 0.12f, 0.08f)
+        },
     };
 
-    [MenuItem("BlackVault/Build Level 1 Scene")]
-    public static void BuildLevel1() => BuildLevel(1);
+    // =====================================================================
+    // Menu Items
+    // =====================================================================
 
-    [MenuItem("BlackVault/Build Level 2 Scene")]
-    public static void BuildLevel2() => BuildLevel(2);
+    [MenuItem("BlackVault/Build Complete Facility (All Levels)", false, 0)]
+    public static void BuildAllLevels()
+    {
+        BuildCompleteFacility();
+    }
 
-    [MenuItem("BlackVault/Build Level 3 Scene")]
-    public static void BuildLevel3() => BuildLevel(3);
+    [MenuItem("BlackVault/Build Single Levels/Build Level 1 Scene")]
+    public static void BuildLevel1() => BuildSingleLevel(1);
 
-    [MenuItem("BlackVault/Build Level 4 Scene")]
-    public static void BuildLevel4() => BuildLevel(4);
+    [MenuItem("BlackVault/Build Single Levels/Build Level 2 Scene")]
+    public static void BuildLevel2() => BuildSingleLevel(2);
 
-    [MenuItem("BlackVault/Build Level 5 Scene")]
-    public static void BuildLevel5() => BuildLevel(5);
+    [MenuItem("BlackVault/Build Single Levels/Build Level 3 Scene")]
+    public static void BuildLevel3() => BuildSingleLevel(3);
+
+    [MenuItem("BlackVault/Build Single Levels/Build Level 4 Scene")]
+    public static void BuildLevel4() => BuildSingleLevel(4);
+
+    [MenuItem("BlackVault/Build Single Levels/Build Level 5 Scene")]
+    public static void BuildLevel5() => BuildSingleLevel(5);
+
+    // =====================================================================
+    // Room dimensions (per level section)
+    // =====================================================================
+
+    private const float WallHeight = 4f;
+    private const float WallThickness = 0.2f;
+    private const float CeilingY = WallHeight;
+
+    // Each level section spans 28m along Z:
+    //   Corridor (4m) + Ante-Chamber (8m) + Main Lab (12m) + Exit (4m) = 28m
+    private const float SectionLength = 28f;
+
+    private const float CorridorWidth = 4f;
+    private const float CorridorLength = 4f;
+
+    private const float AnteWidth = 6f;
+    private const float AnteLength = 8f;
+
+    private const float LabWidth = 10f;
+    private const float LabLength = 12f;
+
+    private const float ExitWidth = 6f;
+    private const float ExitLength = 4f;
+
+    // =====================================================================
+    // BUILD COMPLETE FACILITY — All 5 levels in ONE scene
+    // =====================================================================
+
+    private static void BuildCompleteFacility()
+    {
+        EnsureEventSystem();
+
+        // Use the first theme for global lighting (blended)
+        SetupSceneLighting(Themes[0]);
+
+        // Build player once at the very start
+        float playerSpawnZ = -4f + 1.5f; // start of level 1 corridor
+        GameObject player = BuildPlayer(playerSpawnZ, Themes[0]);
+        GameObject canvas = BuildMLPuzzleCanvas(player);
+
+        // Build all 5 level sections sequentially along Z
+        for (int i = 0; i < Themes.Length; i++)
+        {
+            LevelTheme theme = Themes[i];
+            float zOffset = i * SectionLength; // each section is 28m
+
+            bool isLastLevel = (i == Themes.Length - 1);
+
+            BuildLevelSection(theme, zOffset, canvas, isLastLevel);
+        }
+
+        // Build connecting corridors between level exits and next level entries
+        for (int i = 0; i < Themes.Length - 1; i++)
+        {
+            float connectZ = (i + 1) * SectionLength - 4f; // where level i+1 starts
+            BuildConnectorCorridor(connectZ, Themes[i], Themes[i + 1]);
+        }
+
+        Debug.Log("[BlackVault] ★ COMPLETE FACILITY BUILT — All 5 mission labs in one scene! " +
+                  "Save it and hit Play to walk through the entire facility.");
+    }
 
     /// <summary>
-    /// Builds a full level scene for the given level number (1-5).
-    /// Call this with the CURRENT SCENE EMPTY — it does not clear an
-    /// existing scene for you, to avoid accidentally deleting work.
+    /// Builds one level's entire section (corridor + ante + lab + exit + doors + terminal)
+    /// at a given Z offset.
     /// </summary>
-    private static void BuildLevel(int levelNumber)
+    private static void BuildLevelSection(LevelTheme theme, float zOffset,
+        GameObject canvas, bool isLastLevel)
     {
-        var config = System.Array.Find(Levels, l => l.level == levelNumber);
-        if (config.level == 0)
+        // Calculate room start positions with offset
+        float corridorStartZ = zOffset - 4f;
+        float anteStartZ = zOffset;
+        float labStartZ = zOffset + 8f;
+        float exitStartZ = zOffset + 20f;
+
+        // --- Root container for this level ---
+        GameObject sectionRoot = new GameObject($"Level_{theme.level}_{theme.zoneName.Replace(" ", "_")}");
+
+        // --- Materials ---
+        Material wallMat = LabPropFactory.CreateMaterial(theme.wallTint, 0.2f, 0.3f);
+        Material floorMat = LabPropFactory.CreateMaterial(theme.floorTint, 0.1f, 0.2f);
+        Material ceilingMat = LabPropFactory.CreateMaterial(LabPropFactory.CeilingColor, 0.1f, 0.15f);
+
+        // --- Zone label light (big overhead accent for the whole section) ---
+        GameObject zoneLightObj = new GameObject("ZoneAccentLight");
+        zoneLightObj.transform.SetParent(sectionRoot.transform);
+        zoneLightObj.transform.position = new Vector3(0f, CeilingY - 0.5f, zOffset + SectionLength / 2f);
+        Light zoneLight = zoneLightObj.AddComponent<Light>();
+        zoneLight.type = LightType.Point;
+        zoneLight.color = theme.accentColor;
+        zoneLight.intensity = 0.5f;
+        zoneLight.range = 20f;
+
+        // ========================
+        // ENTRY CORRIDOR
+        // ========================
+        GameObject corridor = new GameObject("EntryCorridorRoom");
+        corridor.transform.SetParent(sectionRoot.transform);
+
+        // First level gets a back wall; others connect to previous level's exit
+        bool hasBackWall = (theme.level == 1);
+
+        BuildRoom(corridor.transform,
+            centerX: 0f, startZ: corridorStartZ,
+            width: CorridorWidth, length: CorridorLength,
+            wallMat, floorMat, ceilingMat,
+            hasBackWall: hasBackWall, hasFrontWall: false,
+            leftWallFull: true, rightWallFull: true);
+
+        // Corridor props
+        float corridorCenterZ = corridorStartZ + CorridorLength / 2f;
+        LabPropFactory.CreateCeilingLightPanel(corridor.transform,
+            new Vector3(0f, CeilingY - 0.05f, corridorCenterZ),
+            theme.accentColor * 0.5f + Color.white * 0.5f, 1.5f, 0.4f, 0.8f);
+
+        for (int a = 0; a < 3; a++)
         {
-            Debug.LogError($"[BlackVault] No config found for level {levelNumber}.");
+            LabPropFactory.CreateFloorMarking(corridor.transform,
+                new Vector3(0f, 0f, corridorStartZ + 1f + a), theme.accentColor, 2f, 0.1f);
+        }
+
+        LabPropFactory.CreateWallPanel(corridor.transform,
+            new Vector3(-CorridorWidth / 2f + 0.15f, WallHeight / 2f, corridorCenterZ),
+            1.0f, 0.8f, 90f);
+        LabPropFactory.CreateWallPanel(corridor.transform,
+            new Vector3(CorridorWidth / 2f - 0.15f, WallHeight / 2f, corridorCenterZ),
+            1.0f, 0.8f, -90f);
+
+        // --- Zone Name Sign at corridor entrance ---
+        BuildZoneSign(corridor.transform,
+            new Vector3(0f, WallHeight - 0.5f, corridorStartZ + 0.5f),
+            theme.zoneName, theme.accentColor);
+
+        // ========================
+        // DOOR 1 — Entry (auto-open)
+        // ========================
+        GameObject door1 = BuildDoubleDoor(sectionRoot.transform,
+            new Vector3(0f, 0f, anteStartZ),
+            theme.doorLabel1, theme.accentColor, autoOpen: true, startLocked: false);
+
+        // ========================
+        // ANTE-CHAMBER
+        // ========================
+        GameObject ante = new GameObject("AnteChamberRoom");
+        ante.transform.SetParent(sectionRoot.transform);
+
+        BuildRoom(ante.transform,
+            centerX: 0f, startZ: anteStartZ,
+            width: AnteWidth, length: AnteLength,
+            wallMat, floorMat, ceilingMat,
+            hasBackWall: false, hasFrontWall: false,
+            leftWallFull: true, rightWallFull: true);
+
+        // Transition walls corridor → ante
+        float transWallWidth = (AnteWidth - CorridorWidth) / 2f;
+        if (transWallWidth > 0.1f)
+        {
+            CreateWallWithMaterial("TransWall_Left", ante.transform,
+                new Vector3(-CorridorWidth / 2f - transWallWidth / 2f, WallHeight / 2f, anteStartZ),
+                new Vector3(transWallWidth, WallHeight, WallThickness), wallMat);
+            CreateWallWithMaterial("TransWall_Right", ante.transform,
+                new Vector3(CorridorWidth / 2f + transWallWidth / 2f, WallHeight / 2f, anteStartZ),
+                new Vector3(transWallWidth, WallHeight, WallThickness), wallMat);
+        }
+
+        // Ante-chamber props
+        float anteCenterZ = anteStartZ + AnteLength / 2f;
+
+        LabPropFactory.CreateCeilingLightPanel(ante.transform,
+            new Vector3(-1.2f, CeilingY - 0.05f, anteCenterZ - 1f),
+            theme.accentColor * 0.4f + Color.white * 0.6f, 1.2f, 0.35f, 1f);
+        LabPropFactory.CreateCeilingLightPanel(ante.transform,
+            new Vector3(1.2f, CeilingY - 0.05f, anteCenterZ + 1f),
+            theme.accentColor * 0.4f + Color.white * 0.6f, 1.2f, 0.35f, 1f);
+
+        LabPropFactory.CreateServerRack(ante.transform,
+            new Vector3(-AnteWidth / 2f + 0.6f, 0f, anteStartZ + 1.5f), theme.accentColor);
+        LabPropFactory.CreateServerRack(ante.transform,
+            new Vector3(-AnteWidth / 2f + 0.6f, 0f, anteStartZ + 3.5f), theme.accentColor);
+
+        LabPropFactory.CreateWallScreen(ante.transform,
+            new Vector3(AnteWidth / 2f - 0.15f, WallHeight * 0.55f, anteCenterZ),
+            theme.accentColor * 0.7f, -90f, 1.5f, 0.9f);
+
+        LabPropFactory.CreateDesk(ante.transform,
+            new Vector3(1.5f, 0f, anteStartZ + 2f), theme.accentColor * 0.5f, 180f);
+
+        LabPropFactory.CreateFloorMarking(ante.transform,
+            new Vector3(-1.5f, 0f, anteStartZ + AnteLength - 0.5f), Color.yellow * 0.8f, 1.5f, 0.08f);
+        LabPropFactory.CreateFloorMarking(ante.transform,
+            new Vector3(1.5f, 0f, anteStartZ + AnteLength - 0.5f), Color.yellow * 0.8f, 1.5f, 0.08f);
+
+        LabPropFactory.CreatePipe(ante.transform,
+            new Vector3(-AnteWidth / 2f + 0.3f, CeilingY - 0.15f, anteCenterZ),
+            AnteLength, 0.05f, new Vector3(0f, 0f, 90f));
+
+        // ========================
+        // DOOR 2 — Puzzle-locked
+        // ========================
+        GameObject door2 = BuildDoubleDoor(sectionRoot.transform,
+            new Vector3(0f, 0f, labStartZ),
+            theme.doorLabel2, theme.accentColor, autoOpen: false, startLocked: true);
+
+        // Transition walls ante → lab
+        float transWall2Width = (LabWidth - AnteWidth) / 2f;
+        if (transWall2Width > 0.1f)
+        {
+            CreateWallWithMaterial("TransWall2_Left", sectionRoot.transform,
+                new Vector3(-AnteWidth / 2f - transWall2Width / 2f, WallHeight / 2f, labStartZ),
+                new Vector3(transWall2Width, WallHeight, WallThickness), wallMat);
+            CreateWallWithMaterial("TransWall2_Right", sectionRoot.transform,
+                new Vector3(AnteWidth / 2f + transWall2Width / 2f, WallHeight / 2f, labStartZ),
+                new Vector3(transWall2Width, WallHeight, WallThickness), wallMat);
+        }
+
+        // ========================
+        // MAIN LAB (big room)
+        // ========================
+        GameObject lab = new GameObject("MainLabRoom");
+        lab.transform.SetParent(sectionRoot.transform);
+
+        BuildRoom(lab.transform,
+            centerX: 0f, startZ: labStartZ,
+            width: LabWidth, length: LabLength,
+            wallMat, floorMat, ceilingMat,
+            hasBackWall: false, hasFrontWall: false,
+            leftWallFull: true, rightWallFull: true);
+
+        // Transition walls lab → exit
+        float transWall3Width = (LabWidth - ExitWidth) / 2f;
+        if (transWall3Width > 0.1f)
+        {
+            CreateWallWithMaterial("TransWall3_Left", lab.transform,
+                new Vector3(-ExitWidth / 2f - transWall3Width / 2f, WallHeight / 2f, exitStartZ),
+                new Vector3(transWall3Width, WallHeight, WallThickness), wallMat);
+            CreateWallWithMaterial("TransWall3_Right", lab.transform,
+                new Vector3(ExitWidth / 2f + transWall3Width / 2f, WallHeight / 2f, exitStartZ),
+                new Vector3(transWall3Width, WallHeight, WallThickness), wallMat);
+        }
+
+        // Main lab props
+        float labCenterZ = labStartZ + LabLength / 2f;
+
+        // 4 ceiling lights
+        LabPropFactory.CreateCeilingLightPanel(lab.transform,
+            new Vector3(-2f, CeilingY - 0.05f, labCenterZ - 2f),
+            theme.accentColor * 0.3f + Color.white * 0.7f, 1.5f, 0.4f, 1.2f);
+        LabPropFactory.CreateCeilingLightPanel(lab.transform,
+            new Vector3(2f, CeilingY - 0.05f, labCenterZ - 2f),
+            theme.accentColor * 0.3f + Color.white * 0.7f, 1.5f, 0.4f, 1.2f);
+        LabPropFactory.CreateCeilingLightPanel(lab.transform,
+            new Vector3(-2f, CeilingY - 0.05f, labCenterZ + 2f),
+            theme.accentColor * 0.3f + Color.white * 0.7f, 1.5f, 0.4f, 1.2f);
+        LabPropFactory.CreateCeilingLightPanel(lab.transform,
+            new Vector3(2f, CeilingY - 0.05f, labCenterZ + 2f),
+            theme.accentColor * 0.3f + Color.white * 0.7f, 1.5f, 0.4f, 1.2f);
+
+        // Server racks along walls
+        float rackLeft = -LabWidth / 2f + 0.6f;
+        float rackRight = LabWidth / 2f - 0.6f;
+        for (int r = 0; r < 4; r++)
+        {
+            float z = labStartZ + 1.5f + r * 2.8f;
+            LabPropFactory.CreateServerRack(lab.transform,
+                new Vector3(rackLeft, 0f, z), theme.accentColor);
+        }
+        for (int r = 0; r < 3; r++)
+        {
+            float z = labStartZ + 2.5f + r * 3.2f;
+            LabPropFactory.CreateServerRack(lab.transform,
+                new Vector3(rackRight, 0f, z), theme.accentColor);
+        }
+
+        // Work desks
+        LabPropFactory.CreateDesk(lab.transform,
+            new Vector3(-2f, 0f, labCenterZ - 1f), theme.accentColor * 0.6f, 0f);
+        LabPropFactory.CreateDesk(lab.transform,
+            new Vector3(2f, 0f, labCenterZ + 1f), theme.accentColor * 0.6f, 180f);
+
+        // Wall screens
+        LabPropFactory.CreateWallScreen(lab.transform,
+            new Vector3(-LabWidth / 2f + 0.15f, WallHeight * 0.6f, labCenterZ - 3f),
+            theme.accentColor * 0.5f, 90f, 2f, 1.2f);
+        LabPropFactory.CreateWallScreen(lab.transform,
+            new Vector3(LabWidth / 2f - 0.15f, WallHeight * 0.6f, labCenterZ + 1f),
+            theme.accentColor * 0.5f, -90f, 2f, 1.2f);
+
+        // Railing
+        LabPropFactory.CreateRailing(lab.transform,
+            new Vector3(0f, 0f, labCenterZ - 3f), 4f);
+
+        // Floor markings
+        for (int f = 0; f < 5; f++)
+        {
+            float z = labStartZ + 1f + f * 2.5f;
+            LabPropFactory.CreateFloorMarking(lab.transform,
+                new Vector3(0f, 0f, z), theme.accentColor * 0.6f, 0.3f, 1.5f, 90f);
+        }
+
+        // Ceiling pipes
+        LabPropFactory.CreatePipe(lab.transform,
+            new Vector3(-LabWidth / 2f + 0.3f, CeilingY - 0.15f, labCenterZ),
+            LabLength, 0.06f, new Vector3(0f, 0f, 90f));
+        LabPropFactory.CreatePipe(lab.transform,
+            new Vector3(LabWidth / 2f - 0.3f, CeilingY - 0.15f, labCenterZ),
+            LabLength, 0.06f, new Vector3(0f, 0f, 90f));
+
+        // Wall panels
+        LabPropFactory.CreateWallPanel(lab.transform,
+            new Vector3(-LabWidth / 2f + 0.15f, WallHeight * 0.35f, labStartZ + 2f),
+            1.2f, 0.8f, 90f);
+        LabPropFactory.CreateWallPanel(lab.transform,
+            new Vector3(LabWidth / 2f - 0.15f, WallHeight * 0.35f, labCenterZ + 4f),
+            1.2f, 0.8f, -90f);
+
+        // ========================
+        // DOOR 3 — Exit (chained)
+        // ========================
+        GameObject door3 = BuildDoubleDoor(sectionRoot.transform,
+            new Vector3(0f, 0f, exitStartZ),
+            theme.doorLabel3, theme.accentColor, autoOpen: false, startLocked: true);
+
+        // Chain door3 to door2
+        DoorController dc2 = door2.GetComponent<DoorController>();
+        DoorController dc3 = door3.GetComponent<DoorController>();
+        dc2.chainedDoor = dc3;
+
+        // ========================
+        // EXIT CHAMBER
+        // ========================
+        GameObject exit = new GameObject("ExitChamberRoom");
+        exit.transform.SetParent(sectionRoot.transform);
+
+        BuildRoom(exit.transform,
+            centerX: 0f, startZ: exitStartZ,
+            width: ExitWidth, length: ExitLength,
+            wallMat, floorMat, ceilingMat,
+            hasBackWall: false, hasFrontWall: isLastLevel,
+            leftWallFull: true, rightWallFull: true);
+
+        float exitCenterZ = exitStartZ + ExitLength / 2f;
+        LabPropFactory.CreateCeilingLightPanel(exit.transform,
+            new Vector3(0f, CeilingY - 0.05f, exitCenterZ),
+            Color.green * 0.5f + Color.white * 0.5f, 1.5f, 0.4f, 1f);
+        LabPropFactory.CreateFloorMarking(exit.transform,
+            new Vector3(0f, 0f, exitCenterZ), Color.green * 0.8f, 2f, 0.15f);
+
+        // ========================
+        // TERMINAL in main lab
+        // ========================
+        float terminalZ = labStartZ + 2.5f;
+        GameObject terminal = BuildTerminal(door2, dc3, theme, terminalZ);
+
+        // Wire terminal to the shared ML Puzzle Canvas
+        WireTerminal(terminal, canvas, door2);
+
+        Debug.Log($"[BlackVault] Level {theme.level} ({theme.zoneName}) section built at Z offset {zOffset}.");
+    }
+
+    /// <summary>
+    /// Builds a short connecting corridor between two level sections.
+    /// This fills the gap between level N's exit and level N+1's entry.
+    /// </summary>
+    private static void BuildConnectorCorridor(float startZ, LevelTheme fromTheme, LevelTheme toTheme)
+    {
+        // The exit chamber ends at startZ, the next corridor starts at startZ
+        // They share the same Z, so we just need transition walls if widths differ
+
+        // Blend the colors between the two levels for a cool transition effect
+        Color blendWall = Color.Lerp(fromTheme.wallTint, toTheme.wallTint, 0.5f);
+        Color blendAccent = Color.Lerp(fromTheme.accentColor, toTheme.accentColor, 0.5f);
+
+        // Transition walls from exit width to next corridor width
+        float transWidth = (ExitWidth - CorridorWidth) / 2f;
+        Material wallMat = LabPropFactory.CreateMaterial(blendWall, 0.2f, 0.3f);
+
+        if (transWidth > 0.1f)
+        {
+            CreateWallWithMaterial("Connector_TransLeft", null,
+                new Vector3(-CorridorWidth / 2f - transWidth / 2f, WallHeight / 2f, startZ),
+                new Vector3(transWidth, WallHeight, WallThickness), wallMat);
+            CreateWallWithMaterial("Connector_TransRight", null,
+                new Vector3(CorridorWidth / 2f + transWidth / 2f, WallHeight / 2f, startZ),
+                new Vector3(transWidth, WallHeight, WallThickness), wallMat);
+        }
+
+        // A colored floor strip marking the zone transition
+        LabPropFactory.CreateFloorMarking(null,
+            new Vector3(0f, 0f, startZ), blendAccent, 3f, 0.2f);
+
+        // Transition accent light
+        GameObject lightObj = new GameObject("TransitionLight");
+        lightObj.transform.position = new Vector3(0f, CeilingY - 0.5f, startZ);
+        Light light = lightObj.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = blendAccent;
+        light.intensity = 1f;
+        light.range = 6f;
+    }
+
+    // =====================================================================
+    // BUILD SINGLE LEVEL (standalone scene)
+    // =====================================================================
+
+    private static void BuildSingleLevel(int levelNumber)
+    {
+        var theme = System.Array.Find(Themes, t => t.level == levelNumber);
+        if (theme.level == 0)
+        {
+            Debug.LogError($"[BlackVault] No theme found for level {levelNumber}.");
             return;
         }
 
         EnsureEventSystem();
+        SetupSceneLighting(theme);
 
-        BuildEnvironment(out GameObject door);
-        GameObject terminal = BuildTerminal(door, config.level);
-        GameObject player = BuildPlayer();
+        GameObject player = BuildPlayer(-2.5f, theme);
         GameObject canvas = BuildMLPuzzleCanvas(player);
 
-        WireTerminal(terminal, canvas, door);
+        BuildLevelSection(theme, 0f, canvas, true);
 
-        Debug.Log($"[BlackVault] Level {levelNumber} scene built. " +
-                  $"Save it as {config.sceneName}.unity, then check the " +
-                  "Test Checklist in Level1_Scene_Setup_Guide.md.");
+        Debug.Log($"[BlackVault] Level {levelNumber} ({theme.zoneName}) scene built. " +
+                  $"Save it as {theme.sceneName}.unity.");
     }
 
-    /// <summary>
-    /// Unity's UI (buttons, input fields, everything) cannot receive any
-    /// clicks or input without an EventSystem in the scene. Building UI
-    /// through Unity's own "GameObject > UI > ..." menu items adds one
-    /// automatically — building it via script (like this file does) does
-    /// NOT, so without this check every panel would look right but be
-    /// completely unclickable, which is exactly the bug this fixes.
-    /// </summary>
+    // =====================================================================
+    // Event System
+    // =====================================================================
+
     private static void EnsureEventSystem()
     {
         if (UnityEngine.EventSystems.EventSystem.current != null) return;
@@ -106,109 +563,379 @@ public static class LevelBuilder
         esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
     }
 
-    // ------------------------------------------------------------------
-    // Environment
-    // ------------------------------------------------------------------
-    private static void BuildEnvironment(out GameObject door)
+    // =====================================================================
+    // Scene Lighting
+    // =====================================================================
+
+    private static void SetupSceneLighting(LevelTheme theme)
     {
-        // Without this, a freshly-created "Empty" scene has no skybox
-        // material and no light — the world renders pure black, which
-        // makes any near-black UI panel visually blend into the void
-        // and look like a broken fullscreen overlay. Always add one.
         GameObject lightObj = new GameObject("Directional Light");
         Light dirLight = lightObj.AddComponent<Light>();
         dirLight.type = LightType.Directional;
-        dirLight.intensity = 1.2f;
+        dirLight.intensity = 0.3f;
+        dirLight.color = theme.accentColor * 0.3f + Color.white * 0.7f;
         lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = theme.ambientColor;
+
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Exponential;
+        RenderSettings.fogDensity = 0.015f;
+        RenderSettings.fogColor = theme.fogColor;
+    }
+
+    // =====================================================================
+    // Zone Name Sign (big label at section entrance)
+    // =====================================================================
+
+    private static void BuildZoneSign(Transform parent, Vector3 localPos,
+        string zoneName, Color accent)
+    {
+        GameObject signRoot = new GameObject("ZoneSign");
+        signRoot.transform.SetParent(parent, false);
+        signRoot.transform.localPosition = localPos;
+
+        // Background panel
+        GameObject bg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        bg.name = "SignBackground";
+        bg.transform.SetParent(signRoot.transform, false);
+        bg.transform.localPosition = Vector3.zero;
+        bg.transform.localScale = new Vector3(3f, 0.5f, 0.05f);
+        bg.GetComponent<Renderer>().material = LabPropFactory.CreateMaterial(
+            new Color(0.03f, 0.03f, 0.04f), 0.2f, 0.1f);
+        Object.DestroyImmediate(bg.GetComponent<Collider>());
+
+        // Emissive border
+        GameObject border = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        border.name = "SignBorder";
+        border.transform.SetParent(signRoot.transform, false);
+        border.transform.localPosition = new Vector3(0f, 0f, 0.03f);
+        border.transform.localScale = new Vector3(3.1f, 0.55f, 0.01f);
+        border.GetComponent<Renderer>().material = LabPropFactory.CreateEmissiveMaterial(accent * 0.5f, 1.5f);
+        Object.DestroyImmediate(border.GetComponent<Collider>());
+
+        // 3D Text
+        GameObject textObj = new GameObject("ZoneNameText");
+        textObj.transform.SetParent(signRoot.transform, false);
+        textObj.transform.localPosition = new Vector3(0f, 0f, 0.035f);
+        TextMesh tm = textObj.AddComponent<TextMesh>();
+        tm.text = $"◆  {zoneName}  ◆";
+        tm.fontSize = 48;
+        tm.characterSize = 0.06f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = accent;
+        tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        MeshRenderer textRenderer = textObj.GetComponent<MeshRenderer>();
+        textRenderer.material = tm.font.material;
+        textRenderer.material.color = accent;
+    }
+
+    // =====================================================================
+    // Room Builder
+    // =====================================================================
+
+    private static void BuildRoom(Transform parent,
+        float centerX, float startZ, float width, float length,
+        Material wallMat, Material floorMat, Material ceilingMat,
+        bool hasBackWall, bool hasFrontWall,
+        bool leftWallFull, bool rightWallFull)
+    {
+        float midZ = startZ + length / 2f;
+        float endZ = startZ + length;
 
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
-        floor.transform.position = new Vector3(0, -0.05f, 0);
-        floor.transform.localScale = new Vector3(10f, 0.1f, 20f);
+        floor.transform.SetParent(parent, false);
+        floor.transform.position = new Vector3(centerX, -0.05f, midZ);
+        floor.transform.localScale = new Vector3(width, 0.1f, length);
+        floor.GetComponent<Renderer>().material = floorMat;
 
-        CreateWall("Wall_Left", new Vector3(-5f, 1.5f, 0f), new Vector3(0.2f, 3f, 20f));
-        CreateWall("Wall_Right", new Vector3(5f, 1.5f, 0f), new Vector3(0.2f, 3f, 20f));
-        CreateWall("Wall_Back", new Vector3(0f, 1.5f, -10f), new Vector3(10f, 3f, 0.2f));
+        GameObject ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ceiling.name = "Ceiling";
+        ceiling.transform.SetParent(parent, false);
+        ceiling.transform.position = new Vector3(centerX, CeilingY + 0.05f, midZ);
+        ceiling.transform.localScale = new Vector3(width, 0.1f, length);
+        ceiling.GetComponent<Renderer>().material = ceilingMat;
+        Object.DestroyImmediate(ceiling.GetComponent<Collider>());
 
-        door = BuildDoor();
+        if (leftWallFull)
+        {
+            GameObject wallLeft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallLeft.name = "Wall_Left";
+            wallLeft.transform.SetParent(parent, false);
+            wallLeft.transform.position = new Vector3(centerX - width / 2f, WallHeight / 2f, midZ);
+            wallLeft.transform.localScale = new Vector3(WallThickness, WallHeight, length);
+            wallLeft.GetComponent<Renderer>().material = wallMat;
+        }
+
+        if (rightWallFull)
+        {
+            GameObject wallRight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallRight.name = "Wall_Right";
+            wallRight.transform.SetParent(parent, false);
+            wallRight.transform.position = new Vector3(centerX + width / 2f, WallHeight / 2f, midZ);
+            wallRight.transform.localScale = new Vector3(WallThickness, WallHeight, length);
+            wallRight.GetComponent<Renderer>().material = wallMat;
+        }
+
+        if (hasBackWall)
+        {
+            GameObject wallBack = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallBack.name = "Wall_Back";
+            wallBack.transform.SetParent(parent, false);
+            wallBack.transform.position = new Vector3(centerX, WallHeight / 2f, startZ);
+            wallBack.transform.localScale = new Vector3(width, WallHeight, WallThickness);
+            wallBack.GetComponent<Renderer>().material = wallMat;
+        }
+
+        if (hasFrontWall)
+        {
+            GameObject wallFront = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallFront.name = "Wall_Front";
+            wallFront.transform.SetParent(parent, false);
+            wallFront.transform.position = new Vector3(centerX, WallHeight / 2f, endZ);
+            wallFront.transform.localScale = new Vector3(width, WallHeight, WallThickness);
+            wallFront.GetComponent<Renderer>().material = wallMat;
+        }
     }
 
-    private static void CreateWall(string name, Vector3 position, Vector3 scale)
+    private static void CreateWallWithMaterial(string name, Transform parent,
+        Vector3 position, Vector3 scale, Material mat)
     {
         GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         wall.name = name;
+        if (parent != null) wall.transform.SetParent(parent, false);
         wall.transform.position = position;
         wall.transform.localScale = scale;
+        wall.GetComponent<Renderer>().material = mat;
     }
 
-    /// <summary>
-    /// Sets a solid, non-black background instead of relying on Skybox
-    /// rendering — a fresh "Empty" scene template has no skybox material
-    /// assigned, and Skybox clear mode with no material renders pure
-    /// black, which visually merges with any dark UI panel and looks
-    /// like a broken fullscreen overlay. Solid Color is more robust.
-    /// </summary>
-    private static void ApplyDefaultCameraBackground(Camera camera)
+    // =====================================================================
+    // Double Door Builder
+    // =====================================================================
+
+    private static GameObject BuildDoubleDoor(Transform parent, Vector3 position,
+        string label, Color accent, bool autoOpen, bool startLocked)
     {
-        camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = new Color(0.35f, 0.4f, 0.5f); // dark blue-gray, clearly not black
-    }
+        float doorWidth = 3.2f;
+        float doorHeight = 3.2f;
+        float panelWidth = doorWidth / 2f;
+        float frameDepth = 0.35f;
 
-    private static GameObject BuildDoor()
-    {
-        GameObject door = new GameObject("Door_01");
-        door.transform.position = new Vector3(0f, 1.5f, 10f);
+        GameObject root = new GameObject($"Door_{label.Replace(" ", "_")}");
+        if (parent != null) root.transform.SetParent(parent, false);
+        root.transform.position = position;
 
-        GameObject doorMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        doorMesh.name = "DoorMesh";
-        doorMesh.transform.SetParent(door.transform);
-        doorMesh.transform.localPosition = Vector3.zero;
-        doorMesh.transform.localScale = new Vector3(3f, 3f, 0.3f);
+        Material frameMat = LabPropFactory.CreateMaterial(LabPropFactory.TrimColor, 0.6f, 0.4f);
 
-        GameObject blocker = new GameObject("BlockingCollider");
-        blocker.transform.SetParent(door.transform);
-        blocker.transform.localPosition = Vector3.zero;
-        BoxCollider blockerCollider = blocker.AddComponent<BoxCollider>();
-        blockerCollider.size = new Vector3(3f, 3f, 0.3f);
+        // Frame columns
+        GameObject frameLeft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameLeft.name = "FrameLeft";
+        frameLeft.transform.SetParent(root.transform, false);
+        frameLeft.transform.localPosition = new Vector3(-doorWidth / 2f - 0.15f, doorHeight / 2f, 0f);
+        frameLeft.transform.localScale = new Vector3(0.3f, doorHeight, frameDepth);
+        frameLeft.GetComponent<Renderer>().material = frameMat;
 
-        GameObject lightObj = new GameObject("StatusLight");
-        lightObj.transform.SetParent(door.transform);
-        lightObj.transform.localPosition = new Vector3(0f, 2f, 0f);
-        Light statusLight = lightObj.AddComponent<Light>();
+        GameObject frameRight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameRight.name = "FrameRight";
+        frameRight.transform.SetParent(root.transform, false);
+        frameRight.transform.localPosition = new Vector3(doorWidth / 2f + 0.15f, doorHeight / 2f, 0f);
+        frameRight.transform.localScale = new Vector3(0.3f, doorHeight, frameDepth);
+        frameRight.GetComponent<Renderer>().material = frameMat;
+
+        GameObject frameTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameTop.name = "FrameTop";
+        frameTop.transform.SetParent(root.transform, false);
+        frameTop.transform.localPosition = new Vector3(0f, doorHeight + 0.15f, 0f);
+        frameTop.transform.localScale = new Vector3(doorWidth + 0.6f, 0.3f, frameDepth);
+        frameTop.GetComponent<Renderer>().material = frameMat;
+
+        // LED strips
+        Material ledMat = LabPropFactory.CreateEmissiveMaterial(accent, 3f);
+
+        GameObject ledLeft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ledLeft.name = "LedStripLeft";
+        ledLeft.transform.SetParent(root.transform, false);
+        ledLeft.transform.localPosition = new Vector3(-doorWidth / 2f + 0.02f, doorHeight / 2f, frameDepth / 2f + 0.01f);
+        ledLeft.transform.localScale = new Vector3(0.03f, doorHeight - 0.2f, 0.02f);
+        ledLeft.GetComponent<Renderer>().material = ledMat;
+        Object.DestroyImmediate(ledLeft.GetComponent<Collider>());
+
+        GameObject ledRight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ledRight.name = "LedStripRight";
+        ledRight.transform.SetParent(root.transform, false);
+        ledRight.transform.localPosition = new Vector3(doorWidth / 2f - 0.02f, doorHeight / 2f, frameDepth / 2f + 0.01f);
+        ledRight.transform.localScale = new Vector3(0.03f, doorHeight - 0.2f, 0.02f);
+        ledRight.GetComponent<Renderer>().material = ledMat;
+        Object.DestroyImmediate(ledRight.GetComponent<Collider>());
+
+        GameObject ledTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ledTop.name = "LedStripTop";
+        ledTop.transform.SetParent(root.transform, false);
+        ledTop.transform.localPosition = new Vector3(0f, doorHeight - 0.02f, frameDepth / 2f + 0.01f);
+        ledTop.transform.localScale = new Vector3(doorWidth - 0.1f, 0.03f, 0.02f);
+        ledTop.GetComponent<Renderer>().material = ledMat;
+        Object.DestroyImmediate(ledTop.GetComponent<Collider>());
+
+        // Door panels
+        Material doorMat = LabPropFactory.CreateMaterial(
+            LabPropFactory.PropDarkMetal * 1.2f, 0.7f, 0.5f);
+
+        GameObject panelLeft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        panelLeft.name = "DoorPanelLeft";
+        panelLeft.transform.SetParent(root.transform, false);
+        panelLeft.transform.localPosition = new Vector3(-panelWidth / 2f, doorHeight / 2f, 0f);
+        panelLeft.transform.localScale = new Vector3(panelWidth, doorHeight, 0.12f);
+        panelLeft.GetComponent<Renderer>().material = doorMat;
+        Object.DestroyImmediate(panelLeft.GetComponent<Collider>());
+
+        GameObject panelRight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        panelRight.name = "DoorPanelRight";
+        panelRight.transform.SetParent(root.transform, false);
+        panelRight.transform.localPosition = new Vector3(panelWidth / 2f, doorHeight / 2f, 0f);
+        panelRight.transform.localScale = new Vector3(panelWidth, doorHeight, 0.12f);
+        panelRight.GetComponent<Renderer>().material = doorMat;
+        Object.DestroyImmediate(panelRight.GetComponent<Collider>());
+
+        // Label sign
+        GameObject labelObj = new GameObject("DoorLabel");
+        labelObj.transform.SetParent(root.transform, false);
+        labelObj.transform.localPosition = new Vector3(0f, doorHeight + 0.55f, frameDepth / 2f + 0.01f);
+
+        GameObject labelBg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        labelBg.name = "LabelBackground";
+        labelBg.transform.SetParent(labelObj.transform, false);
+        labelBg.transform.localPosition = Vector3.zero;
+        labelBg.transform.localScale = new Vector3(2.5f, 0.35f, 0.03f);
+        labelBg.GetComponent<Renderer>().material = LabPropFactory.CreateMaterial(
+            new Color(0.05f, 0.05f, 0.06f), 0.3f, 0.2f);
+        Object.DestroyImmediate(labelBg.GetComponent<Collider>());
+
+        GameObject textObj = new GameObject("LabelText");
+        textObj.transform.SetParent(labelObj.transform, false);
+        textObj.transform.localPosition = new Vector3(0f, 0f, 0.025f);
+        TextMesh textMesh = textObj.AddComponent<TextMesh>();
+        textMesh.text = label;
+        textMesh.fontSize = 48;
+        textMesh.characterSize = 0.08f;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.color = accent;
+        textMesh.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        MeshRenderer textRenderer = textObj.GetComponent<MeshRenderer>();
+        textRenderer.material = textMesh.font.material;
+        textRenderer.material.color = accent;
+
+        // Status light
+        GameObject statusLightObj = new GameObject("StatusLight");
+        statusLightObj.transform.SetParent(root.transform, false);
+        statusLightObj.transform.localPosition = new Vector3(0f, doorHeight + 0.9f, 0f);
+        Light statusLight = statusLightObj.AddComponent<Light>();
         statusLight.type = LightType.Point;
         statusLight.range = 5f;
-        statusLight.color = Color.red;
+        statusLight.intensity = 1.5f;
+        statusLight.color = startLocked ? Color.red : Color.green;
 
-        DoorController controller = door.AddComponent<DoorController>();
-        controller.doorMesh = doorMesh.transform;
+        // Blocking collider
+        GameObject blocker = new GameObject("BlockingCollider");
+        blocker.transform.SetParent(root.transform, false);
+        blocker.transform.localPosition = Vector3.zero;
+        BoxCollider blockerCollider = blocker.AddComponent<BoxCollider>();
+        blockerCollider.size = new Vector3(doorWidth, doorHeight, 0.3f);
+        blockerCollider.center = new Vector3(0f, doorHeight / 2f, 0f);
+
+        // Auto-open trigger
+        if (autoOpen)
+        {
+            SphereCollider trigger = root.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.radius = 3f;
+            trigger.center = new Vector3(0f, 1f, 0f);
+        }
+
+        // Card scanner
+        LabPropFactory.CreateCardScanner(root.transform,
+            new Vector3(doorWidth / 2f + 0.5f, 1.2f, frameDepth / 2f),
+            startLocked ? Color.red : Color.green);
+
+        // DoorController
+        DoorController controller = root.AddComponent<DoorController>();
+        controller.doorMesh = panelLeft.transform;
+        controller.doorMeshRight = panelRight.transform;
         controller.blockingCollider = blockerCollider;
         controller.statusLight = statusLight;
-        controller.startLocked = true;
+        controller.startLocked = startLocked;
+        controller.autoOpen = autoOpen;
+        controller.doorLabel = label;
+        controller.frameAccentColor = accent;
+        controller.openOffset = new Vector3(-panelWidth / 2f - 0.1f, 0f, 0f);
+        controller.openDuration = 1.5f;
 
-        return door;
+        return root;
     }
 
-    // ------------------------------------------------------------------
-    // Terminal
-    // ------------------------------------------------------------------
-    private static GameObject BuildTerminal(GameObject door, int level)
+    // =====================================================================
+    // Terminal Builder (with configurable Z position)
+    // =====================================================================
+
+    private static GameObject BuildTerminal(GameObject primaryDoor, DoorController exitDoor,
+        LevelTheme theme, float terminalZ)
     {
-        GameObject terminal = new GameObject("Terminal_01");
-        terminal.transform.position = new Vector3(-2f, 0f, 6f);
+        GameObject terminal = new GameObject($"Terminal_L{theme.level}");
+        terminal.transform.position = new Vector3(-2.5f, 0f, terminalZ);
 
-        GameObject terminalMesh = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        terminalMesh.name = "TerminalMesh";
-        terminalMesh.transform.SetParent(terminal.transform);
-        terminalMesh.transform.localPosition = new Vector3(0f, 0.5f, 0f);
-        terminalMesh.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        // Console body
+        GameObject terminalBase = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        terminalBase.name = "TerminalBase";
+        terminalBase.transform.SetParent(terminal.transform, false);
+        terminalBase.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+        terminalBase.transform.localScale = new Vector3(0.8f, 1f, 0.5f);
+        terminalBase.GetComponent<Renderer>().material =
+            LabPropFactory.CreateMaterial(LabPropFactory.PropDarkMetal, 0.6f, 0.4f);
 
+        // Screen
+        GameObject terminalScreen = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        terminalScreen.name = "TerminalScreen";
+        terminalScreen.transform.SetParent(terminal.transform, false);
+        terminalScreen.transform.localPosition = new Vector3(0f, 1.2f, -0.1f);
+        terminalScreen.transform.localScale = new Vector3(0.7f, 0.5f, 0.04f);
+        terminalScreen.transform.localEulerAngles = new Vector3(-15f, 0f, 0f);
+        terminalScreen.GetComponent<Renderer>().material =
+            LabPropFactory.CreateEmissiveMaterial(theme.accentColor * 0.6f, 2f);
+        Object.DestroyImmediate(terminalScreen.GetComponent<Collider>());
+
+        // Screen frame
+        GameObject terminalFrame = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        terminalFrame.name = "TerminalFrame";
+        terminalFrame.transform.SetParent(terminal.transform, false);
+        terminalFrame.transform.localPosition = new Vector3(0f, 1.2f, -0.12f);
+        terminalFrame.transform.localScale = new Vector3(0.8f, 0.58f, 0.03f);
+        terminalFrame.transform.localEulerAngles = new Vector3(-15f, 0f, 0f);
+        terminalFrame.GetComponent<Renderer>().material =
+            LabPropFactory.CreateMaterial(LabPropFactory.TrimColor, 0.5f, 0.4f);
+        Object.DestroyImmediate(terminalFrame.GetComponent<Collider>());
+
+        // Glow
+        GameObject termGlow = new GameObject("TerminalGlow");
+        termGlow.transform.SetParent(terminal.transform, false);
+        termGlow.transform.localPosition = new Vector3(0f, 1.2f, 0.3f);
+        Light glow = termGlow.AddComponent<Light>();
+        glow.type = LightType.Point;
+        glow.color = theme.accentColor;
+        glow.intensity = 1f;
+        glow.range = 3f;
+
+        // Trigger
         SphereCollider trigger = terminal.AddComponent<SphereCollider>();
         trigger.isTrigger = true;
         trigger.radius = 2.5f;
 
+        // Interact prompt
         GameObject promptCanvasObj = new GameObject("InteractPrompt");
-        promptCanvasObj.transform.SetParent(terminal.transform);
-        promptCanvasObj.transform.localPosition = new Vector3(0f, 1.5f, 0f);
+        promptCanvasObj.transform.SetParent(terminal.transform, false);
+        promptCanvasObj.transform.localPosition = new Vector3(0f, 2f, 0f);
         Canvas promptCanvas = promptCanvasObj.AddComponent<Canvas>();
         promptCanvas.renderMode = RenderMode.WorldSpace;
         promptCanvasObj.transform.localScale = Vector3.one * 0.01f;
@@ -216,32 +943,37 @@ public static class LevelBuilder
         promptCanvasObj.AddComponent<GraphicRaycaster>();
 
         GameObject promptTextObj = new GameObject("PromptText");
-        promptTextObj.transform.SetParent(promptCanvasObj.transform);
+        promptTextObj.transform.SetParent(promptCanvasObj.transform, false);
         Text promptText = promptTextObj.AddComponent<Text>();
         promptText.text = "Press E to interact";
         promptText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         promptText.alignment = TextAnchor.MiddleCenter;
-        promptText.rectTransform.sizeDelta = new Vector2(400f, 60f);
+        promptText.color = theme.accentColor;
+        promptText.fontSize = 24;
+        promptText.fontStyle = FontStyle.Bold;
+        promptText.rectTransform.sizeDelta = new Vector2(500f, 60f);
         promptText.rectTransform.localPosition = Vector3.zero;
 
         promptCanvasObj.SetActive(false);
 
+        // Terminal script
         TerminalInteractable interactable = terminal.AddComponent<TerminalInteractable>();
-        interactable.level = level;
+        interactable.level = theme.level;
         interactable.interactPrompt = promptCanvasObj;
-        interactable.linkedDoor = door.GetComponent<DoorController>();
-        // interactable.mlPuzzleUI is wired in WireTerminal() after the Canvas exists
+        interactable.linkedDoor = primaryDoor.GetComponent<DoorController>();
+        interactable.secondaryDoor = exitDoor;
 
         return terminal;
     }
 
-    // ------------------------------------------------------------------
-    // Player
-    // ------------------------------------------------------------------
-    private static GameObject BuildPlayer()
+    // =====================================================================
+    // Player Builder
+    // =====================================================================
+
+    private static GameObject BuildPlayer(float spawnZ, LevelTheme theme)
     {
         GameObject player = new GameObject("Player");
-        player.transform.position = new Vector3(0f, 1f, 0f);
+        player.transform.position = new Vector3(0f, 0.1f, spawnZ);
 
         CharacterController cc = player.AddComponent<CharacterController>();
         cc.radius = 0.4f;
@@ -250,29 +982,31 @@ public static class LevelBuilder
 
         GameObject model = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         model.name = "PlayerModel";
-        model.transform.SetParent(player.transform);
+        model.transform.SetParent(player.transform, false);
         model.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-        Object.DestroyImmediate(model.GetComponent<CapsuleCollider>()); // CharacterController already handles collision
+        Object.DestroyImmediate(model.GetComponent<CapsuleCollider>());
 
         GameObject fpRig = new GameObject("FirstPersonCameraRig");
-        fpRig.transform.SetParent(player.transform);
+        fpRig.transform.SetParent(player.transform, false);
         fpRig.transform.localPosition = new Vector3(0f, 1.6f, 0f);
         GameObject fpCamObj = new GameObject("FirstPersonCamera");
-        fpCamObj.transform.SetParent(fpRig.transform);
+        fpCamObj.transform.SetParent(fpRig.transform, false);
         fpCamObj.transform.localPosition = Vector3.zero;
         Camera fpCam = fpCamObj.AddComponent<Camera>();
-        ApplyDefaultCameraBackground(fpCam);
+        fpCam.clearFlags = CameraClearFlags.SolidColor;
+        fpCam.backgroundColor = theme.fogColor;
         fpCamObj.AddComponent<AudioListener>();
 
         GameObject tpRig = new GameObject("ThirdPersonCameraRig");
-        tpRig.transform.SetParent(player.transform);
+        tpRig.transform.SetParent(player.transform, false);
         tpRig.transform.localPosition = new Vector3(0f, 2f, -4f);
         GameObject tpCamObj = new GameObject("ThirdPersonCamera");
-        tpCamObj.transform.SetParent(tpRig.transform);
+        tpCamObj.transform.SetParent(tpRig.transform, false);
         tpCamObj.transform.localPosition = Vector3.zero;
         Camera tpCam = tpCamObj.AddComponent<Camera>();
-        ApplyDefaultCameraBackground(tpCam);
-        tpCamObj.SetActive(false); // first-person is the default start mode
+        tpCam.clearFlags = CameraClearFlags.SolidColor;
+        tpCam.backgroundColor = theme.fogColor;
+        tpCamObj.SetActive(false);
 
         PlayerController controller = player.AddComponent<PlayerController>();
         controller.firstPersonCamera = fpCam;
@@ -280,9 +1014,8 @@ public static class LevelBuilder
         controller.thirdPersonLookTarget = player.transform;
         controller.playerModel = model;
         controller.startInFirstPerson = true;
-        model.SetActive(false); // hidden by default since we start in first-person
+        model.SetActive(false);
 
-        // Remove Unity's default Main Camera if present, since the rig cameras replace it
         Camera mainCam = Camera.main;
         if (mainCam != null && mainCam.gameObject.name == "Main Camera")
         {
@@ -295,26 +1028,19 @@ public static class LevelBuilder
         }
         else
         {
-            Debug.LogWarning("[BlackVault] 'Player' tag doesn't exist in this project. " +
-                              "Add it via Edit > Project Settings > Tags and Layers, " +
-                              "then manually tag the Player GameObject.");
+            Debug.LogWarning("[BlackVault] 'Player' tag doesn't exist. " +
+                              "Add it via Edit > Project Settings > Tags and Layers.");
         }
 
         return player;
     }
 
-    // ------------------------------------------------------------------
-    // ML Puzzle UI
-    // ------------------------------------------------------------------
+    // =====================================================================
+    // ML Puzzle UI Canvas
+    // =====================================================================
+
     private static GameObject BuildMLPuzzleCanvas(GameObject player)
     {
-        // DefaultControls is the SAME internal factory Unity's own
-        // "GameObject > UI > ..." menu items call. Using it directly
-        // guarantees correctly-configured RectTransforms (anchors,
-        // pivots, sizes) because it's Unity's own tested code path —
-        // not hand-rolled math that can silently produce a 0-size or
-        // oversized element. Left with default (null-sprite) Resources,
-        // so elements are functional but visually plain — fine for now.
         var uiResources = new DefaultControls.Resources();
 
         GameObject canvasObj = new GameObject("Canvas_MLPuzzle");
@@ -326,17 +1052,15 @@ public static class LevelBuilder
         GameObject panel = DefaultControls.CreatePanel(uiResources);
         panel.name = "PuzzlePanel";
         panel.transform.SetParent(canvasObj.transform, false);
-        panel.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.14f, 0.98f); // dark IDE chrome
+        panel.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.14f, 0.98f);
         RectTransform panelRect = panel.GetComponent<RectTransform>();
         panelRect.offsetMin = new Vector2(40f, 30f);
         panelRect.offsetMax = new Vector2(-40f, -30f);
 
-        // --- Layout, all measured from top or bottom explicitly (no more
-        // ambiguous "yOffsetFromTop with a negative number" bug) ---
         Text missionInfoText = CreateTopText(uiResources, panel.transform, "MissionInfoText",
             "Loading mission...", 20f, 100f, 20);
         missionInfoText.fontStyle = FontStyle.Bold;
-        missionInfoText.color = new Color(0.95f, 0.35f, 0.35f); // alert-red — matches "security breach" theme
+        missionInfoText.color = new Color(0.95f, 0.35f, 0.35f);
         missionInfoText.supportRichText = true;
 
         Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", 130f, 26f, 14);
@@ -351,15 +1075,9 @@ public static class LevelBuilder
         RectTransform codeEditorRect = codeEditorObj.GetComponent<RectTransform>();
         codeEditorRect.anchorMin = new Vector2(0f, 0f);
         codeEditorRect.anchorMax = new Vector2(1f, 1f);
-        codeEditorRect.offsetMin = new Vector2(20f, 95f);   // room for result + buttons below
-        codeEditorRect.offsetMax = new Vector2(-20f, -170f); // room for title + stats above
+        codeEditorRect.offsetMin = new Vector2(20f, 95f);
+        codeEditorRect.offsetMax = new Vector2(-20f, -170f);
 
-        // The InputField's own text becomes invisible — the colored
-        // overlay (below) is what's actually seen. This is the same
-        // "invisible input + colored overlay on top" trick as before,
-        // but built with DefaultControls throughout this time instead
-        // of hand-placed RectTransforms, so it inherits the same
-        // reliable anchoring that fixed the panel and the buttons.
         Text inputVisibleText = codeEditor.textComponent as Text;
         if (inputVisibleText != null)
         {
@@ -373,11 +1091,11 @@ public static class LevelBuilder
         Text overlayText = overlayObj.GetComponent<Text>();
         overlayText.supportRichText = true;
         overlayText.fontSize = 15;
-        overlayText.color = new Color(0.85f, 0.85f, 0.88f); // was defaulting to dark gray — invisible on a dark background
+        overlayText.color = new Color(0.85f, 0.85f, 0.88f);
         overlayText.alignment = TextAnchor.UpperLeft;
         overlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
         overlayText.verticalOverflow = VerticalWrapMode.Overflow;
-        overlayText.raycastTarget = false; // must not block clicks/typing into the field below it
+        overlayText.raycastTarget = false;
         RectTransform overlayRect = overlayObj.GetComponent<RectTransform>();
         overlayRect.anchorMin = Vector2.zero;
         overlayRect.anchorMax = Vector2.one;
@@ -391,7 +1109,6 @@ public static class LevelBuilder
         GameObject runObj = DefaultControls.CreateButton(uiResources);
         runObj.name = "RunButton";
         runObj.transform.SetParent(panel.transform, false);
-        Button runButton = runObj.GetComponent<Button>();
         Text runLabel = runObj.GetComponentInChildren<Text>();
         runLabel.text = "▶  Run";
         runLabel.fontStyle = FontStyle.Bold;
@@ -406,7 +1123,6 @@ public static class LevelBuilder
         GameObject closeObj = DefaultControls.CreateButton(uiResources);
         closeObj.name = "CloseButton";
         closeObj.transform.SetParent(panel.transform, false);
-        Button closeButton = closeObj.GetComponent<Button>();
         Text closeLabel = closeObj.GetComponentInChildren<Text>();
         closeLabel.text = "Close";
         closeLabel.color = Color.white;
@@ -417,8 +1133,6 @@ public static class LevelBuilder
         closeRect.anchoredPosition = new Vector2(100f, 20f);
         closeRect.sizeDelta = new Vector2(150f, 45f);
 
-        // Anchored to the BOTTOM this time (not top) — sits just above
-        // the buttons row. This is what was overlapping the title before.
         Text resultText = CreateBottomText(uiResources, panel.transform, "ResultText", "", 75f, 28f, 15);
         resultText.fontStyle = FontStyle.Bold;
 
@@ -428,8 +1142,8 @@ public static class LevelBuilder
         puzzleUI.statsText = statsText;
         puzzleUI.codeEditor = codeEditor;
         puzzleUI.resultText = resultText;
-        puzzleUI.runButton = runButton;
-        puzzleUI.closeButton = closeButton;
+        puzzleUI.runButton = runObj.GetComponent<Button>();
+        puzzleUI.closeButton = closeObj.GetComponent<Button>();
         puzzleUI.player = player.GetComponent<PlayerController>();
 
         panel.SetActive(false);
@@ -437,10 +1151,10 @@ public static class LevelBuilder
         return canvasObj;
     }
 
-    /// <summary>
-    /// Creates a Text element anchored to the TOP of its parent.
-    /// distanceFromTop is a POSITIVE number of pixels down from the top edge.
-    /// </summary>
+    // =====================================================================
+    // UI Text Helpers
+    // =====================================================================
+
     private static Text CreateTopText(DefaultControls.Resources uiResources, Transform parent,
                                        string name, string content, float distanceFromTop, float height, int fontSize)
     {
@@ -454,21 +1168,15 @@ public static class LevelBuilder
         text.alignment = TextAnchor.UpperLeft;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
-
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
         rect.anchoredPosition = new Vector2(0f, -distanceFromTop);
         rect.sizeDelta = new Vector2(-40f, height);
-
         return text;
     }
 
-    /// <summary>
-    /// Same idea, anchored to the BOTTOM instead. distanceFromBottom is a
-    /// POSITIVE number of pixels up from the bottom edge.
-    /// </summary>
     private static Text CreateBottomText(DefaultControls.Resources uiResources, Transform parent,
                                           string name, string content, float distanceFromBottom, float height, int fontSize)
     {
@@ -482,14 +1190,12 @@ public static class LevelBuilder
         text.alignment = TextAnchor.MiddleCenter;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
-
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0f, 0f);
         rect.anchorMax = new Vector2(1f, 0f);
         rect.pivot = new Vector2(0.5f, 0f);
         rect.anchoredPosition = new Vector2(0f, distanceFromBottom);
         rect.sizeDelta = new Vector2(-40f, height);
-
         return text;
     }
 
@@ -497,84 +1203,5 @@ public static class LevelBuilder
     {
         TerminalInteractable interactable = terminal.GetComponent<TerminalInteractable>();
         interactable.mlPuzzleUI = canvas.GetComponent<MLPuzzleUI>();
-    }
-
-    // ------------------------------------------------------------------
-    // UI element helpers
-    // ------------------------------------------------------------------
-    private static Text CreateUIText(Transform parent, string name, string content, Vector2 anchoredPos)
-    {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-        Text text = obj.AddComponent<Text>();
-        text.text = content;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.color = Color.white;
-        text.alignment = TextAnchor.MiddleLeft;
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(500f, 30f);
-        rect.anchoredPosition = anchoredPos;
-        return text;
-    }
-
-    private static Toggle CreateUIToggle(Transform parent, string name, string label, Vector2 anchoredPos)
-    {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-        Toggle toggle = obj.AddComponent<Toggle>();
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(220f, 30f);
-        rect.anchoredPosition = anchoredPos;
-
-        GameObject labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(obj.transform, false);
-        Text labelText = labelObj.AddComponent<Text>();
-        labelText.text = label;
-        labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        labelText.color = Color.white;
-        RectTransform labelRect = labelObj.GetComponent<RectTransform>();
-        labelRect.anchoredPosition = new Vector2(40f, 0f);
-        labelRect.sizeDelta = new Vector2(180f, 30f);
-
-        return toggle;
-    }
-
-    private static Dropdown CreateUIDropdown(Transform parent, string name, Vector2 anchoredPos)
-    {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-        obj.AddComponent<Image>();
-        Dropdown dropdown = obj.AddComponent<Dropdown>();
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(200f, 30f);
-        rect.anchoredPosition = anchoredPos;
-        return dropdown;
-    }
-
-    private static Button CreateUIButton(Transform parent, string name, string label, Vector2 anchoredPos)
-    {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-        Image bg = obj.AddComponent<Image>();
-        bg.color = new Color(0.2f, 0.6f, 0.9f);
-        Button button = obj.AddComponent<Button>();
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(120f, 40f);
-        rect.anchoredPosition = anchoredPos;
-
-        GameObject labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(obj.transform, false);
-        Text labelText = labelObj.AddComponent<Text>();
-        labelText.text = label;
-        labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        labelText.alignment = TextAnchor.MiddleCenter;
-        labelText.color = Color.white;
-        RectTransform labelRect = labelObj.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
-
-        return button;
     }
 }
