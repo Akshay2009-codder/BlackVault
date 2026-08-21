@@ -17,6 +17,28 @@ public class PythonHighlighter : MonoBehaviour
     public string currentErrorHint = "";
     public List<int> errorLines = new List<int>();
 
+    public string problemType;
+    public string targetCol;
+    public List<string> featureCols = new List<string>();
+
+    public void SetTaskContext(string problemType, string targetCol, string[] featureCols)
+    {
+        this.problemType = problemType;
+        this.targetCol = targetCol;
+        this.featureCols.Clear();
+        if (featureCols != null)
+        {
+            foreach (var col in featureCols)
+            {
+                if (!string.IsNullOrEmpty(col)) this.featureCols.Add(col);
+            }
+        }
+        if (inputField != null && !string.IsNullOrEmpty(inputField.text))
+        {
+            OnCodeChanged(inputField.text);
+        }
+    }
+
     // PyCharm Darcula Palette
     private const string ColorKeyword  = "#CC7832"; // PyCharm Orange
     private const string ColorComment  = "#7A7E85"; // PyCharm Muted Gray
@@ -224,7 +246,22 @@ public class PythonHighlighter : MonoBehaviour
         });
 
         // 6. Builtins / Functions
-        string builtinRegex = $@"\b({string.Join("|", Builtins)})\b";
+        List<string> activeBuiltins = new List<string>(Builtins);
+        if (!string.IsNullOrEmpty(targetCol) && !activeBuiltins.Contains(targetCol))
+        {
+            activeBuiltins.Add(targetCol);
+        }
+        if (featureCols != null)
+        {
+            foreach (var col in featureCols)
+            {
+                if (!string.IsNullOrEmpty(col) && !activeBuiltins.Contains(col))
+                {
+                    activeBuiltins.Add(col);
+                }
+            }
+        }
+        string builtinRegex = $@"\b({string.Join("|", activeBuiltins)})\b";
         code = Regex.Replace(code, builtinRegex, m =>
         {
             string token = ((char)(0xE000 + tokens.Count)).ToString();
