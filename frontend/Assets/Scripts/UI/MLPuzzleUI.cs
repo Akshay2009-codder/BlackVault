@@ -1,23 +1,4 @@
-// MLPuzzleUI.cs — BlackVault
-//
-// CODE-EDITOR VERSION — replaces the earlier toggle/dropdown puzzle UI.
-// The player now writes real Python (pandas/sklearn) against the raw
-// dataset, in a syntax-highlighted editor, and it executes server-side
-// via POST /train/code (see backend/services/code_executor.py for the
-// exact contract of what variables the code must set).
-//
-// Flow: Open(level) -> fetch mission config from /mission/generate ->
-// fetch raw dataset stats from /preprocess (no transformations, just
-// for display) -> populate the code editor with a starter template ->
-// player edits and clicks Run -> POST /train/code -> show result.
-//
-// Setup in Unity:
-//   1. Build the panel with: a mission info Text, a stats Text, a plain
-//      multi-line InputField (no syntax highlighting — kept simple for
-//      reliability), a Run button, a Close button, and a result Text.
-//   2. Attach this script to the Canvas/panel root.
-//   3. Wire every field below to the matching UI element in the Inspector.
-
+﻿// MLPuzzleUI.cs — BlackVault v2
 using System;
 using System.Collections;
 using System.Text;
@@ -33,9 +14,9 @@ public class MLPuzzleUI : MonoBehaviour
     public GameObject panelRoot;
 
     [Header("UI References")]
-    public Text missionInfoText;      // title + description from the mission config
-    public Text statsText;            // raw row/missing count, informational only
-    public InputField codeEditor; // plain multi-line text box (no syntax highlighting — dropped for reliability/speed)
+    public Text missionInfoText;
+    public Text statsText;
+    public InputField codeEditor;
     public Text resultText;
     public Button runButton;
     public Button closeButton;
@@ -43,82 +24,19 @@ public class MLPuzzleUI : MonoBehaviour
     [Header("Player Reference")]
     public PlayerController player;
 
-    // ------------------------------------------------------------------
-    // Data classes — field names match backend/main.py EXACTLY.
-    // ------------------------------------------------------------------
-
-    [Serializable]
-    private class MissionConfig
-    {
-        public string mission_id;
-        public int level;
-        public string title;
-        public string description;
-        public string problem_type;
-        public string dataset;
-        public string target_col;
-        public string[] feature_cols;
-        public string[] algorithms_allowed;
-        public string target_metric;
-        public float target_metric_value;
-        public string metric_direction;
-        public int[] k_range;
-        public string difficulty;
-        public int time_limit_seconds;
-        public int max_retries;
-        public bool hints_available;
-    }
-
-    [Serializable]
-    private class PreprocessRequestBody
-    {
-        public string dataset;
-        public string missing_strategy = "fill_median";
-        public bool remove_duplicates = false;
-        public string outlier_strategy = "none";
-        public string encoding = "none";
-        public string scaling = "none";
-    }
-
-    [Serializable]
-    private class PreprocessResponseBody
-    {
-        public string dataset;
-        public int rows_before;
-        public int rows_after;
-        public int missing_before;
-        public int missing_after;
-        public int duplicates_removed;
-    }
-
-    [Serializable]
-    private class CodeExecuteRequestBody
-    {
-        public string mission_id;
-        public string level_id;
-        public string dataset;
-        public string problem_type;
-        public string code;
-        public string target_col;
-        public string[] feature_cols;
-        public string target_metric = "accuracy";
-        public float target_metric_value = 0.75f;
-        public string metric_direction = "higher_is_better";
-    }
-
-    [Serializable]
-    private class CodeExecuteResponseBody
-    {
-        public string target_metric;
-        public float target_value;
-        public float achieved;
-        public bool passed;
-        public string door_status;
-        public string error;
-    }
+    [Serializable] private class MissionConfig { public string mission_id; public int level; public string title; public string description; public string problem_type; public string dataset; public string target_col; public string[] feature_cols; public string[] algorithms_allowed; public string target_metric; public float target_metric_value; public string metric_direction; public int[] k_range; public string difficulty; public int time_limit_seconds; public int max_retries; public bool hints_available; }
+    [Serializable] private class PreprocessRequestBody { public string dataset; public string missing_strategy = "fill_median"; public bool remove_duplicates = false; public string outlier_strategy = "none"; public string encoding = "none"; public string scaling = "none"; }
+    [Serializable] private class PreprocessResponseBody { public string dataset; public int rows_before; public int rows_after; public int missing_before; public int missing_after; public int duplicates_removed; }
+    [Serializable] private class CodeExecuteRequestBody { public string mission_id; public string level_id; public string dataset; public string problem_type; public string code; public string target_col; public string[] feature_cols; public string target_metric = "accuracy"; public float target_metric_value = 0.75f; public string metric_direction = "higher_is_better"; }
+    [Serializable] private class CodeExecuteResponseBody { public string target_metric; public float target_value; public float achieved; public bool passed; public string door_status; public string error; }
 
     private MissionConfig _mission;
     private Action<bool> _onResultCallback;
+    private float _scrollYCurrent = 0f;
+    private float _scrollYTarget = 0f;
+    private const float ScrollSpeed = 130f;
+    private const float ScrollLerp = 12f;
+    private Text _statusBarText;
 
     private void Awake()
     {
@@ -131,597 +49,374 @@ public class MLPuzzleUI : MonoBehaviour
     public void Open(int level, Action<bool> onResult)
     {
         _onResultCallback = onResult;
-
         if (panelRoot != null) panelRoot.SetActive(true);
         if (player != null) player.SetInputEnabled(false);
-
         EnsurePyCharmStyle();
-
-        if (resultText != null) resultText.text = "<color=#7A7E85>PyCharm Console initialized. Click Run to execute script on backend.</color>";
+        _scrollYCurrent = 0f; _scrollYTarget = 0f;
+        ApplyEditorScroll(0f);
+        if (resultText != null) resultText.text = "<color=#7A7E85>Console ready. Click Run to execute your script.</color>";
         if (statsText != null) statsText.text = "";
         if (missionInfoText != null) missionInfoText.text = "Loading mission...";
         if (codeEditor != null) codeEditor.text = "";
-
         StartCoroutine(FetchMissionThenPreview(level));
     }
 
     private void EnsurePyCharmStyle()
     {
         if (panelRoot == null) return;
-
-        // IMPORTANT: Use ConstantPixelSize — ScaleWithScreenSize with a
-        // 1920×1080 reference shrinks everything to microscopic size inside
-        // the Unity Game tab (which is much smaller than 1920×1080).
         CanvasScaler scaler = panelRoot.GetComponentInParent<CanvasScaler>();
-        if (scaler != null)
-        {
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-            scaler.scaleFactor = 1f;
-        }
+        if (scaler != null) { scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize; scaler.scaleFactor = 1f; }
 
-        // Use a large monospace font for code readability
-        Font monoFont = Font.CreateDynamicFontFromOSFont("Consolas", 20);
-        if (monoFont == null) monoFont = Font.CreateDynamicFontFromOSFont("Courier New", 20);
-        if (monoFont == null) monoFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font monoFont = Font.CreateDynamicFontFromOSFont("Consolas", 20)
+                     ?? Font.CreateDynamicFontFromOSFont("Courier New", 20)
+                     ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        // 1. Panel background — PyCharm Darcula
         Image panelImage = panelRoot.GetComponent<Image>();
-        if (panelImage != null)
-        {
-            panelImage.color = new Color(0.118f, 0.122f, 0.133f, 0.98f);
-        }
-
+        if (panelImage != null) panelImage.color = new Color(0.118f, 0.122f, 0.133f, 0.98f);
         RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
-        if (panelRect != null)
-        {
-            panelRect.anchorMin = Vector2.zero;
-            panelRect.anchorMax = Vector2.one;
-            panelRect.offsetMin = new Vector2(30f, 20f);
-            panelRect.offsetMax = new Vector2(-30f, -20f);
-        }
+        if (panelRect != null) { panelRect.anchorMin = Vector2.zero; panelRect.anchorMax = Vector2.one; panelRect.offsetMin = new Vector2(30f, 20f); panelRect.offsetMax = new Vector2(-30f, -20f); }
 
-        // 2. Mission title — bold, red-orange, top-anchored
-        if (missionInfoText != null)
-        {
-            missionInfoText.font = monoFont;
-            missionInfoText.fontSize = 20;
-            missionInfoText.lineSpacing = 1.1f;
-            missionInfoText.supportRichText = true;
-            missionInfoText.alignment = TextAnchor.UpperLeft;
-            missionInfoText.color = new Color(0.95f, 0.35f, 0.35f);
-        }
+        if (missionInfoText != null) { missionInfoText.font = monoFont; missionInfoText.fontSize = 20; missionInfoText.lineSpacing = 1.1f; missionInfoText.supportRichText = true; missionInfoText.alignment = TextAnchor.UpperLeft; missionInfoText.color = new Color(0.95f, 0.35f, 0.35f); }
+        if (statsText != null) { statsText.font = monoFont; statsText.fontSize = 16; statsText.color = new Color(0.65f, 0.68f, 0.73f); statsText.alignment = TextAnchor.UpperLeft; }
 
-        // 3. Stats bar — medium grey, below title
-        if (statsText != null)
-        {
-            statsText.font = monoFont;
-            statsText.fontSize = 16;
-            statsText.color = new Color(0.65f, 0.68f, 0.73f);
-            statsText.alignment = TextAnchor.UpperLeft;
-        }
+        StyleButton(runButton, monoFont, new Color(0.18f, 0.49f, 0.27f, 1f), new Vector2(-90f, 12f));
+        StyleButton(closeButton, monoFont, new Color(0.24f, 0.25f, 0.26f, 1f), new Vector2(90f, 12f));
 
-        // 4. Style Buttons — bottom anchored
-        if (runButton != null)
-        {
-            Image btnImg = runButton.GetComponent<Image>();
-            if (btnImg != null) btnImg.color = new Color(0.18f, 0.49f, 0.27f, 1f);
-            Text runLabel = runButton.GetComponentInChildren<Text>();
-            if (runLabel != null)
-            {
-                runLabel.font = monoFont;
-                runLabel.fontSize = 18;
-                runLabel.fontStyle = FontStyle.Bold;
-            }
-
-            RectTransform rt = runButton.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0f);
-            rt.anchorMax = new Vector2(0.5f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(-90f, 12f);
-            rt.sizeDelta = new Vector2(150f, 40f);
-        }
-
-        if (closeButton != null)
-        {
-            Image btnImg = closeButton.GetComponent<Image>();
-            if (btnImg != null) btnImg.color = new Color(0.24f, 0.25f, 0.26f, 1f);
-            Text closeLabel = closeButton.GetComponentInChildren<Text>();
-            if (closeLabel != null)
-            {
-                closeLabel.font = monoFont;
-                closeLabel.fontSize = 18;
-            }
-
-            RectTransform rt = closeButton.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0f);
-            rt.anchorMax = new Vector2(0.5f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(90f, 12f);
-            rt.sizeDelta = new Vector2(150f, 40f);
-        }
-
-        // 5. Result / Console panel at bottom (above buttons)
         if (resultText != null)
         {
-            resultText.font = monoFont;
-            resultText.fontSize = 15;
-            resultText.alignment = TextAnchor.UpperLeft;
-            resultText.supportRichText = true;
-            resultText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            resultText.verticalOverflow = VerticalWrapMode.Truncate;
-
+            resultText.font = monoFont; resultText.fontSize = 15; resultText.alignment = TextAnchor.UpperLeft;
+            resultText.supportRichText = true; resultText.horizontalOverflow = HorizontalWrapMode.Wrap; resultText.verticalOverflow = VerticalWrapMode.Truncate;
             RectTransform rt = resultText.rectTransform;
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(1f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, 58f);
-            rt.sizeDelta = new Vector2(-40f, 70f);
-
-            // Add background image behind resultText to make it look like a distinct terminal output window
-            Transform bgTransform = resultText.transform.parent != null ? resultText.transform.parent.Find("ConsoleBackground") : null;
-            Image consoleBg = bgTransform != null ? bgTransform.GetComponent<Image>() : null;
-            if (consoleBg == null && resultText.transform.parent != null)
-            {
-                GameObject bgObj = new GameObject("ConsoleBackground", typeof(RectTransform), typeof(Image));
-                bgObj.transform.SetParent(resultText.transform.parent, false);
-                bgObj.transform.SetSiblingIndex(resultText.transform.GetSiblingIndex());
-                consoleBg = bgObj.GetComponent<Image>();
-            }
-
-            if (consoleBg != null)
-            {
-                RectTransform bgRt = consoleBg.rectTransform;
-                bgRt.anchorMin = rt.anchorMin;
-                bgRt.anchorMax = rt.anchorMax;
-                bgRt.pivot = rt.pivot;
-                bgRt.anchoredPosition = rt.anchoredPosition;
-                bgRt.sizeDelta = rt.sizeDelta;
-                consoleBg.color = new Color(0.08f, 0.08f, 0.09f, 0.95f);
-            }
+            rt.anchorMin = new Vector2(0f, 0f); rt.anchorMax = new Vector2(1f, 0f); rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, 76f); rt.sizeDelta = new Vector2(-40f, 60f);
+            EnsureConsoleBackground(resultText);
         }
 
-        // 6. Code Editor Field & Line Numbers Gutter — fill middle area
         if (codeEditor != null)
         {
-            // Add RectMask2D so code lines never overflow/bleed into the console text below
-            RectMask2D mask = codeEditor.gameObject.GetComponent<RectMask2D>();
-            if (mask == null) mask = codeEditor.gameObject.AddComponent<RectMask2D>();
-
+            if (codeEditor.gameObject.GetComponent<RectMask2D>() == null) codeEditor.gameObject.AddComponent<RectMask2D>();
             RectTransform editorRt = codeEditor.GetComponent<RectTransform>();
-            editorRt.anchorMin = new Vector2(0f, 0f);
-            editorRt.anchorMax = new Vector2(1f, 1f);
-            editorRt.pivot = new Vector2(0.5f, 0.5f);
-            editorRt.offsetMin = new Vector2(20f, 142f); // 142px from bottom (above 58+70=128 console panel)
-            editorRt.offsetMax = new Vector2(-20f, -125f);
-
-            // Editor background
+            editorRt.anchorMin = new Vector2(0f, 0f); editorRt.anchorMax = new Vector2(1f, 1f); editorRt.pivot = new Vector2(0.5f, 0.5f);
+            editorRt.offsetMin = new Vector2(20f, 162f); editorRt.offsetMax = new Vector2(-20f, -125f);
             Image editorBg = codeEditor.GetComponent<Image>();
             if (editorBg != null) editorBg.color = new Color(0.118f, 0.122f, 0.133f, 1f);
 
-            // Configure visible IDE caret cursor and selection
+            // Smooth IDE caret -- 0.53s = standard real IDE blink rate
             codeEditor.customCaretColor = true;
-            codeEditor.caretColor = new Color(0.95f, 0.95f, 0.95f, 1f); // Bright white PyCharm cursor
-            codeEditor.caretWidth = 2; // 2px IDE width
-            codeEditor.caretBlinkRate = 0.85f;
+            codeEditor.caretColor = new Color(0.95f, 0.95f, 0.95f, 1f);
+            codeEditor.caretWidth = 2;
+            codeEditor.caretBlinkRate = 0.53f;
             codeEditor.selectionColor = new Color(0.21f, 0.31f, 0.45f, 0.6f);
 
-            // The input text component (typing happens here)
             Text inputText = codeEditor.textComponent as Text;
-            if (inputText != null)
-            {
-                inputText.font = monoFont;
-                inputText.fontSize = 18;
-                inputText.lineSpacing = 1.2f;
-                inputText.color = new Color(1f, 1f, 1f, 0f); // invisible — overlay shows colored version
-                inputText.supportRichText = false; // MUST be false so InputField caret math stays 100% accurate
-                inputText.alignment = TextAnchor.UpperLeft;
-                inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
-                inputText.verticalOverflow = VerticalWrapMode.Truncate;
-            }
+            if (inputText != null) { inputText.font = monoFont; inputText.fontSize = 18; inputText.lineSpacing = 1.2f; inputText.color = new Color(1f,1f,1f,0f); inputText.supportRichText = false; inputText.alignment = TextAnchor.UpperLeft; inputText.horizontalOverflow = HorizontalWrapMode.Wrap; inputText.verticalOverflow = VerticalWrapMode.Truncate; }
+            if (codeEditor.placeholder != null) codeEditor.placeholder.gameObject.SetActive(string.IsNullOrEmpty(codeEditor.text));
 
-            // Ensure placeholder text never overlaps typed code
-            if (codeEditor.placeholder != null)
-            {
-                codeEditor.placeholder.gameObject.SetActive(string.IsNullOrEmpty(codeEditor.text));
-            }
-
-            // Wire up the PythonHighlighter
-            PythonHighlighter highlighter = codeEditor.GetComponent<PythonHighlighter>();
-            if (highlighter == null) highlighter = codeEditor.gameObject.AddComponent<PythonHighlighter>();
+            PythonHighlighter highlighter = codeEditor.GetComponent<PythonHighlighter>() ?? codeEditor.gameObject.AddComponent<PythonHighlighter>();
             highlighter.inputField = codeEditor;
 
-            // Syntax-highlighted overlay text — must match inputText exactly
             Transform overlayTr = codeEditor.transform.Find("HighlightOverlay");
             Text overlayText = overlayTr != null ? overlayTr.GetComponent<Text>() : null;
-            if (overlayText != null)
-            {
-                overlayText.font = monoFont;
-                overlayText.fontSize = 18;
-                overlayText.lineSpacing = 1.2f;
-                overlayText.color = new Color(0.66f, 0.72f, 0.78f); // #A9B7C6
-                overlayText.supportRichText = true;
-                overlayText.alignment = TextAnchor.UpperLeft;
-                overlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
-                overlayText.verticalOverflow = VerticalWrapMode.Truncate;
-                overlayText.raycastTarget = false;
-                highlighter.overlayText = overlayText;
-            }
+            if (overlayText != null) { overlayText.font = monoFont; overlayText.fontSize = 18; overlayText.lineSpacing = 1.2f; overlayText.color = new Color(0.66f,0.72f,0.78f); overlayText.supportRichText = true; overlayText.alignment = TextAnchor.UpperLeft; overlayText.horizontalOverflow = HorizontalWrapMode.Wrap; overlayText.verticalOverflow = VerticalWrapMode.Truncate; overlayText.raycastTarget = false; highlighter.overlayText = overlayText; }
 
-            // Line Numbers Gutter — create if missing, style if existing
-            Transform gutterTr = codeEditor.transform.Find("LineNumbersGutter");
-            Text lineNumsText = null;
-            if (gutterTr == null)
-            {
-                // --- Create Gutter container ---
-                GameObject gutterObj = new GameObject("LineNumbersGutter", typeof(RectTransform), typeof(Image));
-                gutterObj.transform.SetParent(codeEditor.transform, false);
-                gutterObj.GetComponent<Image>().color = new Color(0.098f, 0.098f, 0.106f, 1f);
+            EnsureLineNumbersGutter(monoFont, out Text lineNumsText);
+            highlighter.lineNumbersText = lineNumsText;
 
-                RectTransform gutterRect = gutterObj.GetComponent<RectTransform>();
-                gutterRect.anchorMin = new Vector2(0f, 0f);
-                gutterRect.anchorMax = new Vector2(0f, 1f);
-                gutterRect.pivot = new Vector2(0f, 0.5f);
-                gutterRect.anchoredPosition = Vector2.zero;
-                gutterRect.sizeDelta = new Vector2(50f, 0f);
-
-                // Vertical separator line
-                GameObject sepObj = new GameObject("GutterSeparator", typeof(RectTransform), typeof(Image));
-                sepObj.transform.SetParent(gutterObj.transform, false);
-                sepObj.GetComponent<Image>().color = new Color(0.22f, 0.23f, 0.25f, 1f);
-                RectTransform sepRect = sepObj.GetComponent<RectTransform>();
-                sepRect.anchorMin = new Vector2(1f, 0f);
-                sepRect.anchorMax = new Vector2(1f, 1f);
-                sepRect.pivot = new Vector2(1f, 0.5f);
-                sepRect.sizeDelta = new Vector2(1f, 0f);
-
-                // Line numbers text
-                GameObject textObj = new GameObject("LineNumbersText", typeof(RectTransform), typeof(Text));
-                textObj.transform.SetParent(gutterObj.transform, false);
-                lineNumsText = textObj.GetComponent<Text>();
-                lineNumsText.font = monoFont;
-                lineNumsText.fontSize = 18;
-                lineNumsText.lineSpacing = 1.2f;
-                lineNumsText.color = new Color(0.42f, 0.43f, 0.46f); // #6B6E75
-                lineNumsText.alignment = TextAnchor.UpperRight;
-                lineNumsText.horizontalOverflow = HorizontalWrapMode.Overflow;
-                lineNumsText.verticalOverflow = VerticalWrapMode.Overflow;
-                lineNumsText.raycastTarget = false;
-
-                RectTransform textRect = textObj.GetComponent<RectTransform>();
-                textRect.anchorMin = Vector2.zero;
-                textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = new Vector2(4f, 6f);
-                textRect.offsetMax = new Vector2(-8f, -6f);
-            }
-            else
-            {
-                // Gutter already exists — just grab the text reference
-                Transform textTr = gutterTr.Find("LineNumbersText");
-                if (textTr != null)
-                {
-                    lineNumsText = textTr.GetComponent<Text>();
-                    if (lineNumsText != null)
-                    {
-                        lineNumsText.font = monoFont;
-                        lineNumsText.fontSize = 18;
-                        lineNumsText.lineSpacing = 1.2f;
-                    }
-                }
-            }
-
-            // Guarantee left padding layout alignment on every init pass
-            float leftPad = 58f;
-            if (codeEditor.textComponent != null)
-            {
-                RectTransform inputRect = codeEditor.textComponent.GetComponent<RectTransform>();
-                inputRect.offsetMin = new Vector2(leftPad, 6f);
-                inputRect.offsetMax = new Vector2(-10f, -6f);
-            }
-            if (overlayText != null)
-            {
-                RectTransform overlayRect = overlayText.GetComponent<RectTransform>();
-                overlayRect.offsetMin = new Vector2(leftPad, 6f);
-                overlayRect.offsetMax = new Vector2(-10f, -6f);
-            }
-
-            UpdateTopLayout();
+            const float leftPad = 58f;
+            if (codeEditor.textComponent != null) { var r = codeEditor.textComponent.GetComponent<RectTransform>(); r.offsetMin = new Vector2(leftPad,6f); r.offsetMax = new Vector2(-10f,-6f); }
+            if (overlayText != null) { var r = overlayText.GetComponent<RectTransform>(); r.offsetMin = new Vector2(leftPad,6f); r.offsetMax = new Vector2(-10f,-6f); }
         }
+
+        EnsureStatusBar(monoFont);
+        UpdateTopLayout();
+    }
+
+    private void StyleButton(Button btn, Font f, Color bg, Vector2 pos)
+    {
+        if (btn == null) return;
+        var img = btn.GetComponent<Image>(); if (img != null) img.color = bg;
+        var lbl = btn.GetComponentInChildren<Text>(); if (lbl != null) { lbl.font = f; lbl.fontSize = 18; lbl.fontStyle = FontStyle.Bold; }
+        var rt = btn.GetComponent<RectTransform>(); rt.anchorMin = rt.anchorMax = new Vector2(0.5f,0f); rt.pivot = new Vector2(0.5f,0f); rt.anchoredPosition = pos; rt.sizeDelta = new Vector2(150f,40f);
+    }
+
+    private void EnsureConsoleBackground(Text src)
+    {
+        var parent = src.transform.parent; if (parent == null) return;
+        var bgTr = parent.Find("ConsoleBackground");
+        Image bg = bgTr != null ? bgTr.GetComponent<Image>() : null;
+        if (bg == null) { var o = new GameObject("ConsoleBackground", typeof(RectTransform), typeof(Image)); o.transform.SetParent(parent,false); o.transform.SetSiblingIndex(src.transform.GetSiblingIndex()); bg = o.GetComponent<Image>(); }
+        var bgR = bg.rectTransform; var sR = src.rectTransform;
+        bgR.anchorMin = sR.anchorMin; bgR.anchorMax = sR.anchorMax; bgR.pivot = sR.pivot; bgR.anchoredPosition = sR.anchoredPosition; bgR.sizeDelta = sR.sizeDelta;
+        bg.color = new Color(0.08f,0.08f,0.09f,0.95f);
+    }
+
+    private void EnsureLineNumbersGutter(Font f, out Text lineNumsText)
+    {
+        lineNumsText = null;
+        Transform gutterTr = codeEditor.transform.Find("LineNumbersGutter");
+        if (gutterTr == null)
+        {
+            var g = new GameObject("LineNumbersGutter", typeof(RectTransform), typeof(Image)); g.transform.SetParent(codeEditor.transform, false);
+            g.GetComponent<Image>().color = new Color(0.098f,0.098f,0.106f,1f);
+            var gr = g.GetComponent<RectTransform>(); gr.anchorMin=new Vector2(0f,0f); gr.anchorMax=new Vector2(0f,1f); gr.pivot=new Vector2(0f,0.5f); gr.anchoredPosition=Vector2.zero; gr.sizeDelta=new Vector2(50f,0f);
+            var sep = new GameObject("GutterSeparator",typeof(RectTransform),typeof(Image)); sep.transform.SetParent(g.transform,false); sep.GetComponent<Image>().color=new Color(0.22f,0.23f,0.25f,1f);
+            var sr=sep.GetComponent<RectTransform>(); sr.anchorMin=new Vector2(1f,0f); sr.anchorMax=new Vector2(1f,1f); sr.pivot=new Vector2(1f,0.5f); sr.sizeDelta=new Vector2(1f,0f);
+            var to=new GameObject("LineNumbersText",typeof(RectTransform),typeof(Text)); to.transform.SetParent(g.transform,false);
+            lineNumsText=to.GetComponent<Text>(); lineNumsText.font=f; lineNumsText.fontSize=18; lineNumsText.lineSpacing=1.2f; lineNumsText.color=new Color(0.42f,0.43f,0.46f); lineNumsText.alignment=TextAnchor.UpperRight; lineNumsText.horizontalOverflow=HorizontalWrapMode.Overflow; lineNumsText.verticalOverflow=VerticalWrapMode.Overflow; lineNumsText.raycastTarget=false;
+            var tr=to.GetComponent<RectTransform>(); tr.anchorMin=Vector2.zero; tr.anchorMax=Vector2.one; tr.offsetMin=new Vector2(4f,6f); tr.offsetMax=new Vector2(-8f,-6f);
+        }
+        else { var t=gutterTr.Find("LineNumbersText"); if(t!=null){lineNumsText=t.GetComponent<Text>(); if(lineNumsText!=null){lineNumsText.font=f;lineNumsText.fontSize=18;lineNumsText.lineSpacing=1.2f;}} }
+    }
+
+    private void EnsureStatusBar(Font f)
+    {
+        if (panelRoot == null) return;
+        Transform parent = codeEditor != null ? codeEditor.transform.parent : panelRoot.transform;
+        Transform sbTr = parent.Find("StatusBar");
+        if (sbTr == null)
+        {
+            var sb = new GameObject("StatusBar",typeof(RectTransform),typeof(Image)); sb.transform.SetParent(parent,false);
+            sb.GetComponent<Image>().color = new Color(0.078f,0.082f,0.094f,1f);
+            var r=sb.GetComponent<RectTransform>(); r.anchorMin=new Vector2(0f,0f); r.anchorMax=new Vector2(1f,0f); r.pivot=new Vector2(0.5f,0f); r.anchoredPosition=new Vector2(20f,138f); r.sizeDelta=new Vector2(-40f,20f);
+            var to=new GameObject("StatusBarText",typeof(RectTransform),typeof(Text)); to.transform.SetParent(sb.transform,false);
+            _statusBarText=to.GetComponent<Text>(); _statusBarText.font=f; _statusBarText.fontSize=13; _statusBarText.color=new Color(0.55f,0.58f,0.63f); _statusBarText.alignment=TextAnchor.MiddleRight; _statusBarText.horizontalOverflow=HorizontalWrapMode.Overflow; _statusBarText.raycastTarget=false;
+            var tr=to.GetComponent<RectTransform>(); tr.anchorMin=Vector2.zero; tr.anchorMax=Vector2.one; tr.offsetMin=new Vector2(8f,0f); tr.offsetMax=new Vector2(-8f,0f);
+        }
+        else { _statusBarText=sbTr.Find("StatusBarText")?.GetComponent<Text>(); }
+        if (_statusBarText!=null) _statusBarText.text="Ln 1  Col 1";
     }
 
     public void UpdateTopLayout()
     {
         if (missionInfoText == null) return;
-
         Canvas.ForceUpdateCanvases();
-
-        // 1. Position missionInfoText at top (-15px)
         RectTransform infoRt = missionInfoText.rectTransform;
-        infoRt.anchorMin = new Vector2(0f, 1f);
-        infoRt.anchorMax = new Vector2(1f, 1f);
-        infoRt.pivot = new Vector2(0.5f, 1f);
-        infoRt.anchoredPosition = new Vector2(0f, -15f);
-
-        // Dynamically compute exact text height needed so text lines never overflow into elements below
-        float infoHeight = Mathf.Max(50f, missionInfoText.preferredHeight);
-        infoRt.sizeDelta = new Vector2(-40f, infoHeight);
-
-        // 2. Position statsText right below missionInfoText (+ 8px padding)
+        infoRt.anchorMin=new Vector2(0f,1f); infoRt.anchorMax=new Vector2(1f,1f); infoRt.pivot=new Vector2(0.5f,1f); infoRt.anchoredPosition=new Vector2(0f,-15f);
+        float infoHeight = Mathf.Max(50f, missionInfoText.preferredHeight); infoRt.sizeDelta = new Vector2(-40f, infoHeight);
         float statsTop = 15f + infoHeight + 8f;
-        if (statsText != null)
-        {
-            RectTransform statsRt = statsText.rectTransform;
-            statsRt.anchorMin = new Vector2(0f, 1f);
-            statsRt.anchorMax = new Vector2(1f, 1f);
-            statsRt.pivot = new Vector2(0.5f, 1f);
-            statsRt.anchoredPosition = new Vector2(0f, -statsTop);
-            statsRt.sizeDelta = new Vector2(-40f, 25f);
-        }
-
-        // 3. Position codeEditor top boundary right below statsText (+ 8px padding)
+        if (statsText != null) { var r=statsText.rectTransform; r.anchorMin=new Vector2(0f,1f); r.anchorMax=new Vector2(1f,1f); r.pivot=new Vector2(0.5f,1f); r.anchoredPosition=new Vector2(0f,-statsTop); r.sizeDelta=new Vector2(-40f,25f); }
         float editorTop = statsTop + (statsText != null ? 28f : 0f) + 8f;
-        if (codeEditor != null)
-        {
-            RectTransform editorRt = codeEditor.GetComponent<RectTransform>();
-            editorRt.anchorMin = new Vector2(0f, 0f);
-            editorRt.anchorMax = new Vector2(1f, 1f);
-            editorRt.pivot = new Vector2(0.5f, 0.5f);
-            editorRt.offsetMin = new Vector2(20f, 142f);
-            editorRt.offsetMax = new Vector2(-20f, -editorTop);
-        }
+        if (codeEditor != null) { var r=codeEditor.GetComponent<RectTransform>(); r.anchorMin=new Vector2(0f,0f); r.anchorMax=new Vector2(1f,1f); r.pivot=new Vector2(0.5f,0.5f); r.offsetMin=new Vector2(20f,162f); r.offsetMax=new Vector2(-20f,-editorTop); }
     }
-
-    private float currentScrollY = 0f;
 
     private void Update()
     {
-        if (codeEditor != null && panelRoot != null && panelRoot.activeInHierarchy)
-        {
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
-            if (Mathf.Abs(scroll) > 0.001f)
-            {
-                currentScrollY = Mathf.Max(0f, currentScrollY - scroll * 120f);
-                ApplyEditorScroll();
-            }
-
-            PythonHighlighter highlighter = codeEditor.GetComponent<PythonHighlighter>();
-            if (highlighter != null && !string.IsNullOrEmpty(highlighter.currentErrorHint))
-            {
-                if (resultText != null && (string.IsNullOrEmpty(resultText.text) || resultText.text.StartsWith("<color=#7A7E85>") || resultText.text.StartsWith("<color=#FF5252>")))
-                {
-                    resultText.text = $"<color=#FF5252>● {highlighter.currentErrorHint}</color>";
-                }
-            }
-        }
+        if (codeEditor == null || panelRoot == null || !panelRoot.activeInHierarchy) return;
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (Mathf.Abs(scroll) > 0.001f) _scrollYTarget = Mathf.Max(0f, _scrollYTarget - scroll * ScrollSpeed);
+        if (Mathf.Abs(_scrollYTarget - _scrollYCurrent) > 0.1f) { _scrollYCurrent = Mathf.Lerp(_scrollYCurrent, _scrollYTarget, Time.deltaTime * ScrollLerp); ApplyEditorScroll(_scrollYCurrent); }
+        UpdateStatusBar();
+        PythonHighlighter h = codeEditor.GetComponent<PythonHighlighter>();
+        if (h != null && !string.IsNullOrEmpty(h.currentErrorHint))
+            if (resultText != null && (string.IsNullOrEmpty(resultText.text) || resultText.text.StartsWith("<color=#7A7E85>") || resultText.text.StartsWith("<color=#FF5252>")))
+                resultText.text = $"<color=#FF5252>\u25cf {h.currentErrorHint}</color>";
     }
 
-    private void ApplyEditorScroll()
+    private void UpdateStatusBar()
+    {
+        if (_statusBarText == null || codeEditor == null) return;
+        string text = codeEditor.text ?? ""; int caret = Mathf.Clamp(codeEditor.caretPosition, 0, text.Length);
+        int line = 1, col = 1;
+        for (int i = 0; i < caret; i++) { if (text[i] == '\n') { line++; col = 1; } else col++; }
+        _statusBarText.text = $"Ln {line}  Col {col}";
+    }
+
+    private void ApplyEditorScroll(float scrollY)
     {
         if (codeEditor == null || codeEditor.textComponent == null) return;
-
-        RectTransform inputRect = codeEditor.textComponent.GetComponent<RectTransform>();
-        if (inputRect != null)
-        {
-            inputRect.anchoredPosition = new Vector2(inputRect.anchoredPosition.x, currentScrollY);
-        }
-
-        Transform overlayTr = codeEditor.transform.Find("HighlightOverlay");
-        if (overlayTr != null)
-        {
-            RectTransform overlayRect = overlayTr.GetComponent<RectTransform>();
-            if (overlayRect != null)
-            {
-                overlayRect.anchoredPosition = new Vector2(overlayRect.anchoredPosition.x, currentScrollY);
-            }
-        }
-
-        Transform gutterTr = codeEditor.transform.Find("LineNumbersGutter/LineNumbersText");
-        if (gutterTr != null)
-        {
-            RectTransform gutterRect = gutterTr.GetComponent<RectTransform>();
-            if (gutterRect != null)
-            {
-                gutterRect.anchoredPosition = new Vector2(gutterRect.anchoredPosition.x, currentScrollY);
-            }
-        }
+        var ir = codeEditor.textComponent.GetComponent<RectTransform>(); if (ir != null) ir.anchoredPosition = new Vector2(ir.anchoredPosition.x, scrollY);
+        var ot = codeEditor.transform.Find("HighlightOverlay"); if (ot != null) { var r = ot.GetComponent<RectTransform>(); if(r!=null) r.anchoredPosition=new Vector2(r.anchoredPosition.x,scrollY); }
+        var gt = codeEditor.transform.Find("LineNumbersGutter/LineNumbersText"); if (gt != null) { var r = gt.GetComponent<RectTransform>(); if(r!=null) r.anchoredPosition=new Vector2(r.anchoredPosition.x,scrollY); }
     }
 
-    public void Close()
-    {
-        if (panelRoot != null) panelRoot.SetActive(false);
-        if (player != null) player.SetInputEnabled(true);
-    }
+    public void Close() { if (panelRoot != null) panelRoot.SetActive(false); if (player != null) player.SetInputEnabled(true); }
 
     private IEnumerator FetchMissionThenPreview(int level)
     {
-        using (UnityWebRequest request = UnityWebRequest.Get($"{BaseUrl}/mission/generate?level={level}"))
+        using (var req = UnityWebRequest.Get($"{BaseUrl}/mission/generate?level={level}"))
         {
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                if (missionInfoText != null)
-                {
-                    missionInfoText.text = $"<color=#F55A5A>Failed to load mission: {request.error}</color>";
-                }
-                yield break;
-            }
-
-            _mission = JsonUtility.FromJson<MissionConfig>(request.downloadHandler.text);
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success) { if (missionInfoText!=null) missionInfoText.text=$"<color=#F55A5A>Failed to load mission: {req.error}</color>"; yield break; }
+            _mission = JsonUtility.FromJson<MissionConfig>(req.downloadHandler.text);
         }
-
-        if (missionInfoText != null)
-        {
-            missionInfoText.text = $"<b>{_mission.title}</b>\n<color=#A9B7C6>{_mission.description}</color>";
-        }
-
+        if (missionInfoText != null) missionInfoText.text = $"<b>{_mission.title}</b>\n<color=#A9B7C6>{_mission.description}</color>";
         UpdateTopLayout();
-
         if (codeEditor != null)
         {
             codeEditor.text = BuildStarterTemplate(_mission);
+            var h = codeEditor.GetComponent<PythonHighlighter>(); if (h!=null) h.SetTaskContext(_mission.problem_type, _mission.target_col, _mission.feature_cols);
         }
-
         yield return FetchPreview();
     }
 
-    private string BuildStarterTemplate(MissionConfig mission)
+    private string BuildStarterTemplate(MissionConfig m)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Available: df (raw data), target_col, feature_cols, pd, np,");
-        sb.AppendLine("# train_test_split, and sklearn model classes (see docs).");
-        sb.AppendLine($"# Dataset: {mission.dataset}");
+        sb.AppendLine("# ================================================================");
+        sb.AppendLine("# BlackVault Code Terminal");
+        sb.AppendLine("# ================================================================");
+        sb.AppendLine("#");
+        sb.AppendLine("# PRE-LOADED VARIABLES (already available, do NOT redefine):");
+        sb.AppendLine("#   df           -> pandas DataFrame of the raw dataset");
+        sb.AppendLine("#   target_col   -> name of the label/target column (string)");
+        sb.AppendLine("#   feature_cols -> list of input column names");
+        sb.AppendLine("#   pd, np       -> pandas, numpy");
+        sb.AppendLine("#   train_test_split, StandardScaler, LabelEncoder");
+        sb.AppendLine("#   LogisticRegression, RandomForestClassifier, LinearRegression");
+        sb.AppendLine("#   KMeans, IsolationForest");
+        sb.AppendLine("#");
+        sb.AppendLine($"# DATASET  : {m.dataset}");
+        if (!string.IsNullOrEmpty(m.target_col)) sb.AppendLine($"# TARGET   : {m.target_col}");
+        if (m.feature_cols != null && m.feature_cols.Length > 0) sb.AppendLine($"# FEATURES : {string.Join(", ", m.feature_cols)}");
+        sb.AppendLine("# ================================================================");
+        sb.AppendLine();
 
-        switch (mission.problem_type)
+        switch (m.problem_type)
         {
-            case "cleaning":
-            case "data_cleaning":
-                sb.AppendLine("#");
-                sb.AppendLine("# Your code must end with this variable set:");
-                sb.AppendLine("#   is_clean -> 1 (or True) if missing values & duplicates are removed");
-                sb.AppendLine("#   (or clean_df -> the cleaned DataFrame)");
+            case "cleaning": case "data_cleaning":
+                sb.AppendLine("# GOAL: Remove missing values and duplicate rows from df.");
+                sb.AppendLine("# REQUIRED OUTPUT: is_clean = 1   OR   clean_df = <cleaned DataFrame>");
                 sb.AppendLine();
-                sb.AppendLine("# Write your solution below:");
+                sb.AppendLine("# -- STEP 1: Drop rows with missing values ---------------");
+                sb.AppendLine("# Use: df.dropna()  -> removes any row that has a NaN");
+                sb.AppendLine("df = df.dropna()");
                 sb.AppendLine();
+                sb.AppendLine("# -- STEP 2: Remove duplicate rows -----------------------");
+                sb.AppendLine("# Use: df.drop_duplicates()  -> removes exact duplicate rows");
+                sb.AppendLine("df = df.drop_duplicates()");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 3: Signal success (REQUIRED) -------------------");
+                sb.AppendLine("is_clean = 1");
                 break;
+
             case "regression":
+                sb.AppendLine("# GOAL: Predict a numeric value.  REQUIRED: y_test, y_pred");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 1: Prepare features & target -------------------");
+                sb.AppendLine("X = df[feature_cols]");
+                sb.AppendLine("y = df[target_col]");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 2: Split train / test --------------------------");
+                sb.AppendLine("# Use: train_test_split(X, y, test_size=0.2)");
+                sb.AppendLine("X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 3: Train model --------------------------------");
+                sb.AppendLine("# Options: LinearRegression()  |  RandomForestRegressor()");
+                sb.AppendLine("from sklearn.linear_model import LinearRegression");
+                sb.AppendLine("model = LinearRegression()  # <- swap if needed");
+                sb.AppendLine("model.fit(X_train, y_train)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 4: Predict (REQUIRED output) ------------------");
+                sb.AppendLine("y_pred = model.predict(X_test)");
+                break;
+
             case "classification":
-                sb.AppendLine("#");
-                sb.AppendLine("# Your code must end with these two variables set:");
-                sb.AppendLine("#   y_test  -> the true values for a held-out test split");
-                sb.AppendLine("#   y_pred  -> your model's predictions on that same split");
+                sb.AppendLine("# GOAL: Classify each row.  REQUIRED: y_test, y_pred");
                 sb.AppendLine();
-                sb.AppendLine("# Write your solution below:");
+                sb.AppendLine("# -- STEP 1: Prepare features & target -------------------");
+                sb.AppendLine("X = df[feature_cols]");
+                sb.AppendLine("y = df[target_col]");
                 sb.AppendLine();
+                sb.AppendLine("# -- STEP 2: Split train / test --------------------------");
+                sb.AppendLine("X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 3: Train classifier ----------------------------");
+                sb.AppendLine("# Options: LogisticRegression()  |  RandomForestClassifier()");
+                sb.AppendLine("model = LogisticRegression(max_iter=200)  # <- swap if needed");
+                sb.AppendLine("model.fit(X_train, y_train)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 4: Predict (REQUIRED output) ------------------");
+                sb.AppendLine("y_pred = model.predict(X_test)");
                 break;
+
             case "clustering":
-                sb.AppendLine("#");
-                sb.AppendLine("# Your code must end with this variable set:");
-                sb.AppendLine("#   labels  -> one cluster id per row");
+                sb.AppendLine("# GOAL: Group rows into clusters.  REQUIRED: labels");
                 sb.AppendLine();
-                sb.AppendLine("# Write your solution below:");
+                sb.AppendLine("# -- STEP 1: Select features -----------------------------");
+                sb.AppendLine("X = df[feature_cols] if feature_cols else df.select_dtypes(include='number')");
                 sb.AppendLine();
+                sb.AppendLine("# -- STEP 2: Scale (KMeans is scale-sensitive) -----------");
+                sb.AppendLine("# Use: StandardScaler().fit_transform(X)");
+                sb.AppendLine("X_scaled = StandardScaler().fit_transform(X)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 3: Cluster (adjust n_clusters as needed) -------");
+                sb.AppendLine("model = KMeans(n_clusters=3, random_state=42)");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 4: Assign labels (REQUIRED output) ------------");
+                sb.AppendLine("labels = model.fit_predict(X_scaled)");
                 break;
+
             case "anomaly_detection":
-                sb.AppendLine("#");
-                sb.AppendLine("# Your code must end with this variable set:");
-                sb.AppendLine("#   anomaly_flags  -> 0/1 (or True/False) per row");
+                sb.AppendLine("# GOAL: Flag anomalous rows.  REQUIRED: anomaly_flags (0=normal, 1=anomaly)");
                 sb.AppendLine();
-                sb.AppendLine("# Write your solution below:");
+                sb.AppendLine("# -- STEP 1: Select numeric features ---------------------");
+                sb.AppendLine("X = df[feature_cols] if feature_cols else df.select_dtypes(include='number')");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 2: Fit IsolationForest -------------------------");
+                sb.AppendLine("# contamination -> expected fraction of anomalies (e.g. 0.05 = 5%)");
+                sb.AppendLine("model = IsolationForest(contamination=0.05, random_state=42)");
+                sb.AppendLine("preds = model.fit_predict(X)  # -1=anomaly, +1=normal");
+                sb.AppendLine();
+                sb.AppendLine("# -- STEP 3: Convert to 0/1 (REQUIRED output) ----------");
+                sb.AppendLine("# Backend expects 0/1; IsolationForest returns -1/+1");
+                sb.AppendLine("anomaly_flags = (preds == -1).astype(int)");
+                break;
+
+            default:
+                sb.AppendLine("# Write your Python solution below.");
+                sb.AppendLine("# Make sure to set the required output variable before the end.");
                 sb.AppendLine();
                 break;
         }
-
         return sb.ToString();
     }
 
     private IEnumerator FetchPreview()
     {
-        PreprocessRequestBody body = new PreprocessRequestBody { dataset = _mission.dataset };
-
-        yield return SendPreprocess(body, response =>
-        {
-            if (statsText != null)
-            {
-                statsText.text = $"Rows: {response.rows_before} | Missing values: {response.missing_before}";
-            }
+        yield return SendPreprocess(new PreprocessRequestBody { dataset = _mission.dataset }, r => {
+            if (statsText != null) statsText.text = $"Rows: {r.rows_before}  |  Missing: {r.missing_before}  |  Dataset: {_mission.dataset}";
             UpdateTopLayout();
         });
     }
 
-    private void OnRunClicked()
-    {
-        StartCoroutine(RunCodeSequence());
-    }
+    private void OnRunClicked() => StartCoroutine(RunCodeSequence());
 
     private IEnumerator RunCodeSequence()
     {
-        if (resultText != null) resultText.text = "<color=#FFC66D>▶ Running script on backend...</color>";
-
+        if (resultText != null) resultText.text = "<color=#FFC66D>\u25b6 Running script on backend...</color>";
         bool isCleaning = _mission.problem_type == "cleaning" || _mission.problem_type == "data_cleaning" || _mission.level == 1;
         string defaultMetric = isCleaning ? "is_clean" : (_mission.problem_type == "regression" ? "rmse" : "accuracy");
         float defaultTarget = isCleaning ? 1.0f : (_mission.problem_type == "regression" ? 30000.0f : 0.75f);
-
-        CodeExecuteRequestBody body = new CodeExecuteRequestBody
+        var body = new CodeExecuteRequestBody { mission_id=_mission.mission_id, level_id=_mission.level.ToString(), dataset=_mission.dataset, problem_type=_mission.problem_type, code=codeEditor!=null?codeEditor.text:"", target_col=_mission.target_col, feature_cols=_mission.feature_cols, target_metric=string.IsNullOrEmpty(_mission.target_metric)?defaultMetric:_mission.target_metric, target_metric_value=_mission.target_metric_value>0?_mission.target_metric_value:defaultTarget, metric_direction=string.IsNullOrEmpty(_mission.metric_direction)?"higher_is_better":_mission.metric_direction };
+        byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(body));
+        using (var req = new UnityWebRequest($"{BaseUrl}/train/code","POST"))
         {
-            mission_id = _mission.mission_id,
-            level_id = _mission.level.ToString(),
-            dataset = _mission.dataset,
-            problem_type = _mission.problem_type,
-            code = codeEditor != null ? codeEditor.text : "",
-            target_col = _mission.target_col,
-            feature_cols = _mission.feature_cols,
-            target_metric = string.IsNullOrEmpty(_mission.target_metric) ? defaultMetric : _mission.target_metric,
-            target_metric_value = _mission.target_metric_value > 0 ? _mission.target_metric_value : defaultTarget,
-            metric_direction = string.IsNullOrEmpty(_mission.metric_direction) ? "higher_is_better" : _mission.metric_direction,
-        };
-
-        string jsonBody = JsonUtility.ToJson(body);
-        byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
-
-        using (UnityWebRequest request = new UnityWebRequest($"{BaseUrl}/train/code", "POST"))
-        {
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                if (resultText != null) resultText.text = $"<color=#F55A5A><b>✖ CONNECTION ERROR</b></color>\n<color=#F55A5A>{request.error}</color>";
-                Debug.LogError($"[BlackVault] /train/code FAILED: {request.error}\n{request.downloadHandler.text}");
-                yield break;
-            }
-
-            CodeExecuteResponseBody response = JsonUtility.FromJson<CodeExecuteResponseBody>(request.downloadHandler.text);
-            bool unlocked = response.door_status == "UNLOCKED";
-
+            req.uploadHandler=new UploadHandlerRaw(bodyRaw); req.downloadHandler=new DownloadHandlerBuffer(); req.SetRequestHeader("Content-Type","application/json");
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success) { if(resultText!=null)resultText.text=$"<color=#F55A5A><b>\u2716 CONNECTION ERROR</b></color>\n<color=#F55A5A>{req.error}</color>"; Debug.LogError($"[BlackVault] /train/code FAILED: {req.error}"); yield break; }
+            var resp = JsonUtility.FromJson<CodeExecuteResponseBody>(req.downloadHandler.text);
+            bool unlocked = resp.door_status == "UNLOCKED";
             if (resultText != null)
             {
-                if (!string.IsNullOrEmpty(response.error))
-                {
-                    resultText.text = $"<color=#F55A5A><b>✖ EXECUTION ERROR</b></color>\n<color=#F55A5A>{response.error}</color>";
-                }
-                else
-                {
-                    resultText.text = unlocked
-                        ? $"<color=#499C54><b>✔ ACCESS GRANTED — PUZZLE SOLVED</b></color>\n<color=#A9B7C6>{response.target_metric}: {response.achieved:F3} (target: {response.target_value:F3})</color>"
-                        : $"<color=#F55A5A><b>✖ ACCESS DENIED — METRIC NOT MET</b></color>\n<color=#A9B7C6>{response.target_metric}: {response.achieved:F3} (target: {response.target_value:F3})</color>";
-                }
+                if (!string.IsNullOrEmpty(resp.error)) resultText.text=$"<color=#F55A5A><b>\u2716 EXECUTION ERROR</b></color>\n<color=#F55A5A>{resp.error}</color>";
+                else resultText.text = unlocked
+                    ? $"<color=#499C54><b>\u2714 ACCESS GRANTED</b></color>\n<color=#A9B7C6>{resp.target_metric}: {resp.achieved:F3} (target: {resp.target_value:F3})</color>"
+                    : $"<color=#F55A5A><b>\u2716 ACCESS DENIED</b></color>\n<color=#A9B7C6>{resp.target_metric}: {resp.achieved:F3} (target: {resp.target_value:F3})</color>";
             }
-
-            if (unlocked)
-            {
-                yield return new WaitForSeconds(1.5f);
-                Close();
-            }
-
+            if (unlocked) { yield return new WaitForSeconds(1.5f); Close(); }
             _onResultCallback?.Invoke(unlocked);
         }
     }
 
     private IEnumerator SendPreprocess(PreprocessRequestBody body, Action<PreprocessResponseBody> onSuccess)
     {
-        string jsonBody = JsonUtility.ToJson(body);
-        byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
-
-        using (UnityWebRequest request = new UnityWebRequest($"{BaseUrl}/preprocess", "POST"))
+        byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(body));
+        using (var req = new UnityWebRequest($"{BaseUrl}/preprocess","POST"))
         {
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogError($"[BlackVault] /preprocess FAILED: {request.error}");
-                if (statsText != null) statsText.text = "Failed to load dataset preview.";
-                yield break;
-            }
-
-            PreprocessResponseBody response = JsonUtility.FromJson<PreprocessResponseBody>(request.downloadHandler.text);
-            onSuccess?.Invoke(response);
+            req.uploadHandler=new UploadHandlerRaw(bodyRaw); req.downloadHandler=new DownloadHandlerBuffer(); req.SetRequestHeader("Content-Type","application/json");
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success) { Debug.LogError($"[BlackVault] /preprocess FAILED: {req.error}"); if(statsText!=null)statsText.text="Failed to load dataset preview."; yield break; }
+            onSuccess?.Invoke(JsonUtility.FromJson<PreprocessResponseBody>(req.downloadHandler.text));
         }
     }
 }
