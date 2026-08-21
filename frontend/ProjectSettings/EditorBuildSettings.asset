@@ -23,4 +23,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/05_Level5_Anomaly.unity
     guid: c5aae6df9c851f04d9eda359d36f5eca
+  - enabled: 1
+    path: Assets/Scenes/06_BossRoom.unity
+    guid: e64034ea890614344a11116b0fd91a38
   m_configObjects: {}

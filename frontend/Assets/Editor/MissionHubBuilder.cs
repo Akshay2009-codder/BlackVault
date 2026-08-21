@@ -22,7 +22,8 @@ public static class MissionHubBuilder
         "Level 2 — Regression",
         "Level 3 — Classification",
         "Level 4 — Clustering",
-        "Level 5 — Anomaly Detection"
+        "Level 5 — Anomaly Detection",
+        "Final Boss — Core Mainframe"
     };
 
     private static readonly string[] SceneNames = new string[]
@@ -31,7 +32,8 @@ public static class MissionHubBuilder
         "02_Level2_Regression",
         "03_Level3_Classification",
         "04_Level4_Clustering",
-        "05_Level5_Anomaly"
+        "05_Level5_Anomaly",
+        "06_BossRoom"
     };
 
     [MenuItem("BlackVault/Build Mission Hub Scene")]
@@ -115,14 +117,14 @@ public static class MissionHubBuilder
 
         // --- Attach MissionHubUI ---
         MissionHubUI hub = canvasObj.AddComponent<MissionHubUI>();
-        hub.levelButtons = new MissionHubUI.LevelButtonEntry[5];
+        hub.levelButtons = new MissionHubUI.LevelButtonEntry[6];
 
-        // --- 5 Level Buttons ---
-        float startY = -160f;
-        float buttonHeight = 55f;
-        float buttonSpacing = 15f;
+        // --- 6 Level Buttons ---
+        float startY = -130f;
+        float buttonHeight = 50f;
+        float buttonSpacing = 12f;
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
             GameObject btnObj = DefaultControls.CreateButton(uiResources);
             btnObj.name = $"LevelButton_{i + 1}";
@@ -185,7 +187,7 @@ public static class MissionHubBuilder
         // Wire reset button to hub's debug method
         Button resetButton = resetObj.GetComponent<Button>();
         resetButton.onClick.AddListener(() => {
-            for (int k = 1; k <= 5; k++)
+            for (int k = 1; k <= 6; k++)
             {
                 PlayerPrefs.DeleteKey($"BV_Level{k}_Complete");
             }

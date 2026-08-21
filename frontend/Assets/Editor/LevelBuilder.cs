@@ -61,6 +61,21 @@ public static class LevelBuilder
     [MenuItem("BlackVault/Build Level 5 Scene")]
     public static void BuildLevel5() => BuildLevel(5);
 
+    [MenuItem("BlackVault/Build Boss Room Scene")]
+    public static void BuildBossRoom()
+    {
+        EnsureEventSystem();
+
+        BuildEnvironment(out GameObject door);
+        GameObject terminal = BuildTerminal(door, 6); // level 6 = boss
+        GameObject player = BuildPlayer();
+        GameObject canvas = BuildBossPuzzleCanvas(player);
+
+        WireBossTerminal(terminal, canvas, door);
+
+        Debug.Log($"[BlackVault] Boss Room scene built. Save it as 06_BossRoom.unity.");
+    }
+
     /// <summary>
     /// Builds a full level scene for the given level number (1-5).
     /// Call this with the CURRENT SCENE EMPTY — it does not clear an
@@ -435,6 +450,34 @@ public static class LevelBuilder
         return text;
     }
 
+    /// <summary>
+    /// Creates a Text element anchored to the BOTTOM of its parent.
+    /// distanceFromBottom is a POSITIVE number of pixels up from the bottom edge.
+    /// </summary>
+    private static Text CreateBottomText(DefaultControls.Resources uiResources, Transform parent,
+                                          string name, string content, float distanceFromBottom, float height, int fontSize)
+    {
+        GameObject obj = DefaultControls.CreateText(uiResources);
+        obj.name = name;
+        obj.transform.SetParent(parent, false);
+        Text text = obj.GetComponent<Text>();
+        text.text = content;
+        text.fontSize = fontSize;
+        text.color = Color.white;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = new Vector2(0f, distanceFromBottom);
+        rect.sizeDelta = new Vector2(-40f, height);
+
+        return text;
+    }
+
     private static void WireTerminal(GameObject terminal, GameObject canvas, GameObject door)
     {
         TerminalInteractable interactable = terminal.GetComponent<TerminalInteractable>();
@@ -518,5 +561,92 @@ public static class LevelBuilder
         labelRect.offsetMax = Vector2.zero;
 
         return button;
+    }
+
+    private static GameObject BuildBossPuzzleCanvas(GameObject player)
+    {
+        var uiResources = new DefaultControls.Resources();
+
+        GameObject canvasObj = new GameObject("Canvas_BossPuzzle");
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasObj.AddComponent<CanvasScaler>();
+        canvasObj.AddComponent<GraphicRaycaster>();
+
+        GameObject panel = DefaultControls.CreatePanel(uiResources);
+        panel.name = "BossPuzzlePanel";
+        panel.transform.SetParent(canvasObj.transform, false);
+        panel.GetComponent<Image>().color = new Color(0.12f, 0.12f, 0.14f, 0.98f);
+        RectTransform panelRect = panel.GetComponent<RectTransform>();
+        panelRect.offsetMin = new Vector2(40f, 30f);
+        panelRect.offsetMax = new Vector2(-40f, -30f);
+
+        // Title
+        Text titleText = CreateTopText(uiResources, panel.transform, "TitleText", "⚠️ FINAL BOSS: CONTAINMENT PROTOCOLS", 20f, 50f, 24);
+        titleText.color = new Color(0.95f, 0.35f, 0.35f);
+        titleText.fontStyle = FontStyle.Bold;
+
+        // Timer Text
+        Text timerText = CreateTopText(uiResources, panel.transform, "TimerText", "TIME REMAINING: 180s", 70f, 30f, 18);
+        timerText.color = Color.white;
+        timerText.fontStyle = FontStyle.Bold;
+
+        // Preview Text
+        Text previewText = CreateTopText(uiResources, panel.transform, "DatasetPreviewText", "Loading database telemetry...", 110f, 80f, 15);
+        previewText.color = new Color(0.85f, 0.85f, 0.88f);
+
+        // Stats Text
+        Text statsText = CreateTopText(uiResources, panel.transform, "StatsText", "", 200f, 30f, 15);
+        statsText.color = new Color(0.65f, 0.65f, 0.7f);
+
+        // Toggles
+        Toggle dropDups = CreateUIToggle(panel.transform, "DropDuplicatesToggle", "Drop Duplicate Rows", new Vector2(-150f, 50f));
+        Toggle fillMissing = CreateUIToggle(panel.transform, "FillMissingToggle", "Fill Missing Values (Median)", new Vector2(-150f, 10f));
+        Toggle encode = CreateUIToggle(panel.transform, "EncodeToggle", "Encode Categoricals (Label)", new Vector2(-150f, -30f));
+        Toggle scale = CreateUIToggle(panel.transform, "ScaleToggle", "Scale Features (Standard)", new Vector2(-150f, -70f));
+
+        // Dropdowns
+        Text probLabel = CreateUIText(panel.transform, "ProblemTypeLabel", "Diagnosed ML Task:", new Vector2(100f, 65f));
+        probLabel.rectTransform.sizeDelta = new Vector2(200f, 30f);
+        Dropdown probDropdown = CreateUIDropdown(panel.transform, "ProblemTypeDropdown", new Vector2(210f, 35f));
+
+        Text algLabel = CreateUIText(panel.transform, "AlgorithmLabel", "Select ML Engine:", new Vector2(100f, -15f));
+        algLabel.rectTransform.sizeDelta = new Vector2(200f, 30f);
+        Dropdown algDropdown = CreateUIDropdown(panel.transform, "AlgorithmDropdown", new Vector2(210f, -45f));
+
+        // Buttons
+        Button runButton = CreateUIButton(panel.transform, "RunButton", "▶ Run pipeline", new Vector2(-100f, -160f));
+        Button closeButton = CreateUIButton(panel.transform, "CloseButton", "Abort/Close", new Vector2(100f, -160f));
+
+        // Result Text
+        Text resultText = CreateBottomText(uiResources, panel.transform, "ResultText", "", 75f, 50f, 16);
+        resultText.color = Color.white;
+        resultText.fontStyle = FontStyle.Bold;
+
+        // Component
+        BossPuzzleUI puzzleUI = canvasObj.AddComponent<BossPuzzleUI>();
+        puzzleUI.panelRoot = panel;
+        puzzleUI.datasetPreviewText = previewText;
+        puzzleUI.statsText = statsText;
+        puzzleUI.dropDuplicatesToggle = dropDups;
+        puzzleUI.fillMissingToggle = fillMissing;
+        puzzleUI.encodeToggle = encode;
+        puzzleUI.scaleToggle = scale;
+        puzzleUI.problemTypeDropdown = probDropdown;
+        puzzleUI.algorithmDropdown = algDropdown;
+        puzzleUI.resultText = resultText;
+        puzzleUI.timerText = timerText;
+        puzzleUI.runButton = runButton;
+        puzzleUI.closeButton = closeButton;
+        puzzleUI.player = player.GetComponent<PlayerController>();
+
+        panel.SetActive(false);
+        return canvasObj;
+    }
+
+    private static void WireBossTerminal(GameObject terminal, GameObject canvas, GameObject door)
+    {
+        TerminalInteractable interactable = terminal.GetComponent<TerminalInteractable>();
+        interactable.bossPuzzleUI = canvas.GetComponent<BossPuzzleUI>();
     }
 }
