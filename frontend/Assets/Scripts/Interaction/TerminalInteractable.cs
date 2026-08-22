@@ -96,6 +96,10 @@ public class TerminalInteractable : MonoBehaviour
             _puzzleSolved = true;
             if (linkedDoor != null) linkedDoor.Unlock();
 
+            // NEW (Phase 2): squad radios in flavor commentary on every solved door.
+            // Safe no-op if SquadManager hasn't been added to the scene yet.
+            BlackVault.Managers.SquadManager.Instance?.NotifyDoorUnlocked(level);
+
             if (missionCompleteOverlay != null)
             {
                 missionCompleteOverlay.Show(
