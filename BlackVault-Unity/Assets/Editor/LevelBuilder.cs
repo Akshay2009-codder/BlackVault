@@ -440,6 +440,9 @@ public static class LevelBuilder
             new Vector3(LabWidth / 2f - 0.15f, WallHeight * 0.35f, labCenterZ + 4f),
             1.2f, 0.8f, -90f);
 
+        // Guard AI & Stealth Hiding Spots
+        BuildGuardAndHidingSpots(sectionRoot.transform, labStartZ, theme);
+
         // ========================
         // DOOR 3 — Exit (chained)
         // ========================
@@ -1016,6 +1019,9 @@ public static class LevelBuilder
         controller.startInFirstPerson = true;
         model.SetActive(false);
 
+        // Stealth system integration
+        player.AddComponent<StealthController>();
+
         Camera mainCam = Camera.main;
         if (mainCam != null && mainCam.gameObject.name == "Main Camera")
         {
@@ -1203,5 +1209,132 @@ public static class LevelBuilder
     {
         TerminalInteractable interactable = terminal.GetComponent<TerminalInteractable>();
         interactable.mlPuzzleUI = canvas.GetComponent<MLPuzzleUI>();
+    }
+
+    // =====================================================================
+    // Guard AI & Hiding Spot Builder
+    // =====================================================================
+
+    private static void BuildGuardAndHidingSpots(Transform sectionRoot, float labStartZ, LevelTheme theme)
+    {
+        float labCenterZ = labStartZ + LabLength / 2f;
+
+        // --- Hiding Spots ---
+        // Hiding Spot 1: Behind Left Server Racks
+        CreateHidingSpot(sectionRoot,
+            new Vector3(-LabWidth / 2f + 1.2f, 0.9f, labStartZ + 3.5f),
+            new Vector3(1.5f, 1.8f, 2.5f),
+            "HidingZone_Servers_Left", theme.accentColor);
+
+        // Hiding Spot 2: Behind Right Server Racks
+        CreateHidingSpot(sectionRoot,
+            new Vector3(LabWidth / 2f - 1.2f, 0.9f, labStartZ + 7.5f),
+            new Vector3(1.5f, 1.8f, 2.5f),
+            "HidingZone_Servers_Right", theme.accentColor);
+
+        // Hiding Spot 3: Under / Behind Center Desk
+        CreateHidingSpot(sectionRoot,
+            new Vector3(-2f, 0.9f, labCenterZ - 1f),
+            new Vector3(2.0f, 1.8f, 1.5f),
+            "HidingZone_Desk", theme.accentColor);
+
+        // --- Patrol Guard ---
+        GameObject guardRoot = new GameObject($"Guard_Patrol_L{theme.level}");
+        guardRoot.transform.SetParent(sectionRoot, false);
+
+        // Load 3D Policeman FBX model if available
+        GameObject policemanAsset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/policeman-rig.fbx");
+        GameObject visualModel;
+
+        if (policemanAsset != null)
+        {
+            visualModel = (GameObject)PrefabUtility.InstantiatePrefab(policemanAsset, guardRoot.transform);
+            visualModel.name = "PolicemanModel";
+            visualModel.transform.localPosition = Vector3.zero;
+            visualModel.transform.localScale = Vector3.one * 1.0f;
+        }
+        else
+        {
+            // Fallback capsule
+            visualModel = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            visualModel.name = "GuardModelCapsule";
+            visualModel.transform.SetParent(guardRoot.transform, false);
+            visualModel.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+            visualModel.transform.localScale = new Vector3(0.8f, 0.9f, 0.8f);
+            visualModel.GetComponent<Renderer>().material = LabPropFactory.CreateMaterial(new Color(0.1f, 0.15f, 0.3f), 0.5f, 0.4f);
+            Object.DestroyImmediate(visualModel.GetComponent<CapsuleCollider>());
+        }
+
+        // Add NavMeshAgent
+        UnityEngine.AI.NavMeshAgent agent = guardRoot.AddComponent<UnityEngine.AI.NavMeshAgent>();
+        agent.speed = 2.2f;
+        agent.angularSpeed = 180f;
+        agent.acceleration = 8f;
+        agent.stoppingDistance = 0.5f;
+        agent.radius = 0.4f;
+        agent.height = 1.8f;
+
+        // Position guard at first waypoint
+        guardRoot.transform.position = new Vector3(2.5f, 0f, labStartZ + 2f);
+
+        // Create Patrol Waypoints
+        GameObject waypointsRoot = new GameObject($"Guard_Waypoints_L{theme.level}");
+        waypointsRoot.transform.SetParent(sectionRoot, false);
+
+        Vector3[] waypointsPositions = new Vector3[]
+        {
+            new Vector3(2.5f, 0f, labStartZ + 2f),
+            new Vector3(-2.5f, 0f, labStartZ + 5f),
+            new Vector3(2.5f, 0f, labStartZ + 8f),
+            new Vector3(-2.5f, 0f, labStartZ + 11f)
+        };
+
+        Transform[] waypointTransforms = new Transform[waypointsPositions.Length];
+        for (int i = 0; i < waypointsPositions.Length; i++)
+        {
+            GameObject wp = new GameObject($"Waypoint_{i + 1}");
+            wp.transform.SetParent(waypointsRoot.transform, false);
+            wp.transform.position = waypointsPositions[i];
+            waypointTransforms[i] = wp.transform;
+        }
+
+        // Add GuardAI script
+        GuardAI guardAI = guardRoot.AddComponent<GuardAI>();
+        guardAI.waypoints = waypointTransforms;
+        guardAI.patrolSpeed = 2.2f;
+        guardAI.chaseSpeed = 5.0f;
+        guardAI.viewRadius = 9f;
+        guardAI.viewAngle = 85f;
+        guardAI.hearingRadius = 4f;
+
+        Animator anim = visualModel.GetComponent<Animator>();
+        if (anim != null)
+        {
+            guardAI.animator = anim;
+        }
+    }
+
+    private static void CreateHidingSpot(Transform parent, Vector3 center, Vector3 size, string name, Color themeAccent)
+    {
+        GameObject spot = new GameObject(name);
+        spot.transform.SetParent(parent, false);
+        spot.transform.localPosition = center;
+
+        BoxCollider trigger = spot.AddComponent<BoxCollider>();
+        trigger.isTrigger = true;
+        trigger.size = size;
+
+        spot.AddComponent<HidingSpot>();
+
+        // Visual stealth zone ground indicator
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        marker.name = "StealthZoneMarker";
+        marker.transform.SetParent(spot.transform, false);
+        marker.transform.localPosition = new Vector3(0f, -center.y + 0.02f, 0f);
+        marker.transform.localScale = new Vector3(size.x, 0.02f, size.z);
+
+        Color stealthGreen = new Color(0.1f, 0.8f, 0.4f, 0.5f);
+        marker.GetComponent<Renderer>().material = LabPropFactory.CreateEmissiveMaterial(stealthGreen, 1.2f);
+        Object.DestroyImmediate(marker.GetComponent<Collider>());
     }
 }
