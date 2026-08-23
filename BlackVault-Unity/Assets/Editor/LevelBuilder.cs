@@ -164,6 +164,7 @@ public static class LevelBuilder
         float playerSpawnZ = -4f + 1.5f; // start of level 1 corridor
         GameObject player = BuildPlayer(playerSpawnZ, Themes[0]);
         GameObject canvas = BuildMLPuzzleCanvas(player);
+        EnsureMobileCallSystem(player);
 
         // Build all 5 level sections sequentially along Z
         for (int i = 0; i < Themes.Length; i++)
@@ -442,6 +443,9 @@ public static class LevelBuilder
 
         // Guard AI & Stealth Hiding Spots
         BuildGuardAndHidingSpots(sectionRoot.transform, labStartZ, theme);
+
+        // Story Comms Call Triggers
+        BuildStoryCallTriggers(theme, zOffset, sectionRoot.transform);
 
         // ========================
         // DOOR 3 — Exit (chained)
@@ -1019,8 +1023,9 @@ public static class LevelBuilder
         controller.startInFirstPerson = true;
         model.SetActive(false);
 
-        // Stealth system integration
+        // Stealth system & 3D Phone Prop integration
         player.AddComponent<StealthController>();
+        fpCamObj.AddComponent<PhonePropController>();
 
         Camera mainCam = Camera.main;
         if (mainCam != null && mainCam.gameObject.name == "Main Camera")
@@ -1336,5 +1341,240 @@ public static class LevelBuilder
         Color stealthGreen = new Color(0.1f, 0.8f, 0.4f, 0.5f);
         marker.GetComponent<Renderer>().material = LabPropFactory.CreateEmissiveMaterial(stealthGreen, 1.2f);
         Object.DestroyImmediate(marker.GetComponent<Collider>());
+    }
+
+    // =====================================================================
+    // Mobile Comms Call System & Story Triggers
+    // =====================================================================
+
+    private static void EnsureMobileCallSystem(GameObject player)
+    {
+        // 1. Singleton Manager
+        GameObject managerObj = new GameObject("MobileCallManager");
+        managerObj.AddComponent<MobileCallManager>();
+
+        // 2. Mobile Call UI Canvas
+        BuildMobileCallCanvas();
+    }
+
+    private static void BuildMobileCallCanvas()
+    {
+        var uiResources = new DefaultControls.Resources();
+
+        GameObject canvasObj = new GameObject("Canvas_MobileCallUI");
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 50;
+        canvasObj.AddComponent<CanvasScaler>();
+        canvasObj.AddComponent<GraphicRaycaster>();
+
+        // Phone Card Container
+        GameObject cardObj = new GameObject("PhoneCardContainer");
+        cardObj.transform.SetParent(canvasObj.transform, false);
+        RectTransform cardRect = cardObj.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(1f, 0f);
+        cardRect.anchorMax = new Vector2(1f, 0f);
+        cardRect.pivot = new Vector2(1f, 0f);
+        cardRect.anchoredPosition = new Vector2(450f, 40f); // default hidden right
+        cardRect.sizeDelta = new Vector2(380f, 190f);
+
+        Image cardBg = cardObj.AddComponent<Image>();
+        cardBg.color = new Color(0.06f, 0.08f, 0.12f, 0.95f);
+
+        // Header Line
+        GameObject headerObj = new GameObject("HeaderAccentLine");
+        headerObj.transform.SetParent(cardObj.transform, false);
+        RectTransform headerRect = headerObj.AddComponent<RectTransform>();
+        headerRect.anchorMin = new Vector2(0f, 1f);
+        headerRect.anchorMax = new Vector2(1f, 1f);
+        headerRect.pivot = new Vector2(0.5f, 1f);
+        headerRect.anchoredPosition = Vector2.zero;
+        headerRect.sizeDelta = new Vector2(0f, 4f);
+        Image headerImage = headerObj.AddComponent<Image>();
+        headerImage.color = new Color(0f, 0.85f, 0.85f);
+
+        // Caller Name
+        GameObject nameObj = DefaultControls.CreateText(uiResources);
+        nameObj.name = "CallerNameText";
+        nameObj.transform.SetParent(cardObj.transform, false);
+        Text nameText = nameObj.GetComponent<Text>();
+        nameText.text = "Handler Vector";
+        nameText.fontSize = 18;
+        nameText.fontStyle = FontStyle.Bold;
+        nameText.color = Color.white;
+        RectTransform nameRect = nameObj.GetComponent<RectTransform>();
+        nameRect.anchorMin = new Vector2(0f, 1f);
+        nameRect.anchorMax = new Vector2(1f, 1f);
+        nameRect.anchoredPosition = new Vector2(15f, -15f);
+        nameRect.sizeDelta = new Vector2(250f, 25f);
+
+        // Caller Title
+        GameObject titleObj = DefaultControls.CreateText(uiResources);
+        titleObj.name = "CallerTitleText";
+        titleObj.transform.SetParent(cardObj.transform, false);
+        Text titleText = titleObj.GetComponent<Text>();
+        titleText.text = "BlackVault Tactical Lead";
+        titleText.fontSize = 12;
+        titleText.color = new Color(0.7f, 0.75f, 0.8f);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.anchoredPosition = new Vector2(15f, -38f);
+        titleRect.sizeDelta = new Vector2(250f, 20f);
+
+        // Status Text
+        GameObject statusObj = DefaultControls.CreateText(uiResources);
+        statusObj.name = "CallStatusText";
+        statusObj.transform.SetParent(cardObj.transform, false);
+        Text statusText = statusObj.GetComponent<Text>();
+        statusText.text = "INCOMING COMMS CALL...";
+        statusText.fontSize = 11;
+        statusText.fontStyle = FontStyle.Bold;
+        statusText.color = new Color(0f, 0.85f, 0.85f);
+        RectTransform statusRect = statusObj.GetComponent<RectTransform>();
+        statusRect.anchorMin = new Vector2(0f, 1f);
+        statusRect.anchorMax = new Vector2(1f, 1f);
+        statusRect.anchoredPosition = new Vector2(15f, -56f);
+        statusRect.sizeDelta = new Vector2(250f, 18f);
+
+        // Dialogue Subtitle Box Area
+        GameObject dialogueArea = new GameObject("DialogueBoxArea");
+        dialogueArea.transform.SetParent(cardObj.transform, false);
+        RectTransform dialogueRect = dialogueArea.AddComponent<RectTransform>();
+        dialogueRect.anchorMin = new Vector2(0f, 0f);
+        dialogueRect.anchorMax = new Vector2(1f, 1f);
+        dialogueRect.offsetMin = new Vector2(15f, 45f);
+        dialogueRect.offsetMax = new Vector2(-15f, -80f);
+
+        Image dialogueBg = dialogueArea.AddComponent<Image>();
+        dialogueBg.color = new Color(0.12f, 0.15f, 0.2f, 0.8f);
+
+        GameObject subObj = DefaultControls.CreateText(uiResources);
+        subObj.name = "DialogueSubtitleText";
+        subObj.transform.SetParent(dialogueArea.transform, false);
+        Text subText = subObj.GetComponent<Text>();
+        subText.text = "...";
+        subText.fontSize = 12;
+        subText.color = new Color(0.9f, 0.92f, 0.95f);
+        subText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        subText.verticalOverflow = VerticalWrapMode.Truncate;
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = Vector2.zero;
+        subRect.anchorMax = Vector2.one;
+        subRect.offsetMin = new Vector2(8f, 5f);
+        subRect.offsetMax = new Vector2(-8f, -5f);
+
+        // Buttons
+        GameObject answerObj = DefaultControls.CreateButton(uiResources);
+        answerObj.name = "AnswerButton";
+        answerObj.transform.SetParent(cardObj.transform, false);
+        Text answerText = answerObj.GetComponentInChildren<Text>();
+        answerText.text = "[T] Answer";
+        answerText.fontSize = 12;
+        answerText.fontStyle = FontStyle.Bold;
+        answerText.color = Color.white;
+        answerObj.GetComponent<Image>().color = new Color(0.15f, 0.65f, 0.35f);
+        RectTransform answerBtnRect = answerObj.GetComponent<RectTransform>();
+        answerBtnRect.anchorMin = new Vector2(0f, 0f);
+        answerBtnRect.anchorMax = new Vector2(0f, 0f);
+        answerBtnRect.pivot = new Vector2(0f, 0f);
+        answerBtnRect.anchoredPosition = new Vector2(15f, 10f);
+        answerBtnRect.sizeDelta = new Vector2(160f, 30f);
+
+        GameObject declineObj = DefaultControls.CreateButton(uiResources);
+        declineObj.name = "DeclineButton";
+        declineObj.transform.SetParent(cardObj.transform, false);
+        Text declineText = declineObj.GetComponentInChildren<Text>();
+        declineText.text = "[Y] Ignore";
+        declineText.fontSize = 12;
+        declineText.fontStyle = FontStyle.Bold;
+        declineText.color = Color.white;
+        declineObj.GetComponent<Image>().color = new Color(0.35f, 0.38f, 0.45f);
+        RectTransform declineBtnRect = declineObj.GetComponent<RectTransform>();
+        declineBtnRect.anchorMin = new Vector2(1f, 0f);
+        declineBtnRect.anchorMax = new Vector2(1f, 0f);
+        declineBtnRect.pivot = new Vector2(1f, 0f);
+        declineBtnRect.anchoredPosition = new Vector2(-15f, 10f);
+        declineBtnRect.sizeDelta = new Vector2(160f, 30f);
+
+        // MobileCallUI component
+        MobileCallUI callUI = canvasObj.AddComponent<MobileCallUI>();
+        callUI.phoneCardContainer = cardRect;
+        callUI.cardBackgroundImage = cardBg;
+        callUI.headerAccentLine = headerImage;
+        callUI.callerNameText = nameText;
+        callUI.callerTitleText = titleText;
+        callUI.callStatusText = statusText;
+        callUI.dialogueBoxArea = dialogueArea;
+        callUI.dialogueSubtitleText = subText;
+        callUI.answerButton = answerObj.GetComponent<Button>();
+        callUI.declineButton = declineObj.GetComponent<Button>();
+        callUI.answerPromptText = answerText;
+        callUI.declinePromptText = declineText;
+
+        dialogueArea.SetActive(false);
+    }
+
+    private static void BuildStoryCallTriggers(LevelTheme theme, float zOffset, Transform sectionRoot)
+    {
+        GameObject triggerObj = new GameObject($"CallTriggerZone_L{theme.level}");
+        triggerObj.transform.SetParent(sectionRoot, false);
+        triggerObj.transform.position = new Vector3(0f, 1.5f, zOffset - 2f);
+
+        BoxCollider box = triggerObj.AddComponent<BoxCollider>();
+        box.isTrigger = true;
+        box.size = new Vector3(4f, 3f, 2f);
+
+        CallTriggerZone trigger = triggerObj.AddComponent<CallTriggerZone>();
+        trigger.callId = $"StoryCall_Sector_{theme.level}";
+        trigger.callerName = "Handler Vector";
+        trigger.callerTitle = $"BlackVault Overseer — {theme.zoneName}";
+        trigger.themeColor = theme.accentColor;
+
+        switch (theme.level)
+        {
+            case 1:
+                trigger.dialogueLines = new string[]
+                {
+                    "Operative! Can you hear me? This is Handler Vector.",
+                    "You've entered Sector 1: Data Processing. Security locks have sealed Door 2.",
+                    "Access the terminal ahead, clean the corrupt raw data, and train your model to override the lock!"
+                };
+                break;
+
+            case 2:
+                trigger.dialogueLines = new string[]
+                {
+                    "Be advised, Operative — Sector 2 is guarded by heavy policeman patrols.",
+                    "Stay stealthy! Press [C] to crouch and hide behind server racks when guards walk past.",
+                    "Solve the Regression puzzle at the terminal to unlock the main analytics wing."
+                };
+                break;
+
+            case 3:
+                trigger.dialogueLines = new string[]
+                {
+                    "Warning: Bio-hazard diagnostic containment active in Sector 3.",
+                    "Classify patient diagnostic records with 75%+ accuracy to override biometric locks.",
+                    "Keep your head down — security guards are patrolling the main lab floor!"
+                };
+                break;
+
+            case 4:
+                trigger.dialogueLines = new string[]
+                {
+                    "Market Intelligence Sector reached. Firewalls here use unsupervised clustering.",
+                    "Apply MinMaxScaler and execute K-Means clustering (K=5) to bypass customer segmentation firewalls."
+                };
+                break;
+
+            case 5:
+                trigger.dialogueLines = new string[]
+                {
+                    "Financial Security Vault reached. High alert status!",
+                    "Deploy anomaly detection models to flag fraud transactions and trigger the main vault escape door!"
+                };
+                break;
+        }
     }
 }
