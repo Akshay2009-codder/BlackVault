@@ -86,33 +86,48 @@
       });
     });
 
-    // Render Sector Nodes
+    // Sector Color Theme Mapping
+    const SECTOR_THEMES = {
+      SEC_00: { color: "#00f0ff", title: "Cyan" },
+      SEC_01: { color: "#00bfff", title: "Tech Blue" },
+      SEC_02: { color: "#ffaa00", title: "Flame Amber" },
+      SEC_03: { color: "#cc00ff", title: "Deep Violet" },
+      SEC_04: { color: "#00ff66", title: "Neon Lime" },
+      SEC_05: { color: "#ff2a5f", title: "Hazards Red" },
+      SEC_06: { color: "#ffd700", title: "Platinum Gold" },
+    };
+
+    // Render Sector Nodes with full-color themes
     facilityData.sectors.forEach((sec) => {
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       const posX = sec.position.x > 10 ? sec.position.x : sec.position.x * 4 + 500;
       const posY = sec.position.y > 10 ? sec.position.y : sec.position.y * 3 + 100;
+      const themeColor = SECTOR_THEMES[sec.sector_id]?.color || "#00f0ff";
 
       g.setAttribute("class", `map-node ${sec.unlocked ? "unlocked" : "sealed"}`);
       g.setAttribute("transform", `translate(${posX}, ${posY})`);
       g.setAttribute("data-sector-id", sec.sector_id);
 
-      // Outer ring
+      // Outer ring with sector theme color
       const outerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       outerCircle.setAttribute("r", "26");
       outerCircle.setAttribute("fill", "none");
-      outerCircle.setAttribute("stroke", sec.unlocked ? "#00f0ff" : "#ff2a5f");
-      outerCircle.setAttribute("stroke-width", "1.5");
-      outerCircle.setAttribute("opacity", "0.6");
+      outerCircle.setAttribute("stroke", sec.unlocked ? themeColor : "#ff2a5f");
+      outerCircle.setAttribute("stroke-width", "2");
+      outerCircle.setAttribute("opacity", "0.8");
+      outerCircle.setAttribute("style", `filter: drop-shadow(0 0 6px ${themeColor});`);
 
       // Inner node circle
       const innerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       innerCircle.setAttribute("class", "main-node");
       innerCircle.setAttribute("r", "18");
+      innerCircle.setAttribute("fill", sec.unlocked ? themeColor : "#ff2a5f");
 
       // Label text
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
       text.setAttribute("y", "38");
       text.setAttribute("class", "node-label");
+      text.setAttribute("fill", themeColor);
       text.textContent = sec.name.split("(")[0].trim();
 
       g.appendChild(outerCircle);
@@ -122,6 +137,10 @@
       g.addEventListener("click", () => selectSector(sec.sector_id));
       nodesGroup.appendChild(g);
     });
+
+    // Render 3D Operative Character & Animated Patrol Car
+    render3DCharacterAndRover(nodesGroup);
+
 
     // Render Radar Sweep Line
     const radarGroup = document.getElementById("radarSweep");
@@ -136,6 +155,101 @@
       radarGroup.appendChild(sweep);
     }
   }
+
+  function render3DCharacterAndRover(parentGroup) {
+    // 3D Operative Avatar at Sector 01
+    const charGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    charGroup.setAttribute("transform", "translate(500, 220)");
+    charGroup.setAttribute("class", "character-avatar");
+
+    // Glowing Visor Cone
+    const visorCone = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    visorCone.setAttribute("points", "0,0 -15,-30 15,-30");
+    visorCone.setAttribute("fill", "rgba(0, 240, 255, 0.25)");
+    visorCone.setAttribute("stroke", "#00f0ff");
+    visorCone.setAttribute("stroke-width", "1");
+
+    // Operative Icon (Stylized 3D Character)
+    const opBody = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    opBody.setAttribute("r", "10");
+    opBody.setAttribute("fill", "#00f0ff");
+    opBody.setAttribute("stroke", "#ffffff");
+    opBody.setAttribute("stroke-width", "2");
+    opBody.setAttribute("style", "filter: drop-shadow(0 0 10px #00f0ff);");
+
+    const opText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    opText.setAttribute("y", "-16");
+    opText.setAttribute("class", "node-label");
+    opText.setAttribute("fill", "#ffff00");
+    opText.textContent = "OPERATIVE VESPER";
+
+    charGroup.appendChild(visorCone);
+    charGroup.appendChild(opBody);
+    charGroup.appendChild(opText);
+    parentGroup.appendChild(charGroup);
+
+    // Animated 3D Patrol Rover Car
+    const roverGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    roverGroup.setAttribute("id", "patrolRoverCar");
+
+    // Rover Body Shape (High-Tech Car)
+    const carBody = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    carBody.setAttribute("x", "-14");
+    carBody.setAttribute("y", "-8");
+    carBody.setAttribute("width", "28");
+    carBody.setAttribute("height", "16");
+    carBody.setAttribute("rx", "4");
+    carBody.setAttribute("fill", "#ffff00");
+    carBody.setAttribute("stroke", "#ffaa00");
+    carBody.setAttribute("stroke-width", "2");
+
+    // Headlights Light Beams
+    const headlightL = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    headlightL.setAttribute("points", "14,-6 40,-12 40,0");
+    headlightL.setAttribute("fill", "rgba(255, 255, 0, 0.4)");
+
+    const headlightR = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    headlightR.setAttribute("points", "14,6 40,0 40,12");
+    headlightR.setAttribute("fill", "rgba(255, 255, 0, 0.4)");
+
+    const carText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    carText.setAttribute("y", "-12");
+    carText.setAttribute("class", "node-label");
+    carText.setAttribute("fill", "#ffaa00");
+    carText.textContent = "PATROL CAR-01";
+
+    roverGroup.appendChild(headlightL);
+    roverGroup.appendChild(headlightR);
+    roverGroup.appendChild(carBody);
+    roverGroup.appendChild(carText);
+    parentGroup.appendChild(roverGroup);
+
+    // Animate Patrol Car along corridor path
+    let carProgress = 0;
+    const waypoints = [
+      { x: 500, y: 220 },
+      { x: 750, y: 350 },
+      { x: 750, y: 550 },
+      { x: 500, y: 550 },
+      { x: 250, y: 550 },
+      { x: 500, y: 720 },
+    ];
+
+    setInterval(() => {
+      carProgress = (carProgress + 0.005) % (waypoints.length - 1);
+      const idx = Math.floor(carProgress);
+      const frac = carProgress - idx;
+      const p1 = waypoints[idx];
+      const p2 = waypoints[idx + 1];
+
+      const cx = p1.x + (p2.x - p1.x) * frac;
+      const cy = p1.y + (p2.y - p1.y) * frac;
+      const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+
+      roverGroup.setAttribute("transform", `translate(${cx}, ${cy}) rotate(${angle})`);
+    }, 30);
+  }
+
 
 
   function selectSector(sectorId) {

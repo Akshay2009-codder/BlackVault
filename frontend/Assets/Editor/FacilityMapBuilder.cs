@@ -43,7 +43,12 @@ namespace BlackVault.EditorTools
             BuildSector5AnomalyContainmentDetails(s5);
             BuildSector6CentralAICoreDetails(s6);
 
+            // Spawn 3D Characters and Patrol Cars
+            Create3DOperativeCharacter("Operative_Vesper", new Vector3(0, 1, 0), Color.cyan).transform.SetParent(hub.transform);
+            Create3DPatrolRover("PatrolRover_Corridor_01", new Vector3(10, 0.5f, 40), Color.yellow).transform.SetParent(masterRoot.transform);
+
             // Connect Corridor Halls
+
 
 
 
@@ -193,8 +198,90 @@ namespace BlackVault.EditorTools
             bossTerminalPedestal.transform.localPosition = new Vector3(0, 0.75f, -8);
             bossTerminalPedestal.transform.localScale = new Vector3(2, 0.75f, 2);
         }
+
+        private static GameObject Create3DOperativeCharacter(string name, Vector3 pos, Color theme)
+        {
+            GameObject character = new GameObject(name);
+            character.transform.position = pos;
+
+            // Character body (Capsule)
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "OperativeBody";
+            body.transform.SetParent(character.transform);
+            body.transform.localPosition = new Vector3(0, 1.0f, 0);
+            body.transform.localScale = new Vector3(0.8f, 1.0f, 0.8f);
+
+            // Visor (Cube)
+            GameObject visor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            visor.name = "OperativeVisor";
+            visor.transform.SetParent(character.transform);
+            visor.transform.localPosition = new Vector3(0, 1.5f, 0.35f);
+            visor.transform.localScale = new Vector3(0.6f, 0.25f, 0.2f);
+
+            // Visor Light
+            GameObject lightObj = new GameObject("VisorLight");
+            lightObj.transform.SetParent(visor.transform);
+            lightObj.transform.localPosition = Vector3.zero;
+            Light light = lightObj.AddComponent<Light>();
+            light.type = LightType.Spot;
+            light.color = theme;
+            light.range = 8.0f;
+            light.spotAngle = 45.0f;
+
+            var opScript = character.AddComponent<BlackVault.Player.OperativeCharacter3D>();
+            opScript.armorColor = theme;
+
+            return character;
+        }
+
+        private static GameObject Create3DPatrolRover(string name, Vector3 pos, Color neonColor)
+        {
+            GameObject rover = new GameObject(name);
+            rover.transform.position = pos;
+
+            // Chassis
+            GameObject chassis = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            chassis.name = "RoverChassis";
+            chassis.transform.SetParent(rover.transform);
+            chassis.transform.localPosition = new Vector3(0, 0.5f, 0);
+            chassis.transform.localScale = new Vector3(2.0f, 0.8f, 3.5f);
+
+            // Wheels
+            for (int i = 0; i < 4; i++)
+            {
+                GameObject wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                wheel.name = $"Wheel_{i}";
+                wheel.transform.SetParent(rover.transform);
+                float x = (i % 2 == 0) ? 1.1f : -1.1f;
+                float z = (i < 2) ? 1.2f : -1.2f;
+                wheel.transform.localPosition = new Vector3(x, 0.3f, z);
+                wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
+                wheel.transform.localScale = new Vector3(0.6f, 0.2f, 0.6f);
+            }
+
+            // Headlights
+            GameObject headlightL = new GameObject("Headlight_L");
+            headlightL.transform.SetParent(rover.transform);
+            headlightL.transform.localPosition = new Vector3(-0.7f, 0.6f, 1.8f);
+            Light lightL = headlightL.AddComponent<Light>();
+            lightL.color = neonColor;
+            lightL.range = 10.0f;
+
+            GameObject headlightR = new GameObject("Headlight_R");
+            headlightR.transform.SetParent(rover.transform);
+            headlightR.transform.localPosition = new Vector3(0.7f, 0.6f, 1.8f);
+            Light lightR = headlightR.AddComponent<Light>();
+            lightR.color = neonColor;
+            lightR.range = 10.0f;
+
+            var roverScript = rover.AddComponent<BlackVault.Interaction.FacilityRoverVehicle3D>();
+            roverScript.vehicleNeonColor = neonColor;
+
+            return rover;
+        }
     }
 }
+
 
 
 
