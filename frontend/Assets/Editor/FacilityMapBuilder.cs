@@ -11,6 +11,12 @@ namespace BlackVault.EditorTools
         [MenuItem("BlackVault/Build Whole Facility Master Map Scene")]
         public static void BuildMasterFacilityMap()
         {
+            BuildMasterFacilityMapScene();
+        }
+
+        public static GameObject BuildMasterFacilityMapScene()
+        {
+
             GameObject masterRoot = new GameObject("--- MASTER FACILITY MAP ---");
 
             // Build Sectors
@@ -51,7 +57,9 @@ namespace BlackVault.EditorTools
             CreateCorridor("Corridor_S4_S6", new Vector3(0, 0, 105), new Vector3(6, 4, 20)).transform.SetParent(masterRoot.transform);
 
             Debug.Log("[FacilityMapBuilder] Complete Master Facility Map layout assembled successfully.");
+            return masterRoot;
         }
+
 
         private static GameObject CreateSectorRoom(string name, Vector3 pos, Vector3 size, Color theme)
         {
