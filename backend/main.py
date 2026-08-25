@@ -742,5 +742,19 @@ def compute_facility_path(req: PathfindingRequest, db: Session = Depends(get_db)
     return res
 
 
+@app.post("/map/unlock")
+def unlock_door_endpoint(door_id: str, db: Session = Depends(get_db)):
+    """Unlock facility sector door and propagate clearance status to adjacent sector."""
+    sector = unlock_sector_door(db, door_id)
+    if not sector:
+        raise HTTPException(status_code=404, detail=f"Door ID '{door_id}' not found in facility system.")
+    return {
+        "status": "UNLOCKED",
+        "door_id": door_id,
+        "message": f"Security Door '{door_id}' disarmed. Adjacent sector unlocked."
+    }
+
+
+
 
 
