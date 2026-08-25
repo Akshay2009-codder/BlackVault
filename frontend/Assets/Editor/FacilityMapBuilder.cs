@@ -35,8 +35,10 @@ namespace BlackVault.EditorTools
             BuildSector3NeuralLabDetails(s3);
             BuildSector4ClusterNodeDetails(s4);
             BuildSector5AnomalyContainmentDetails(s5);
+            BuildSector6CentralAICoreDetails(s6);
 
             // Connect Corridor Halls
+
 
 
 
@@ -168,8 +170,24 @@ namespace BlackVault.EditorTools
             forcefield.transform.localPosition = new Vector3(0, 2.5f, 0);
             forcefield.transform.localScale = new Vector3(8, 2.5f, 8);
         }
+
+        private static void BuildSector6CentralAICoreDetails(GameObject s6)
+        {
+            GameObject aiCoreSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            aiCoreSphere.name = "BLACKVAULT_AI_CORE_SPHERE";
+            aiCoreSphere.transform.SetParent(s6.transform);
+            aiCoreSphere.transform.localPosition = new Vector3(0, 5.0f, 0);
+            aiCoreSphere.transform.localScale = new Vector3(6, 6, 6);
+
+            GameObject bossTerminalPedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            bossTerminalPedestal.name = "TERM_BOSS_SANDBOX_PEDESTAL";
+            bossTerminalPedestal.transform.SetParent(s6.transform);
+            bossTerminalPedestal.transform.localPosition = new Vector3(0, 0.75f, -8);
+            bossTerminalPedestal.transform.localScale = new Vector3(2, 0.75f, 2);
+        }
     }
 }
+
 
 
 
