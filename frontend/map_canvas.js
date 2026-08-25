@@ -172,6 +172,24 @@
     window.location.href = `index.html?level=${selectedSector.level_number}`;
   });
 
+  document.getElementById("fastTravelBtn")?.addEventListener("click", () => {
+    if (!selectedSector) return;
+    if (!selectedSector.unlocked) {
+      alert(`[SECURITY ALERT] Cannot teleport to SEALED sector '${selectedSector.name}'. Solve terminal puzzles to clear doors.`);
+      return;
+    }
+    localStorage.setItem("blackvault_current_sector", selectedSector.sector_id);
+    document.getElementById("playerLocation").textContent = `SECTOR: ${selectedSector.level_number} (${selectedSector.name.toUpperCase()})`;
+    const statusEl = document.getElementById("facilityStatus");
+    statusEl.textContent = "TELEPORT COMPLETE";
+    statusEl.className = "glow-cyan";
+    setTimeout(() => {
+      statusEl.textContent = "FACILITY ONLINE";
+      statusEl.className = "glow-green";
+    }, 2500);
+  });
+
+
   // Filter buttons handler
   document.querySelectorAll(".filter-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
