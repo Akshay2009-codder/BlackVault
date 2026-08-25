@@ -204,6 +204,60 @@
   });
 
 
+  document.getElementById("findPathBtn")?.addEventListener("click", async () => {
+    if (!selectedSector) return;
+    const currentSectorId = localStorage.getItem("blackvault_current_sector") || "SEC_01";
+    try {
+      const res = await fetch(`${API_BASE}/map/pathfinding`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start_sector_id: currentSectorId,
+          target_sector_id: selectedSector.sector_id,
+          operative_clearance: 6
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        renderRouteLine(data.path);
+        const statusEl = document.getElementById("facilityStatus");
+        statusEl.textContent = `ROUTE COMPUTED: ${data.total_steps} SECTORS (${data.estimated_seconds}s)`;
+        statusEl.className = "glow-cyan";
+      } else {
+        alert("Pathfinding solver returned no viable route.");
+      }
+    } catch (err) {
+      console.warn("Pathfinding API offline, highlighting direct target:", err);
+    }
+  });
+
+  function renderRouteLine(pathSteps) {
+    let routeGroup = document.getElementById("routePathGroup");
+    if (!routeGroup) {
+      routeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      routeGroup.setAttribute("id", "routePathGroup");
+      svg.appendChild(routeGroup);
+    }
+    routeGroup.innerHTML = "";
+
+    if (!pathSteps || pathSteps.length < 2) return;
+
+    const points = pathSteps.map((step) => {
+      const px = step.position.x > 10 ? step.position.x : step.position.x * 4 + 500;
+      const py = step.position.y > 10 ? step.position.y : step.position.y * 3 + 100;
+      return `${px},${py}`;
+    }).join(" ");
+
+    const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    polyline.setAttribute("points", points);
+    polyline.setAttribute("fill", "none");
+    polyline.setAttribute("stroke", "#ffff00");
+    polyline.setAttribute("stroke-width", "4");
+    polyline.setAttribute("stroke-dasharray", "8, 4");
+    polyline.setAttribute("style", "animation: flowEdge 1.5s linear infinite; filter: drop-shadow(0 0 8px #ffff00);");
+    routeGroup.appendChild(polyline);
+  }
+
   // Filter buttons handler
   document.querySelectorAll(".filter-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -222,4 +276,5 @@
   fetchFacilityMap();
   updateViewBox();
 })();
+
 
