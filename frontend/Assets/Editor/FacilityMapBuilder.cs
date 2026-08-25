@@ -33,8 +33,11 @@ namespace BlackVault.EditorTools
             BuildSector1DataCoreDetails(s1);
             BuildSector2ProcessingVaultDetails(s2);
             BuildSector3NeuralLabDetails(s3);
+            BuildSector4ClusterNodeDetails(s4);
+            BuildSector5AnomalyContainmentDetails(s5);
 
             // Connect Corridor Halls
+
 
 
 
@@ -147,8 +150,27 @@ namespace BlackVault.EditorTools
                 cryoPod.transform.localScale = new Vector3(1.2f, 2.2f, 1.2f);
             }
         }
+
+        private static void BuildSector4ClusterNodeDetails(GameObject s4)
+        {
+            GameObject clusterNode = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            clusterNode.name = "QuantumClusterNode_Core";
+            clusterNode.transform.SetParent(s4.transform);
+            clusterNode.transform.localPosition = new Vector3(0, 3.0f, 0);
+            clusterNode.transform.localScale = new Vector3(3, 3, 3);
+        }
+
+        private static void BuildSector5AnomalyContainmentDetails(GameObject s5)
+        {
+            GameObject forcefield = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            forcefield.name = "AnomalyForcefieldRing";
+            forcefield.transform.SetParent(s5.transform);
+            forcefield.transform.localPosition = new Vector3(0, 2.5f, 0);
+            forcefield.transform.localScale = new Vector3(8, 2.5f, 8);
+        }
     }
 }
+
 
 
 
