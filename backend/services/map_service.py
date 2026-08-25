@@ -381,3 +381,59 @@ def unlock_sector_door(db: Session, door_id: str) -> Optional[SectorDetail]:
 
     db.commit()
     return get_full_facility_map(db).sectors[0]
+
+
+def solve_facility_path(
+    db: Session, start_sector_id: str, target_sector_id: str, operative_clearance: int = 1
+) -> PathfindingResponse:
+    """Computes shortest navigation route across facility sectors using BFS."""
+    fac = get_full_facility_map(db)
+    sector_map = {s.sector_id: s for s in fac.sectors}
+
+    if start_sector_id not in sector_map or target_sector_id not in sector_map:
+        return PathfindingResponse(
+            found=False, total_steps=0, path=[], estimated_seconds=0.0
+        )
+
+    # Queue contains tuples of (current_sector_id, path_so_far)
+    queue = [(start_sector_id, [(start_sector_id, None)])]
+    visited = set([start_sector_id])
+
+    while queue:
+        curr_id, path_nodes = queue.pop(0)
+
+        if curr_id == target_sector_id:
+            steps: List[PathfindingStep] = []
+            for idx, (sec_id, door_used) in enumerate(path_nodes):
+                sec = sector_map[sec_id]
+                steps.append(
+                    PathfindingStep(
+                        step_number=idx + 1,
+                        sector_id=sec.sector_id,
+                        sector_name=sec.name,
+                        door_id=door_used,
+                        unlocked=sec.unlocked,
+                        position=sec.position,
+                    )
+                )
+            return PathfindingResponse(
+                found=True,
+                total_steps=len(steps),
+                path=steps,
+                estimated_seconds=len(steps) * 15.0,
+            )
+
+        curr_sec = sector_map[curr_id]
+        for door in curr_sec.doors:
+            next_id = door.target_sector_id
+            if next_id not in visited:
+                target_sec = sector_map.get(next_id)
+                # Check clearance requirement
+                if target_sec and (target_sec.clearance_level <= operative_clearance or door.status == "UNLOCKED"):
+                    visited.add(next_id)
+                    queue.append((next_id, path_nodes + [(next_id, door.door_id)]))
+
+    return PathfindingResponse(
+        found=False, total_steps=0, path=[], estimated_seconds=0.0
+    )
+
