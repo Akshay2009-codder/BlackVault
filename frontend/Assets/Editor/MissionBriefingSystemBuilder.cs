@@ -63,8 +63,9 @@ public static class MissionBriefingSystemBuilder
 
     private static void EnsureEventSystem()
     {
-        if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() != null) return;
+        if (Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null) return;
         GameObject es = new GameObject("EventSystem");
+
         es.AddComponent<UnityEngine.EventSystems.EventSystem>();
         es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
     }

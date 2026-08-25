@@ -49,7 +49,13 @@ public class DoorController : MonoBehaviour
         UnlockDoor(null);
     }
 
+    public void OpenDoor()
+    {
+        UnlockDoor(null);
+    }
+
     public void UnlockDoor(string challengeId = null)
+
     {
         if (_isUnlocked) return;
         _isUnlocked = true;
