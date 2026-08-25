@@ -176,5 +176,26 @@ pytest
 
 ---
 
+## 🗺️ Tactical Facility Map System
+
+BlackVault features a unified, multi-sector facility map connecting all game levels through interactive airlocks, holographic map terminals, and real-time navigation paths.
+
+### Map API Endpoints
+- `GET /map/facility`: Returns whole facility hierarchy, sector unlock statuses, door links, and player location.
+- `GET /map/sector/{sector_id}`: Returns detailed sector metadata, hazards, and terminal nodes.
+- `POST /map/pathfinding`: Solves shortest navigation route across facility sectors given operative security clearance.
+- `POST /map/unlock`: Unlocks a security door and propagates clearance to adjacent sectors.
+
+### Interactive Web & Unity Interfaces
+- **Web CRT Interactive Map**: Open `frontend/facility_map.html` for real-time SVG vector grid map, radar sweep animations, sector filtering, and fast-travel controls.
+- **Unity 3D Engine Systems**:
+  - `MapManager`: Central singleton managing sector transitions and backend map synchronization.
+  - `MinimapRadar`: HUD radar component tracking player position.
+  - `MapUIOverlay`: Full-screen holographic facility map overlay.
+  - `WaypointPathRenderer`: In-game floor laser guide rendering glowing path to objective target.
+  - `FacilityMapBuilder`: Automated Unity Editor tool (`BlackVault > Build Whole Facility Master Map Scene`) generating full 3D sector layouts.
+
+---
 
 *Built as a final-year college project. Designed for expansion into a commercial educational platform.*
+
