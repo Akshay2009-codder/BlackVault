@@ -32,8 +32,10 @@ namespace BlackVault.EditorTools
 
             BuildSector1DataCoreDetails(s1);
             BuildSector2ProcessingVaultDetails(s2);
+            BuildSector3NeuralLabDetails(s3);
 
             // Connect Corridor Halls
+
 
 
             CreateCorridor("Corridor_Hub_S1", new Vector3(0, 0, 20), new Vector3(6, 4, 15)).transform.SetParent(masterRoot.transform);
@@ -125,7 +127,28 @@ namespace BlackVault.EditorTools
             heatVent.transform.localPosition = new Vector3(0, 4.5f, 0);
             heatVent.transform.localScale = new Vector3(6, 1.5f, 6);
         }
+
+        private static void BuildSector3NeuralLabDetails(GameObject s3)
+        {
+            GameObject termStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            termStand.name = "TERM_L3_CLASSIFY_PEDESTAL";
+            termStand.transform.SetParent(s3.transform);
+            termStand.transform.localPosition = new Vector3(0, 0.75f, 0);
+            termStand.transform.localScale = new Vector3(1.4f, 0.75f, 1.4f);
+
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = i * Mathf.PI / 2.0f;
+                Vector3 cryoPos = new Vector3(Mathf.Cos(angle) * 7.0f, 2.0f, Mathf.Sin(angle) * 7.0f);
+                GameObject cryoPod = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                cryoPod.name = $"CryoPod_{i}";
+                cryoPod.transform.SetParent(s3.transform);
+                cryoPod.transform.localPosition = cryoPos;
+                cryoPod.transform.localScale = new Vector3(1.2f, 2.2f, 1.2f);
+            }
+        }
     }
 }
+
 
 
