@@ -8,6 +8,16 @@ from models.train_models import TrainRequest
 from models.mission_models import MissionConfig as Mission, BossMissionResponse
 from models.event_models import CorruptRequest
 from models.code_models import CodeExecuteRequest
+from models.map import (
+    MapPosition,
+    DoorConnection,
+    TerminalNode,
+    SectorDetail,
+    PathfindingRequest,
+    PathfindingStep,
+    PathfindingResponse,
+    FacilityMapResponse,
+)
 
 __all__ = [
     "PreprocessRequest",
@@ -16,4 +26,12 @@ __all__ = [
     "BossMissionResponse",
     "CorruptRequest",
     "CodeExecuteRequest",
+    "MapPosition",
+    "DoorConnection",
+    "TerminalNode",
+    "SectorDetail",
+    "PathfindingRequest",
+    "PathfindingStep",
+    "PathfindingResponse",
+    "FacilityMapResponse",
 ]
