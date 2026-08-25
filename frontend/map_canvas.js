@@ -122,7 +122,21 @@
       g.addEventListener("click", () => selectSector(sec.sector_id));
       nodesGroup.appendChild(g);
     });
+
+    // Render Radar Sweep Line
+    const radarGroup = document.getElementById("radarSweep");
+    if (radarGroup) {
+      radarGroup.innerHTML = "";
+      const sweep = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      sweep.setAttribute("x1", "500");
+      sweep.setAttribute("y1", "400");
+      sweep.setAttribute("x2", "950");
+      sweep.setAttribute("y2", "400");
+      sweep.setAttribute("class", "radar-sweep-line");
+      radarGroup.appendChild(sweep);
+    }
   }
+
 
   function selectSector(sectorId) {
     selectedSector = facilityData.sectors.find((s) => s.sector_id === sectorId);
