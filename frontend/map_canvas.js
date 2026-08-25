@@ -172,6 +172,22 @@
     window.location.href = `index.html?level=${selectedSector.level_number}`;
   });
 
+  // Filter buttons handler
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+      e.target.classList.add("active");
+      const filter = e.target.dataset.filter;
+      document.querySelectorAll(".map-node").forEach((node) => {
+        const isUnlocked = node.classList.contains("unlocked");
+        if (filter === "ALL") node.style.display = "block";
+        else if (filter === "UNLOCKED") node.style.display = isUnlocked ? "block" : "none";
+        else if (filter === "SEALED") node.style.display = !isUnlocked ? "block" : "none";
+      });
+    });
+  });
+
   fetchFacilityMap();
   updateViewBox();
 })();
+
