@@ -30,7 +30,10 @@ namespace BlackVault.EditorTools
             s5.transform.SetParent(masterRoot.transform);
             s6.transform.SetParent(masterRoot.transform);
 
+            BuildSector1DataCoreDetails(s1);
+
             // Connect Corridor Halls
+
             CreateCorridor("Corridor_Hub_S1", new Vector3(0, 0, 20), new Vector3(6, 4, 15)).transform.SetParent(masterRoot.transform);
             CreateCorridor("Corridor_S1_S2", new Vector3(17.5f, 0, 40), new Vector3(15, 4, 6)).transform.SetParent(masterRoot.transform);
             CreateCorridor("Corridor_S2_S3", new Vector3(35, 0, 60), new Vector3(6, 4, 15)).transform.SetParent(masterRoot.transform);
@@ -79,5 +82,32 @@ namespace BlackVault.EditorTools
 
             return corridor;
         }
+
+        private static void BuildSector1DataCoreDetails(GameObject s1)
+        {
+            // Terminal Stand
+            GameObject termStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            termStand.name = "TERM_L1_PREPROCESS_PEDESTAL";
+            termStand.transform.SetParent(s1.transform);
+            termStand.transform.localPosition = new Vector3(0, 0.75f, 5);
+            termStand.transform.localScale = new Vector3(1.2f, 0.75f, 1.2f);
+
+            // Server Racks flanking walls
+            for (int i = -6; i <= 6; i += 4)
+            {
+                GameObject rackL = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rackL.name = $"ServerRack_L_{i}";
+                rackL.transform.SetParent(s1.transform);
+                rackL.transform.localPosition = new Vector3(-8.5f, 2.5f, i);
+                rackL.transform.localScale = new Vector3(1.5f, 5, 2.5f);
+
+                GameObject rackR = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rackR.name = $"ServerRack_R_{i}";
+                rackR.transform.SetParent(s1.transform);
+                rackR.transform.localPosition = new Vector3(8.5f, 2.5f, i);
+                rackR.transform.localScale = new Vector3(1.5f, 5, 2.5f);
+            }
+        }
     }
 }
+
