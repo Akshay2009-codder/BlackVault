@@ -8,6 +8,7 @@ from services.training import train_model
 from services.corruption_engine import inject_boss_level_issues, apply_named_event
 from services.rewards import calculate_xp, xp_to_rank
 from services.code_executor import run_player_code
+from services.map_service import seed_facility_map_db, get_full_facility_map, unlock_sector_door
 
 __all__ = [
     "load_dataset",
@@ -19,4 +20,7 @@ __all__ = [
     "calculate_xp",
     "xp_to_rank",
     "run_player_code",
-]
+    "seed_facility_map_db",
+    "get_full_facility_map",
+    "unlock_sector_door",
+]
