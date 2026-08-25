@@ -31,8 +31,10 @@ namespace BlackVault.EditorTools
             s6.transform.SetParent(masterRoot.transform);
 
             BuildSector1DataCoreDetails(s1);
+            BuildSector2ProcessingVaultDetails(s2);
 
             // Connect Corridor Halls
+
 
             CreateCorridor("Corridor_Hub_S1", new Vector3(0, 0, 20), new Vector3(6, 4, 15)).transform.SetParent(masterRoot.transform);
             CreateCorridor("Corridor_S1_S2", new Vector3(17.5f, 0, 40), new Vector3(15, 4, 6)).transform.SetParent(masterRoot.transform);
@@ -108,6 +110,22 @@ namespace BlackVault.EditorTools
                 rackR.transform.localScale = new Vector3(1.5f, 5, 2.5f);
             }
         }
+
+        private static void BuildSector2ProcessingVaultDetails(GameObject s2)
+        {
+            GameObject termPedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            termPedestal.name = "TERM_L2_REGRESSION_PEDESTAL";
+            termPedestal.transform.SetParent(s2.transform);
+            termPedestal.transform.localPosition = new Vector3(0, 0.75f, 0);
+            termPedestal.transform.localScale = new Vector3(1.5f, 0.75f, 1.5f);
+
+            GameObject heatVent = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            heatVent.name = "HeatExchanger_Vent";
+            heatVent.transform.SetParent(s2.transform);
+            heatVent.transform.localPosition = new Vector3(0, 4.5f, 0);
+            heatVent.transform.localScale = new Vector3(6, 1.5f, 6);
+        }
     }
 }
+
 
