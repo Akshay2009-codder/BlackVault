@@ -45,8 +45,10 @@ from services import (
     run_player_code,
     get_full_facility_map,
     unlock_sector_door,
+    solve_facility_path,
     DATA_DIR,
 )
+
 from generate_datasets import gen_boss_dataset
 
 from db.database import init_db, get_db
@@ -729,6 +731,16 @@ def get_sector_detail(sector_id: str, db: Session = Depends(get_db)):
         if sec.sector_id.upper() == sector_id.upper():
             return sec
     raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found in facility map.")
+
+
+@app.post("/map/pathfinding", response_model=PathfindingResponse)
+def compute_facility_path(req: PathfindingRequest, db: Session = Depends(get_db)):
+    """Calculate shortest navigation path across sectors given operative clearance."""
+    res = solve_facility_path(db, req.start_sector_id, req.target_sector_id, req.operative_clearance)
+    if not res.found:
+        raise HTTPException(status_code=404, detail="No viable sector route found with current clearance level.")
+    return res
+
 
 
 
