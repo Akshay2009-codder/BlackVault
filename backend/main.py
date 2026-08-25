@@ -720,4 +720,15 @@ def get_facility_map(db: Session = Depends(get_db)):
     """Return the entire facility layout, sector status, and door networks."""
     return get_full_facility_map(db)
 
+
+@app.get("/map/sector/{sector_id}")
+def get_sector_detail(sector_id: str, db: Session = Depends(get_db)):
+    """Return detailed metadata, terminal nodes, and doors for a single sector."""
+    fac = get_full_facility_map(db)
+    for sec in fac.sectors:
+        if sec.sector_id.upper() == sector_id.upper():
+            return sec
+    raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found in facility map.")
+
+
 
