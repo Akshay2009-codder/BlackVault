@@ -48,6 +48,8 @@ from services import (
     solve_facility_path,
     DATA_DIR,
 )
+from services.lab_service import train_neural_lab_model
+
 
 from generate_datasets import gen_boss_dataset
 
@@ -753,6 +755,33 @@ def unlock_door_endpoint(door_id: str, db: Session = Depends(get_db)):
         "door_id": door_id,
         "message": f"Security Door '{door_id}' disarmed. Adjacent sector unlocked."
     }
+
+
+# ---------------------------------------------------------------------------
+# Neural Lab Endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/lab/neural/train")
+def train_neural_lab_endpoint(
+    dataset_name: str = "heart_disease",
+    hidden_layers: List[int] = [16, 8],
+    learning_rate: float = 0.01,
+    max_epochs: int = 50,
+    activation: str = "relu",
+):
+    """Train MLP neural network and return real loss progression & accuracy metrics."""
+    try:
+        res = train_neural_lab_model(
+            dataset_name=dataset_name,
+            hidden_layers=hidden_layers,
+            learning_rate=learning_rate,
+            max_epochs=max_epochs,
+            activation=activation,
+        )
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 
 

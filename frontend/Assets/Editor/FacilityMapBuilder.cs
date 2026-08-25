@@ -14,8 +14,19 @@ namespace BlackVault.EditorTools
             BuildMasterFacilityMapScene();
         }
 
+        [MenuItem("BlackVault/Build Detailed Neural Lab Environment")]
+        public static void BuildDetailedNeuralLabEnvironment()
+        {
+            GameObject labRoot = new GameObject("--- NEURAL ML RESEARCH LAB ---");
+            GameObject s3 = CreateSectorRoom("Sector_03_NeuralLab_Standalone", Vector3.zero, new Vector3(30, 8, 30), Color.magenta);
+            s3.transform.SetParent(labRoot.transform);
+            BuildSector3NeuralLabDetails(s3);
+            Debug.Log("[FacilityMapBuilder] Detailed Neural ML Research Lab built successfully.");
+        }
+
         public static GameObject BuildMasterFacilityMapScene()
         {
+
 
             GameObject masterRoot = new GameObject("--- MASTER FACILITY MAP ---");
 

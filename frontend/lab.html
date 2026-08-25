@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlackVault // Neural ML Laboratory</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+
+  <div class="crt-overlay"></div>
+  <div class="crt-vignette"></div>
+  <div class="noise-flicker"></div>
+
+  <div id="labApp" class="col" style="height:100vh; padding:16px; gap:12px; box-sizing:border-box;">
+
+    <!-- HEADER -->
+    <div class="term-window">
+      <div class="term-titlebar">
+        <span class="term-dot live"></span>
+        <span>BLACKVAULT NEURAL ML RESEARCH LABORATORY</span>
+        <span class="dim">/ SECTOR 03 NEURAL CORE</span>
+        <span class="grow"></span>
+        <span id="labStatus" class="glow-green">LABORATORY ACTIVE</span>
+        <span class="grow"></span>
+        <a href="facility_map.html" class="btn" style="padding:2px 10px; font-size:11px; text-decoration:none;">🗺️ MAP VIEW</a>
+        <a href="index.html" class="btn primary" style="padding:2px 10px; font-size:11px; text-decoration:none;">◀ TERMINAL IDE</a>
+      </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="flex gap-16 grow" style="min-height:0;">
+
+      <!-- LEFT: NEURAL WORKBENCH CONTROLS -->
+      <div class="term-window col" style="width:360px; min-width:320px;">
+        <div class="term-titlebar"><span class="term-dot"></span> HYPERPARAMETER_WORKBENCH</div>
+        <div style="padding:14px; overflow-y:auto;" class="grow col gap-16">
+
+          <div>
+            <div class="dim mono" style="font-size:10px;">DATASET SELECTION</div>
+            <select id="datasetSelect" style="width:100%; margin-top:4px;">
+              <option value="heart_disease">Heart Disease (Classification)</option>
+              <option value="house_prices">House Prices (Regression/Cleaned)</option>
+              <option value="credit_card">Credit Card Fraud (Anomaly)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="dim mono" style="font-size:10px;">ACTIVATION FUNCTION</div>
+            <select id="activationSelect" style="width:100%; margin-top:4px;">
+              <option value="relu">ReLU (Rectified Linear)</option>
+              <option value="tanh">Tanh (Hyperbolic Tangent)</option>
+              <option value="logistic">Logistic (Sigmoid)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between dim mono" style="font-size:10px;">
+              <span>LEARNING RATE (α)</span>
+              <span id="lrValue" class="glow-cyan">0.010</span>
+            </div>
+            <input type="range" id="lrSlider" min="0.001" max="0.05" step="0.001" value="0.01" style="width:100%; margin-top:4px;" />
+          </div>
+
+          <div>
+            <div class="flex justify-between dim mono" style="font-size:10px;">
+              <span>MAX EPOCHS</span>
+              <span id="epochsValue" class="glow-cyan">50</span>
+            </div>
+            <input type="range" id="epochsSlider" min="10" max="150" step="5" value="50" style="width:100%; margin-top:4px;" />
+          </div>
+
+          <div>
+            <div class="dim mono" style="font-size:10px; margin-bottom:6px;">HIDDEN LAYER NODES</div>
+            <div class="flex gap-8">
+              <input type="number" id="layer1Input" value="16" min="4" max="64" style="width:50%;" />
+              <input type="number" id="layer2Input" value="8" min="2" max="32" style="width:50%;" />
+            </div>
+          </div>
+
+          <div class="grow"></div>
+
+          <button id="trainNeuralBtn" class="btn primary glow-cyan" style="width:100%; padding:10px; font-weight:bold;">
+            🧠 EXECUTE NEURAL TRAINING
+          </button>
+
+        </div>
+      </div>
+
+      <!-- CENTER & RIGHT: NEURAL NETWORK VISUALIZER & LOSS CURVES -->
+      <div class="term-window col grow" style="min-width:0;">
+        <div class="term-titlebar"><span class="term-dot"></span> NEURAL_TOPOLOGY_CANVAS & LOSS PROGRESSION</div>
+        <div style="padding:14px; display:flex; flex-direction:column; gap:16px;" class="grow">
+
+          <!-- TOP: SVG NEURAL ARCHITECTURE DIAGRAM -->
+          <div style="flex:1.5; background:#04090d; border:1px solid var(--panel-line); position:relative; overflow:hidden; border-radius:4px;">
+            <svg id="neuralSvg" width="100%" height="100%" viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+              <g id="synapseEdges"></g>
+              <g id="neuronNodes"></g>
+            </svg>
+          </div>
+
+          <!-- BOTTOM: LOSS CURVE GRAPH & METRICS -->
+          <div style="flex:1; display:flex; gap:16px;">
+
+            <div class="col grow" style="background:#04090d; border:1px solid var(--panel-line); padding:10px; border-radius:4px; position:relative;">
+              <div class="dim mono" style="font-size:10px; margin-bottom:6px;">TRAINING LOSSProgression CURVE</div>
+              <svg id="lossSvg" width="100%" height="100%" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+                <polyline id="lossPolyline" points="" fill="none" stroke="#00f0ff" stroke-width="2.5" />
+              </svg>
+            </div>
+
+            <div class="col" style="width:240px; background:#04090d; border:1px solid var(--panel-line); padding:12px; border-radius:4px; gap:8px;">
+              <div class="dim mono" style="font-size:10px;">EVALUATION METRICS</div>
+              <div id="neuralAcc" class="glow-green mono" style="font-size:24px;">ACC: --%</div>
+              <div id="neuralStatus" class="dim mono" style="font-size:11px;">STATUS: PENDING</div>
+              <div id="totalLoss" class="dim mono" style="font-size:11px;">FINAL LOSS: --</div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+  <script src="lab.js"></script>
+</body>
+</html>
