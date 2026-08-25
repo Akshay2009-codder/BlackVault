@@ -6,6 +6,7 @@ and ORM data models (MissionAttempt, PlayerProgress, BossMission, Achievement).
 
 from db.database import Base, engine, SessionLocal, get_db, init_db
 from db.models import MissionAttempt, PlayerProgress, BossMission, Achievement
+from db.map_models import DBSector, DBTerminalNode, DBDoorConnection
 
 __all__ = [
     "Base",
@@ -17,4 +18,7 @@ __all__ = [
     "PlayerProgress",
     "BossMission",
     "Achievement",
-]
+    "DBSector",
+    "DBTerminalNode",
+    "DBDoorConnection",
+]
