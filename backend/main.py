@@ -28,13 +28,31 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from models import PreprocessRequest, TrainRequest, CorruptRequest, CodeExecuteRequest
-from services import load_dataset, apply_preprocessing, train_model, apply_named_event, run_player_code, DATA_DIR
+from models import (
+    PreprocessRequest,
+    TrainRequest,
+    CorruptRequest,
+    CodeExecuteRequest,
+    FacilityMapResponse,
+    PathfindingRequest,
+    PathfindingResponse,
+)
+from services import (
+    load_dataset,
+    apply_preprocessing,
+    train_model,
+    apply_named_event,
+    run_player_code,
+    get_full_facility_map,
+    unlock_sector_door,
+    DATA_DIR,
+)
 from generate_datasets import gen_boss_dataset
 
 from db.database import init_db, get_db
 from db import models as db_models
 from services.rewards import record_mission_attempt, xp_to_rank, unlock_achievement
+
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -691,4 +709,15 @@ def get_leaderboard(db: Session = Depends(get_db)):
             for idx, p in enumerate(top_players)
         ]
     }
+
+
+# ---------------------------------------------------------------------------
+# Map Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/map/facility", response_model=FacilityMapResponse)
+def get_facility_map(db: Session = Depends(get_db)):
+    """Return the entire facility layout, sector status, and door networks."""
+    return get_full_facility_map(db)
+
 
