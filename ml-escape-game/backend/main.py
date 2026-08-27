@@ -417,3 +417,4 @@ def submit_puzzle(req: SubmitRequest):
 @app.get("/api/health")
 def health():
     return {"status": "online", "active_puzzles": len(PUZZLES)}
+ll
