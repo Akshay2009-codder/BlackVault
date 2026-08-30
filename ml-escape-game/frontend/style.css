@@ -51,6 +51,36 @@ html, body {
   z-index: 5;
 }
 
+/* Progression HUD */
+#hud {
+  position: fixed; top: 18px; left: 18px; z-index: 4;
+  background: rgba(11, 14, 20, 0.72); border: 1px solid var(--panel-border);
+  padding: 10px 14px; border-radius: 4px; min-width: 190px;
+}
+.hud-rank {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em;
+  color: var(--amber); margin-bottom: 6px;
+}
+.hud-xp-bar {
+  width: 100%; height: 6px; background: #1f2a38; border-radius: 3px;
+  overflow: hidden; margin-bottom: 4px;
+}
+.hud-xp-fill {
+  height: 100%; width: 0%; background: var(--cyan);
+  transition: width 0.4s ease;
+}
+.hud-xp-label {
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.hud-badges {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.hud-badge-pill {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em;
+  color: var(--green); background: rgba(111, 191, 115, 0.12);
+  border: 1px solid var(--green); border-radius: 10px; padding: 2px 7px;
+}
+
 /* Full-screen overlays */
 #start-screen, #cutscene, #map-screen, #puzzle-screen {
   position: fixed; inset: 0; z-index: 10;
