@@ -1,0 +1,4 @@
+# Runtime artifacts — regenerated automatically, don't commit these
+backend/blackvault.db
+backend/**/__pycache__/
+backend/**/*.pyc
