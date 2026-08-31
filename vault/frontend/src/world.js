@@ -44,9 +44,19 @@ export const facilityGroup = new THREE.Group();
 facilityGroup.visible = false;
 scene.add(facilityGroup);
 
-const corridor = makeRoom(6, CORRIDOR_HALF_DEPTH * 2, 3, 0x121722);
+const corridor = makeRoom(6, CORRIDOR_HALF_DEPTH * 2, 3, 0x171f2b);
 facilityGroup.add(corridor);
 replaceRoomModel(MODEL_PATHS.facility_corridor, corridor);
+
+// The single scene-level point light from addRoomLighting only reaches
+// ~26 units, so a corridor this long (58 units) needs its own lights
+// spaced along the ceiling — otherwise the far end near the last doors
+// goes completely black.
+for (let z = CORRIDOR_HALF_DEPTH - 5; z > -CORRIDOR_HALF_DEPTH; z -= 9) {
+  const corridorLight = new THREE.PointLight(0x5ec8d8, 1.3, 13);
+  corridorLight.position.set(0, 2.6, z);
+  facilityGroup.add(corridorLight);
+}
 
 const DOOR_DEFS = [
   { z: -7, puzzleType: 'classification', title: 'Badge Fraud Detector', difficulty: 1 },
