@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c5b3e19a-d4ae-44e2-bb23-282e6a9d74f1" name="Changes" comment="" />
+    <list default="true" id="c5b3e19a-d4ae-44e2-bb23-282e6a9d74f1" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/BlackVault.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vault/frontend/src/world.js" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/src/world.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
