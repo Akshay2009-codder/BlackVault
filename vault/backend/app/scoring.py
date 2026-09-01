@@ -41,7 +41,10 @@ def evaluate_submission(puzzle: dict, req: SubmitRequest) -> dict:
                 "reason": "Dataset still contains missing values."}
 
     threshold = puzzle["threshold"]
-    ptype = puzzle["type"]
+    # "mystery" puzzles (the final room) report type="mystery" to the
+    # client so the player can't just read the label — but scoring still
+    # needs the real underlying type to know which pipeline to run.
+    ptype = puzzle.get("real_type") or puzzle["type"]
 
     # -- Clustering: unsupervised, evaluated with silhouette score on full set --
     if ptype == "clustering":
