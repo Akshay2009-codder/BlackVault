@@ -12,19 +12,25 @@
 
   <canvas id="scene"></canvas>
 
-  <!-- Vignette overlay — driven by sceneSetup.setVignette() for chaos pulses -->
-  <div id="vignette"></div>
-
   <!-- Crosshair -->
   <div id="crosshair"></div>
+
+  <!-- Build marker: if the text here doesn't match what you expect, the
+       browser is serving an old cached copy of the JS, not your latest
+       files — hard-refresh or open in a private window. -->
+  <div id="build-tag"></div>
 
   <!-- Progression HUD: rank, XP, unlocked badges -->
   <div id="hud">
     <div class="hud-rank" id="hud-rank">RECRUIT</div>
+    <div class="hud-title hidden" id="hud-title"></div>
     <div class="hud-xp-bar"><div class="hud-xp-fill" id="hud-xp-fill"></div></div>
     <div class="hud-xp-label" id="hud-xp-label">0 XP</div>
     <div class="hud-badges" id="hud-badges"></div>
   </div>
+
+  <!-- Mid-puzzle chaos-event alert banner -->
+  <div id="chaos-alert" class="hidden"></div>
 
   <!-- Interact prompt -->
   <div id="interact-prompt" class="hidden">[ E ] INTERACT</div>
@@ -71,6 +77,7 @@
     <div class="terminal">
       <div class="terminal-header">
         <span id="puzzle-title">SECURITY TERMINAL</span>
+        <span id="chaos-indicator" class="hidden">&#9888; ADAPTIVE</span>
         <span id="puzzle-timer">--:--</span>
       </div>
 
