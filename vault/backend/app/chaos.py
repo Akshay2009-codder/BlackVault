@@ -1,108 +1,107 @@
-"""chaos.py — mid-puzzle chaos event generator.
+"""Randomized mid-puzzle 'chaos events' — the facility's security AI
+actively pushes back while the player is mid-pipeline, so no two
+playthroughs feel the same and later rooms genuinely get harder in a way
+that isn't just "bigger dataset."
 
-Called by the SSE endpoint in routes.py to produce a single random disturbance
-that is sent to the client while a puzzle is in progress.
-
-Event types
------------
-metric_shift    Raises or lowers the success threshold mid-puzzle.
-data_inject     Pushes a batch of new (corrupted) rows into the preview table.
-timer_jolt      Subtracts (or rarely adds) seconds from the countdown.
-lockdown_pulse  Pure cosmetic – triggers a camera shake + red vignette on the
-                client; no data payload beyond the intensity.
+Events are scheduled once at puzzle-generation time (see schedule_events)
+and applied lazily whenever the frontend's per-second timer tick catches
+up to a scheduled trigger time (see check_and_apply, called from the
+/api/puzzle/tick route). Only difficulty >= 2 puzzles get a chance at one,
+and it's never guaranteed — that keeps early rooms predictable so the
+player can learn the pipeline before anything starts moving under them,
+matching the brief's "early levels are forgiving, later levels adapt"
+difficulty curve.
 """
 
 import random
 
 import numpy as np
+import pandas as pd
 
+EVENT_TYPES = ["new_missing", "new_duplicates", "new_outliers", "metric_shift", "time_cut"]
 
-# Weights: lockdown_pulse is rarer / more dramatic.
-_TYPE_WEIGHTS = {
-    "classification": [("metric_shift", 3), ("data_inject", 3), ("timer_jolt", 2), ("lockdown_pulse", 1)],
-    "regression":     [("metric_shift", 3), ("data_inject", 2), ("timer_jolt", 3), ("lockdown_pulse", 1)],
-    "clustering":     [("data_inject", 4), ("timer_jolt", 3), ("lockdown_pulse", 2)],
-    "anomaly":        [("data_inject", 4), ("timer_jolt", 3), ("metric_shift", 2), ("lockdown_pulse", 1)],
+EVENT_MESSAGES = {
+    "new_missing": "SENSOR DROPOUT DETECTED \u2014 additional missing values injected into the feed.",
+    "new_duplicates": "LOG REPLAY DETECTED \u2014 duplicate records appended to the dataset.",
+    "new_outliers": "SIGNAL SPIKE \u2014 corrupted readings introduced into several rows.",
+    "metric_shift": "SECURITY AI ADAPTING \u2014 required performance threshold raised.",
+    "time_cut": "COUNTERMEASURE ENGAGED \u2014 remaining time reduced.",
 }
 
 
-def _pick_type(puzzle_type: str, rng: random.Random) -> str:
-    pool = _TYPE_WEIGHTS.get(puzzle_type, _TYPE_WEIGHTS["classification"])
-    choices, weights = zip(*pool)
-    return rng.choices(choices, weights=weights, k=1)[0]
-
-
-def _metric_shift(puzzle: dict, rng: random.Random) -> dict:
-    """Nudge the threshold by ±5–15 % of its original value."""
-    original = puzzle.get("threshold", 0.75)
-    delta = rng.uniform(0.05, 0.15) * original * rng.choice([-1, 1])
-    new_threshold = round(max(0.05, min(0.99, original + delta)), 3)
-    # Mutate the live puzzle state so scoring uses the updated threshold.
-    puzzle["threshold"] = new_threshold
-    return {
-        "type": "metric_shift",
-        "new_threshold": new_threshold,
-        "delta": round(delta, 3),
-        "metric": puzzle.get("metric", "score"),
-    }
-
-
-def _data_inject(puzzle: dict, rng: random.Random) -> dict:
-    """Generate 3–8 new corrupted rows from the existing feature column pool."""
-    feature_cols = puzzle.get("feature_cols", [])
-    is_anomaly = puzzle.get("type") == "anomaly"
-    count = rng.randint(3, 8)
-    rows = []
-    for _ in range(count):
-        row: dict = {}
-        for col in feature_cols:
-            if rng.random() < 0.15:          # 15 % chance of a missing cell
-                row[col] = None
-            else:
-                row[col] = round(rng.gauss(0, 2), 4)
-        # anomaly type: never reveal the label column
-        if not is_anomaly and puzzle.get("target_col"):
-            target_col = puzzle["target_col"]
-            row[target_col] = rng.choice([0, 1]) if "class" in str(target_col).lower() else round(rng.gauss(50, 15), 2)
-        rows.append(row)
-    return {"type": "data_inject", "rows": rows, "count": count}
-
-
-def _timer_jolt(puzzle: dict, rng: random.Random) -> dict:  # noqa: ARG001
-    """Subtract 10–30 s from the timer, or (10 % chance) add 5–15 s."""
-    if rng.random() < 0.10:
-        delta = rng.randint(5, 15)
-    else:
-        delta = -rng.randint(10, 30)
-    return {"type": "timer_jolt", "delta_seconds": delta}
-
-
-def _lockdown_pulse(puzzle: dict, rng: random.Random) -> dict:  # noqa: ARG001
-    """Cosmetic shake + vignette — no data change."""
-    intensity = round(rng.uniform(0.4, 1.0), 2)
-    return {"type": "lockdown_pulse", "intensity": intensity}
-
-
-_GENERATORS = {
-    "metric_shift":   _metric_shift,
-    "data_inject":    _data_inject,
-    "timer_jolt":     _timer_jolt,
-    "lockdown_pulse": _lockdown_pulse,
-}
-
-
-def generate_chaos_event(puzzle: dict, rng: random.Random | None = None) -> dict:
-    """Return a single chaos event payload dict appropriate to *puzzle*.
-
-    Parameters
-    ----------
-    puzzle:
-        The live puzzle state dict from ``store.get()``.
-    rng:
-        Optional seeded ``random.Random`` instance.  A fresh one is created if
-        omitted.
+def schedule_events(puzzle: dict, rng: random.Random) -> None:
+    """Mutates `puzzle` in place, adding a `chaos_events` list. At most one
+    event, firing roughly a third to two-thirds of the way through the
+    time limit — never right at the start (no time to react) and never
+    right at the end (no time to matter).
     """
-    if rng is None:
-        rng = random.Random()
-    event_type = _pick_type(puzzle.get("type", "classification"), rng)
-    return _GENERATORS[event_type](puzzle, rng)
+    puzzle["chaos_events"] = []
+    if puzzle.get("difficulty", 1) < 2:
+        return
+    if rng.random() > 0.7:  # not every eligible puzzle gets one — keeps it a surprise
+        return
+    time_limit = puzzle["time_limit_seconds"]
+    trigger_at = rng.randint(int(time_limit * 0.3), int(time_limit * 0.65))
+    event_type = rng.choice(EVENT_TYPES)
+    puzzle["chaos_events"].append({"type": event_type, "trigger_at": trigger_at, "applied": False})
+
+
+def check_and_apply(puzzle: dict, elapsed_seconds: int) -> list:
+    """Applies any scheduled events whose trigger time has passed and that
+    haven't fired yet. Returns a list of small dicts describing what just
+    happened (message + updated stats) for the frontend to show as an
+    alert and refresh its display from.
+    """
+    rng = random.Random()
+    fired = []
+    for event in puzzle.get("chaos_events", []):
+        if event["applied"] or elapsed_seconds < event["trigger_at"]:
+            continue
+        event["applied"] = True
+        fired.append(_apply_event(puzzle, event["type"], rng))
+    return fired
+
+
+def _apply_event(puzzle: dict, event_type: str, rng: random.Random) -> dict:
+    df = puzzle["dataframe"]
+    feature_cols = puzzle["feature_cols"]
+
+    if event_type == "new_missing":
+        n = max(3, int(len(df) * 0.05))
+        for _ in range(n):
+            r = rng.randrange(len(df))
+            c = rng.choice(feature_cols)
+            df.loc[r, c] = np.nan
+
+    elif event_type == "new_duplicates":
+        n = rng.randint(2, 4)
+        dupes = df.sample(n=min(n, len(df)), random_state=rng.randint(0, 10**6))
+        df = pd.concat([df, dupes], ignore_index=True)
+        puzzle["dataframe"] = df
+
+    elif event_type == "new_outliers":
+        n = rng.randint(3, 6)
+        for _ in range(n):
+            r = rng.randrange(len(df))
+            c = rng.choice(feature_cols)
+            col_mean = df[c].mean()
+            col_std = df[c].std() or 1.0
+            df.loc[r, c] = col_mean + col_std * rng.uniform(6, 10)
+
+    elif event_type == "metric_shift":
+        bump = rng.uniform(0.03, 0.07)
+        puzzle["threshold"] = round(puzzle["threshold"] + bump, 2)
+
+    elif event_type == "time_cut":
+        cut = rng.randint(20, 45)
+        puzzle["time_limit_seconds"] = max(30, puzzle["time_limit_seconds"] - cut)
+
+    return {
+        "type": event_type,
+        "message": EVENT_MESSAGES[event_type],
+        "missing_cell_count": int(df[feature_cols].isna().sum().sum()),
+        "duplicate_row_count": int(df.duplicated().sum()),
+        "row_count": len(df),
+        "threshold": puzzle["threshold"],
+        "time_limit_seconds": puzzle["time_limit_seconds"],
+    }
