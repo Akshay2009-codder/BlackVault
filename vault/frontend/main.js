@@ -19,6 +19,7 @@ import { updateMovement } from './src/player.js';
 import './src/narrative.js';
 import './src/puzzleTerminal.js';
 import './src/hud.js';
+import './src/chaosEvents.js';
 import { updateInteractPrompt } from './src/interactions.js';
 
 function animate() {

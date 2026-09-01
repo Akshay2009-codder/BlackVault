@@ -14,5 +14,15 @@ def get(puzzle_id: str):
     return PUZZLES.get(puzzle_id)
 
 
+def is_active(puzzle_id: str) -> bool:
+    """Return True while the puzzle is still live (not yet submitted/expired)."""
+    return puzzle_id in PUZZLES
+
+
+def remove(puzzle_id: str) -> None:
+    """Remove a puzzle from the store, e.g. after submission."""
+    PUZZLES.pop(puzzle_id, None)
+
+
 def count() -> int:
     return len(PUZZLES)

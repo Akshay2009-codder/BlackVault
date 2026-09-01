@@ -85,3 +85,59 @@ export function makeTeammate(color) {
   group.add(head);
   return group;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Chaos Event visual effects
+// ---------------------------------------------------------------------------
+
+/**
+ * Shake the camera for `durationMs` milliseconds.
+ * `intensity` is in world-space units (0.01 is subtle, 0.08 is violent).
+ */
+export function cameraShake(intensity = 0.04, durationMs = 600) {
+  const origin = camera.position.clone();
+  const startTime = performance.now();
+
+  function step() {
+    const elapsed = performance.now() - startTime;
+    if (elapsed >= durationMs) {
+      // Snap back to origin to avoid drift.
+      camera.position.copy(origin);
+      return;
+    }
+    // Decay envelope: starts at full intensity, eases to zero.
+    const t = elapsed / durationMs;
+    const decay = 1 - t * t;
+    camera.position.set(
+      origin.x + (Math.random() * 2 - 1) * intensity * decay,
+      origin.y + (Math.random() * 2 - 1) * intensity * decay * 0.5,
+      origin.z + (Math.random() * 2 - 1) * intensity * decay,
+    );
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/**
+ * Flash the #vignette overlay with `color` (CSS string or hex) at `opacity`
+ * for `durationMs` milliseconds, then fade out.
+ *
+ * Requires a `<div id="vignette"></div>` in index.html styled with
+ * `position:fixed; inset:0; pointer-events:none; z-index:9;`.
+ */
+export function setVignette(color = '#d9534f', opacity = 0.55, durationMs = 800) {
+  const el = document.getElementById('vignette');
+  if (!el) return;
+
+  el.style.background = color;
+  el.style.opacity = String(opacity);
+  el.style.transition = 'none';
+
+  // After a brief hold, fade out smoothly.
+  const holdMs = durationMs * 0.25;
+  setTimeout(() => {
+    el.style.transition = `opacity ${durationMs * 0.75}ms ease-out`;
+    el.style.opacity = '0';
+  }, holdMs);
+}
+
