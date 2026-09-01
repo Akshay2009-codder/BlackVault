@@ -30,6 +30,16 @@ BADGES = [
     (1500, "Vault Legend"),
 ]
 
+# (xp_threshold, title) — cosmetic callsign shown in the HUD once earned;
+# unlike rank, this is purely flavor, not a gate on anything.
+TITLES = [
+    (0, None),
+    (150, "Wire Runner"),
+    (400, "Ghost Operative"),
+    (800, "Silent Vector"),
+    (1500, "Vault Breaker"),
+]
+
 
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -57,6 +67,14 @@ def _badges_for(xp: int) -> list:
     return [name for threshold, name in BADGES if xp >= threshold]
 
 
+def _title_for(xp: int):
+    title = TITLES[0][1]
+    for threshold, name in TITLES:
+        if xp >= threshold:
+            title = name
+    return title
+
+
 def _next_rank(xp: int):
     for threshold, name in RANKS:
         if xp < threshold:
@@ -76,6 +94,7 @@ def _summary(xp: int, doors_cleared: int) -> dict:
     return {
         "total_xp": xp,
         "rank": _rank_for(xp),
+        "title": _title_for(xp),
         "badges": _badges_for(xp),
         "next_rank": _next_rank(xp),
         "doors_cleared": doors_cleared,
