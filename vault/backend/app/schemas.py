@@ -19,3 +19,8 @@ class SubmitRequest(BaseModel):
                 # anomaly: isolation_forest|one_class_svm
     n_clusters: Optional[int] = None       # clustering only
     contamination: Optional[float] = None  # anomaly only
+
+
+class TickRequest(BaseModel):
+    puzzle_id: str
+    elapsed_seconds: int  # seconds since the terminal was opened, sent ~once/sec
