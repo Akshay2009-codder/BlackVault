@@ -131,6 +131,20 @@ function fleeTeammates() {
 }
 
 // ---------------------------------------------------------------------------
+// Beat 4b: the Core Vault intro, played once before the final door's
+// terminal opens — sets up that this last one has no ID on file.
+// ---------------------------------------------------------------------------
+const CORE_VAULT_LINES = [
+  { speaker: 'SECURITY SYSTEM', text: 'CORE VAULT ACCESS REQUESTED. NO CLASSIFICATION ON FILE FOR THIS DATA STREAM.' },
+  { speaker: 'NOMAD (COMMS)', text: 'That\u2019s not in their manifest \u2014 whatever it is, we\u2019ve got no intel on it.' },
+  { speaker: 'REYES (COMMS)', text: 'You\u2019re reading it cold. Work out what it is, then beat it. This is the last one.', finalLabel: 'OPEN TERMINAL \u25b8' },
+];
+
+export function playMysteryIntro(onComplete) {
+  playSequence(CORE_VAULT_LINES, onComplete);
+}
+
+// ---------------------------------------------------------------------------
 // Beat 5: mission-complete beat once the final door unlocks
 // ---------------------------------------------------------------------------
 export function showEscapeComplete() {

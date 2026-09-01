@@ -19,8 +19,17 @@ import { updateMovement } from './src/player.js';
 import './src/narrative.js';
 import './src/puzzleTerminal.js';
 import './src/hud.js';
-import './src/chaosEvents.js';
 import { updateInteractPrompt } from './src/interactions.js';
+
+// Version marker — shown both in the corner of the screen (bottom-right,
+// visible in any screenshot) and in the browser console (F12). If either
+// doesn't match what you expect, the browser is serving a cached/old copy
+// of this file — hard-refresh (Ctrl+Shift+R / Cmd+Shift+R) or open in a
+// private/incognito window.
+const BUILD_TAG = 'build: v4 \u2014 lit fixtures + mystery room + 5 doors';
+console.log(`[BLACKVAULT] ${BUILD_TAG}`);
+const buildTagEl = document.getElementById('build-tag');
+if (buildTagEl) buildTagEl.textContent = BUILD_TAG;
 
 function animate() {
   requestAnimationFrame(animate);

@@ -1,14 +1,21 @@
 import { API_BASE } from './config.js';
 
 const rankEl = document.getElementById('hud-rank');
+const titleEl = document.getElementById('hud-title');
 const xpFillEl = document.getElementById('hud-xp-fill');
 const xpLabelEl = document.getElementById('hud-xp-label');
 const badgesEl = document.getElementById('hud-badges');
 
-/** Renders a `{ total_xp, rank, badges, next_rank, doors_cleared }` payload
- * from /api/progress or /api/puzzle/submit into the corner HUD. */
+/** Renders a `{ total_xp, rank, title, badges, next_rank, doors_cleared }`
+ * payload from /api/progress or /api/puzzle/submit into the corner HUD. */
 export function renderProgress(progress) {
   rankEl.textContent = progress.rank.toUpperCase();
+
+  // title is a purely cosmetic callsign unlocked alongside the first
+  // badge — null until then, so the row just stays empty rather than
+  // showing a placeholder.
+  titleEl.textContent = progress.title ? `\u201c${progress.title}\u201d` : '';
+  titleEl.classList.toggle('hidden', !progress.title);
 
   const next = progress.next_rank;
   if (next) {

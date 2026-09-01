@@ -1,9 +1,8 @@
 import { API_BASE } from './config.js';
 import { controls } from './sceneSetup.js';
 import { doors, interactables } from './world.js';
-import { showEscapeComplete } from './narrative.js';
+import { playMysteryIntro, showEscapeComplete } from './narrative.js';
 import { renderProgress } from './hud.js';
-import { openChaosStream, closeChaosStream } from './chaosEvents.js';
 
 const puzzleScreen = document.getElementById('puzzle-screen');
 const puzzleTitleEl = document.getElementById('puzzle-title');
@@ -16,10 +15,15 @@ const previewTable = document.getElementById('preview-table');
 const ctlModel = document.getElementById('ctl-model');
 const submitBtn = document.getElementById('submit-btn');
 const resultEl = document.getElementById('puzzle-result');
+const chaosIndicatorEl = document.getElementById('chaos-indicator');
+const chaosAlertEl = document.getElementById('chaos-alert');
 
 let currentPuzzle = null;
 let timerInterval = null;
 let activeDoor = null;
+let puzzleStartTime = 0;
+let lastKnownTimeLimit = 0;
+let chaosAlertTimeout = null;
 
 const MODEL_OPTIONS = {
   classification: [
@@ -42,11 +46,36 @@ const MODEL_OPTIONS = {
   ],
 };
 
+// The final "mystery" room doesn't tell the player which problem type
+// they're facing, so the model dropdown offers every family at once,
+// labeled by family — picking one from the wrong family is a legitimate
+// (if costly) way to find out what this dataset actually is.
+const MYSTERY_MODEL_OPTIONS = [
+  ['logistic_regression', 'Classification \u2014 Logistic Regression'],
+  ['knn', 'Classification \u2014 K-Nearest Neighbors'],
+  ['linear_regression', 'Regression \u2014 Linear Regression'],
+  ['random_forest', 'Classification/Regression \u2014 Random Forest'],
+  ['kmeans', 'Clustering \u2014 K-Means'],
+  ['hierarchical', 'Clustering \u2014 Hierarchical (Agglomerative)'],
+  ['dbscan', 'Clustering \u2014 DBSCAN'],
+  ['isolation_forest', 'Anomaly \u2014 Isolation Forest'],
+  ['one_class_svm', 'Anomaly \u2014 One-Class SVM'],
+];
+
 const missingRow = document.getElementById('ctl-missing').closest('.control-block');
 const clusterRow = document.getElementById('ctl-clusters').closest('.control-block');
 const contamRow = document.getElementById('ctl-contamination').closest('.control-block');
 
-export async function openPuzzleTerminal(door) {
+export function openPuzzleTerminal(door) {
+  if (door.puzzleType === 'mystery' && !door.introShown) {
+    door.introShown = true;
+    playMysteryIntro(() => openPuzzleTerminalInner(door));
+    return;
+  }
+  openPuzzleTerminalInner(door);
+}
+
+async function openPuzzleTerminalInner(door) {
   activeDoor = door;
   controls.unlock();
   puzzleScreen.classList.remove('hidden');
@@ -62,6 +91,9 @@ export async function openPuzzleTerminal(door) {
   currentPuzzle = await res.json();
 
   puzzleTitleEl.textContent = currentPuzzle.title.toUpperCase();
+  chaosIndicatorEl.classList.toggle('hidden', !currentPuzzle.has_chaos_event);
+  chaosAlertEl.classList.add('hidden');
+  clearTimeout(chaosAlertTimeout);
   const metricLabel = currentPuzzle.metric === 'silhouette' ? 'SILHOUETTE' : currentPuzzle.metric.toUpperCase();
   metricLabelEl.textContent = `${metricLabel} \u2265 ${currentPuzzle.threshold}`;
   statRows.textContent = currentPuzzle.row_count;
@@ -70,30 +102,32 @@ export async function openPuzzleTerminal(door) {
 
   renderPreviewTable(currentPuzzle);
 
+  const isMystery = currentPuzzle.type === 'mystery';
+
   // clustering has no target column to clean around missing values in the
   // same way, but preprocessing controls stay relevant, so keep them visible
-  // for every type; only the type-specific extra params toggle.
+  // for every type; only the type-specific extra params toggle. The mystery
+  // room shows both extra-param rows regardless — the player doesn't get
+  // told which one is relevant, that's part of the puzzle.
   missingRow.classList.remove('hidden');
-  clusterRow.classList.toggle('hidden', currentPuzzle.type !== 'clustering');
-  contamRow.classList.toggle('hidden', currentPuzzle.type !== 'anomaly');
-  if (currentPuzzle.type === 'clustering') {
+  clusterRow.classList.toggle('hidden', !(currentPuzzle.type === 'clustering' || isMystery));
+  contamRow.classList.toggle('hidden', !(currentPuzzle.type === 'anomaly' || isMystery));
+  if (currentPuzzle.type === 'clustering' || isMystery) {
     document.getElementById('ctl-clusters').value = currentPuzzle.suggested_k || 3;
   }
-  if (currentPuzzle.type === 'anomaly') {
+  if (currentPuzzle.type === 'anomaly' || isMystery) {
     document.getElementById('ctl-contamination').value = currentPuzzle.contamination || 0.05;
   }
 
   ctlModel.innerHTML = '';
-  for (const [val, label] of MODEL_OPTIONS[currentPuzzle.type]) {
+  const options = isMystery ? MYSTERY_MODEL_OPTIONS : MODEL_OPTIONS[currentPuzzle.type];
+  for (const [val, label] of options) {
     const opt = document.createElement('option');
     opt.value = val; opt.textContent = label;
     ctlModel.appendChild(opt);
   }
 
   startTimer(currentPuzzle.time_limit_seconds);
-
-  // Open SSE chaos stream now that we have a live puzzle_id.
-  openChaosStream(currentPuzzle.puzzle_id);
 }
 
 function renderPreviewTable(puzzle) {
@@ -112,21 +146,68 @@ function renderPreviewTable(puzzle) {
 function startTimer(seconds) {
   clearInterval(timerInterval);
   let remaining = seconds;
+  lastKnownTimeLimit = seconds;
+  puzzleStartTime = Date.now();
   updateTimerDisplay(remaining);
   timerInterval = setInterval(() => {
     remaining -= 1;
     updateTimerDisplay(remaining);
+
+    const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
+    checkChaosEvents(elapsed, (delta) => {
+      remaining = Math.max(0, remaining - delta);
+      updateTimerDisplay(remaining);
+    });
+
     if (remaining <= 0) {
       clearInterval(timerInterval);
-      closeChaosStream();
       resultEl.textContent = 'TIME EXPIRED \u2014 LOCK REASSERTED';
       resultEl.className = 'denied';
       submitBtn.disabled = true;
     }
   }, 1000);
-  // Expose a mutable ref so chaos timer_jolt can adjust it.
-  startTimer._remaining = () => remaining;
-  startTimer._adjust = (delta) => { remaining = Math.max(0, remaining + delta); };
+}
+
+async function checkChaosEvents(elapsed, onTimeCut) {
+  if (!currentPuzzle) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/puzzle/tick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ puzzle_id: currentPuzzle.puzzle_id, elapsed_seconds: elapsed }),
+    });
+    const data = await res.json();
+    (data.events || []).forEach((event) => applyChaosEvent(event, onTimeCut));
+  } catch (e) {
+    // tick failures are non-critical — the puzzle just won't get a chaos
+    // event applied this round; the pipeline itself is unaffected.
+  }
+}
+
+function applyChaosEvent(event, onTimeCut) {
+  showChaosAlert(event.message);
+  statMissing.textContent = event.missing_cell_count;
+  statDupes.textContent = event.duplicate_row_count;
+  statRows.textContent = event.row_count;
+
+  if (event.type === 'metric_shift') {
+    currentPuzzle.threshold = event.threshold;
+    const metricLabel = currentPuzzle.metric === 'silhouette' ? 'SILHOUETTE' : currentPuzzle.metric.toUpperCase();
+    metricLabelEl.textContent = `${metricLabel} \u2265 ${event.threshold}`;
+  }
+
+  if (event.type === 'time_cut') {
+    const delta = lastKnownTimeLimit - event.time_limit_seconds;
+    lastKnownTimeLimit = event.time_limit_seconds;
+    onTimeCut(delta);
+  }
+}
+
+function showChaosAlert(message) {
+  chaosAlertEl.textContent = message;
+  chaosAlertEl.classList.remove('hidden');
+  clearTimeout(chaosAlertTimeout);
+  chaosAlertTimeout = setTimeout(() => chaosAlertEl.classList.add('hidden'), 5000);
 }
 
 function updateTimerDisplay(seconds) {
@@ -138,10 +219,10 @@ function updateTimerDisplay(seconds) {
 submitBtn.addEventListener('click', async () => {
   if (!currentPuzzle) return;
   submitBtn.disabled = true;
-  closeChaosStream();
   resultEl.textContent = 'RUNNING PIPELINE\u2026';
   resultEl.className = '';
 
+  const isMystery = currentPuzzle.type === 'mystery';
   const body = {
     puzzle_id: currentPuzzle.puzzle_id,
     missing_strategy: document.getElementById('ctl-missing').value,
@@ -149,10 +230,10 @@ submitBtn.addEventListener('click', async () => {
     scale_features: document.getElementById('ctl-scale').checked,
     model: ctlModel.value,
   };
-  if (currentPuzzle.type === 'clustering') {
+  if (currentPuzzle.type === 'clustering' || isMystery) {
     body.n_clusters = parseInt(document.getElementById('ctl-clusters').value, 10) || 3;
   }
-  if (currentPuzzle.type === 'anomaly') {
+  if (currentPuzzle.type === 'anomaly' || isMystery) {
     body.contamination = parseFloat(document.getElementById('ctl-contamination').value) || 0.05;
   }
 
@@ -161,7 +242,18 @@ submitBtn.addEventListener('click', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+
+  // A model picked from the wrong family (only reachable in the mystery
+  // room, where every family is offered) is rejected by the backend as a
+  // plain HTTP error with no access_granted field — treat that the same
+  // way as a failed attempt instead of letting it crash the UI.
+  if (!res.ok || !('access_granted' in data)) {
+    resultEl.textContent = `PIPELINE REJECTED \u2014 ${(data.detail || 'incompatible approach for this dataset').toUpperCase()}`;
+    resultEl.className = 'denied';
+    submitBtn.disabled = false;
+    return;
+  }
 
   if (data.access_granted) {
     clearInterval(timerInterval);
@@ -205,64 +297,3 @@ function unlockDoor(door) {
   };
   openAnim();
 }
-
-// ---------------------------------------------------------------------------
-// Phase 3 — React to chaos events dispatched by chaosEvents.js
-// ---------------------------------------------------------------------------
-
-/** Briefly pulse an element with the chaos-pulse CSS animation. */
-function chaosPulse(el) {
-  el.classList.remove('chaos-pulse');
-  // Force a reflow so re-adding the class restarts the animation.
-  void el.offsetWidth;
-  el.classList.add('chaos-pulse');
-  el.addEventListener('animationend', () => el.classList.remove('chaos-pulse'), { once: true });
-}
-
-window.addEventListener('chaos', (e) => {
-  const ev = e.detail;
-
-  // -- metric_shift: update the threshold label in the terminal brief --
-  if (ev.type === 'metric_shift' && currentPuzzle) {
-    currentPuzzle.threshold = ev.new_threshold;
-    const sign = ev.delta > 0 ? '+' : '';
-    const metricLabel = ev.metric === 'silhouette' ? 'SILHOUETTE' : ev.metric.toUpperCase();
-    metricLabelEl.textContent = `${metricLabel} \u2265 ${ev.new_threshold.toFixed(3)}`;
-    metricLabelEl.title = `CHAOS: threshold shifted ${sign}${ev.delta.toFixed(3)}`;
-    chaosPulse(metricLabelEl);
-  }
-
-  // -- data_inject: prepend new rows to the preview table --
-  if (ev.type === 'data_inject' && currentPuzzle && ev.rows?.length) {
-    const cols = currentPuzzle.target_col
-      ? [...currentPuzzle.feature_cols, currentPuzzle.target_col]
-      : [...currentPuzzle.feature_cols];
-    const newRows = ev.rows.map((row) => {
-      const cells = cols.map((c) => {
-        const v = row[c];
-        if (v === null || v === undefined) return `<td class="na">NaN</td>`;
-        return `<td class="chaos-new">${typeof v === 'number' ? v.toFixed(2) : v}</td>`;
-      }).join('');
-      return `<tr class="chaos-row">${cells}</tr>`;
-    }).join('');
-    // Prepend after the header row (first <tr>).
-    const firstRow = previewTable.querySelector('tr');
-    if (firstRow) firstRow.insertAdjacentHTML('afterend', newRows);
-    // Update stat counters
-    const currentMissing = parseInt(statMissing.textContent, 10) || 0;
-    const currentRows = parseInt(statRows.textContent, 10) || 0;
-    statRows.textContent = currentRows + ev.count;
-    statMissing.textContent = currentMissing + ev.rows.filter((r) => Object.values(r).some((v) => v === null)).length;
-    chaosPulse(statRows);
-  }
-
-  // -- timer_jolt: adjust remaining seconds --
-  if (ev.type === 'timer_jolt' && typeof startTimer._adjust === 'function') {
-    startTimer._adjust(ev.delta_seconds);
-    puzzleTimerEl.classList.add(ev.delta_seconds < 0 ? 'timer-jolt-negative' : 'timer-jolt-positive');
-    setTimeout(() => {
-      puzzleTimerEl.classList.remove('timer-jolt-negative', 'timer-jolt-positive');
-    }, 900);
-  }
-});
-

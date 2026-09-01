@@ -9,6 +9,11 @@ const canvas = document.getElementById('scene');
 export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// PBR materials read as flat/dim under the default NoToneMapping — filmic
+// tone mapping + a touch of exposure is what makes a dark security-facility
+// scene still look like a lit space instead of a void with floating props.
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.4;
 
 export const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x0b0e14, 6, 26);
@@ -30,17 +35,29 @@ window.addEventListener('resize', () => {
 // Lighting + geometry factories, reused by world.js to build both scenes
 // ---------------------------------------------------------------------------
 export function addRoomLighting(color = 0x5ec8d8, intensity = 0.6) {
-  const amb = new THREE.AmbientLight(0x2a3646, 1.1);
+  // Hemisphere light gives a natural sky/ground gradient fill across every
+  // surface with almost no cost — this alone is what turns "flat black
+  // walls" into a room you can actually read the shape of.
+  const hemi = new THREE.HemisphereLight(0x4a6478, 0x11161e, 2.2);
+  scene.add(hemi);
+  const amb = new THREE.AmbientLight(0x4a5f74, 1.8);
   scene.add(amb);
-  const point = new THREE.PointLight(color, intensity, 20);
+  // Directional light has infinite range and constant intensity everywhere
+  // in the scene, unlike point lights which fall off with distance — this
+  // is the safety net that guarantees nothing goes fully black no matter
+  // how far it is from a point light.
+  const sun = new THREE.DirectionalLight(0xaac4d6, 1.1);
+  sun.position.set(4, 10, 6);
+  scene.add(sun);
+  const point = new THREE.PointLight(color, intensity * 2.4, 26);
   point.position.set(0, 3, 0);
   scene.add(point);
 }
 
-export function makeRoom(width, depth, height, wallColor = 0x161c26) {
+export function makeRoom(width, depth, height, wallColor = 0x232e3d) {
   const group = new THREE.Group();
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x0e131b, roughness: 0.9 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c2636, roughness: 0.85 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.8 });
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -64,6 +81,14 @@ export function makeRoom(width, depth, height, wallColor = 0x161c26) {
     group.add(wall);
   });
 
+  // Faint floor grid — cheap visual definition (security-facility tile
+  // look) that also makes the floor plane itself legible at a glance
+  // instead of reading as more void.
+  const gridSize = Math.max(width, depth);
+  const grid = new THREE.GridHelper(gridSize, Math.round(gridSize), 0x2f4756, 0x1c2733);
+  grid.position.y = 0.01;
+  group.add(grid);
+
   return group;
 }
 
@@ -86,58 +111,13 @@ export function makeTeammate(color) {
   return group;
 }
 
-// ---------------------------------------------------------------------------
-// Phase 3 — Chaos Event visual effects
-// ---------------------------------------------------------------------------
-
-/**
- * Shake the camera for `durationMs` milliseconds.
- * `intensity` is in world-space units (0.01 is subtle, 0.08 is violent).
- */
-export function cameraShake(intensity = 0.04, durationMs = 600) {
-  const origin = camera.position.clone();
-  const startTime = performance.now();
-
-  function step() {
-    const elapsed = performance.now() - startTime;
-    if (elapsed >= durationMs) {
-      // Snap back to origin to avoid drift.
-      camera.position.copy(origin);
-      return;
-    }
-    // Decay envelope: starts at full intensity, eases to zero.
-    const t = elapsed / durationMs;
-    const decay = 1 - t * t;
-    camera.position.set(
-      origin.x + (Math.random() * 2 - 1) * intensity * decay,
-      origin.y + (Math.random() * 2 - 1) * intensity * decay * 0.5,
-      origin.z + (Math.random() * 2 - 1) * intensity * decay,
-    );
-    requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
+// A glowing ceiling strip light. Emissive materials self-illuminate and
+// render independently of scene lighting, so this is always visible
+// regardless of ambient/point light settings — it doubles as a visible
+// "fixture" the room's point lights can be anchored to, and as a hard
+// guarantee that a room never reads as a total void.
+export function makeCeilingFixture(length = 0.7, color = 0x5ec8d8) {
+  const geo = new THREE.BoxGeometry(length, 0.06, 0.18);
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.5 });
+  return new THREE.Mesh(geo, mat);
 }
-
-/**
- * Flash the #vignette overlay with `color` (CSS string or hex) at `opacity`
- * for `durationMs` milliseconds, then fade out.
- *
- * Requires a `<div id="vignette"></div>` in index.html styled with
- * `position:fixed; inset:0; pointer-events:none; z-index:9;`.
- */
-export function setVignette(color = '#d9534f', opacity = 0.55, durationMs = 800) {
-  const el = document.getElementById('vignette');
-  if (!el) return;
-
-  el.style.background = color;
-  el.style.opacity = String(opacity);
-  el.style.transition = 'none';
-
-  // After a brief hold, fade out smoothly.
-  const holdMs = durationMs * 0.25;
-  setTimeout(() => {
-    el.style.transition = `opacity ${durationMs * 0.75}ms ease-out`;
-    el.style.opacity = '0';
-  }, holdMs);
-}
-
