@@ -6,13 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="c5b3e19a-d4ae-44e2-bb23-282e6a9d74f1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/backend/app/routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/vault/backend/app/routes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/backend/app/store.py" beforeDir="false" afterPath="$PROJECT_DIR$/vault/backend/app/store.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/frontend/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/frontend/src/puzzleTerminal.js" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/src/puzzleTerminal.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/frontend/src/sceneSetup.js" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/src/sceneSetup.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vault/frontend/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/vault/frontend/style.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
