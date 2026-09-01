@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { MODEL_PATHS } from './config.js';
 import { replaceRoomModel, replaceWithModel } from './modelLoader.js';
-import { addRoomLighting, makeDoor, makeRoom, makeTeammate, scene } from './sceneSetup.js';
+import { addRoomLighting, makeCeilingFixture, makeDoor, makeRoom, makeTeammate, scene } from './sceneSetup.js';
 
 // Mutable shared game flags other modules read/write.
 export const gameState = { alarmTriggered: false };
@@ -13,6 +13,10 @@ export const homeGroup = makeRoom(8, 8, 3);
 scene.add(homeGroup);
 addRoomLighting(0x5ec8d8, 0.5);
 replaceRoomModel(MODEL_PATHS.home_room, homeGroup);
+
+const homeCeilingFixture = makeCeilingFixture(6);
+homeCeilingFixture.position.set(0, 2.92, 0);
+homeGroup.add(homeCeilingFixture);
 
 const phoneGeo = new THREE.BoxGeometry(0.25, 0.05, 0.5);
 const phoneMat = new THREE.MeshStandardMaterial({ color: 0xe8a33d, emissive: 0xe8a33d, emissiveIntensity: 0.6 });
@@ -35,27 +39,34 @@ scene.add(desk);
 
 // ---------------------------------------------------------------------------
 // Scene 2: Facility corridor (built, hidden until travel)
-// A single long corridor with four sequential security doors, one per
-// ML puzzle type — matches the brief's "each door = a different ML
-// problem, harder deeper in" structure without needing separate rooms yet.
+// A single long corridor with five sequential security doors, one per
+// ML puzzle type plus a final "unknown dataset" boss room — matches the
+// brief's "each door = a different ML problem, harder deeper in" structure
+// without needing separate rooms yet.
 // ---------------------------------------------------------------------------
-export const CORRIDOR_HALF_DEPTH = 29;
+export const CORRIDOR_HALF_DEPTH = 35;
 export const facilityGroup = new THREE.Group();
 facilityGroup.visible = false;
 scene.add(facilityGroup);
 
-const corridor = makeRoom(6, CORRIDOR_HALF_DEPTH * 2, 3, 0x171f2b);
+const corridor = makeRoom(6, CORRIDOR_HALF_DEPTH * 2, 3, 0x212c3a);
 facilityGroup.add(corridor);
 replaceRoomModel(MODEL_PATHS.facility_corridor, corridor);
 
 // The single scene-level point light from addRoomLighting only reaches
-// ~26 units, so a corridor this long (58 units) needs its own lights
+// ~26 units, so a corridor this long (70 units) needs its own lights
 // spaced along the ceiling — otherwise the far end near the last doors
-// goes completely black.
+// goes completely black. Each light gets a matching emissive fixture mesh
+// so the corridor reads as a designed space with visible light sources,
+// not just an area that happens to be lit.
 for (let z = CORRIDOR_HALF_DEPTH - 5; z > -CORRIDOR_HALF_DEPTH; z -= 9) {
   const corridorLight = new THREE.PointLight(0x5ec8d8, 1.3, 13);
   corridorLight.position.set(0, 2.6, z);
   facilityGroup.add(corridorLight);
+
+  const fixture = makeCeilingFixture(0.9);
+  fixture.position.set(0, 2.95, z);
+  facilityGroup.add(fixture);
 }
 
 const DOOR_DEFS = [
@@ -63,13 +74,14 @@ const DOOR_DEFS = [
   { z: -13, puzzleType: 'clustering', title: 'Customer Cluster Grid', difficulty: 2 },
   { z: -19, puzzleType: 'regression', title: 'Facility Power Draw Predictor', difficulty: 2 },
   { z: -25, puzzleType: 'anomaly', title: 'Fraud Transaction Scanner', difficulty: 3 },
+  { z: -31, puzzleType: 'mystery', title: 'Core Security Vault', difficulty: 4 },
 ];
 
 export const doors = DOOR_DEFS.map((def) => {
   const mesh = makeDoor(0xd9534f);
   mesh.position.set(0, 1.3, def.z);
   facilityGroup.add(mesh);
-  const doorState = { ...def, mesh, unlocked: false, baseY: 1.3 };
+  const doorState = { ...def, mesh, unlocked: false, baseY: 1.3, introShown: false };
   replaceWithModel(MODEL_PATHS.security_door, mesh, facilityGroup, {
     onReplaced: (model) => {
       doorState.mesh = model;
