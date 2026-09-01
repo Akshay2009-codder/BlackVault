@@ -3,6 +3,7 @@ import { controls } from './sceneSetup.js';
 import { doors, interactables } from './world.js';
 import { showEscapeComplete } from './narrative.js';
 import { renderProgress } from './hud.js';
+import { openChaosStream, closeChaosStream } from './chaosEvents.js';
 
 const puzzleScreen = document.getElementById('puzzle-screen');
 const puzzleTitleEl = document.getElementById('puzzle-title');
@@ -90,6 +91,9 @@ export async function openPuzzleTerminal(door) {
   }
 
   startTimer(currentPuzzle.time_limit_seconds);
+
+  // Open SSE chaos stream now that we have a live puzzle_id.
+  openChaosStream(currentPuzzle.puzzle_id);
 }
 
 function renderPreviewTable(puzzle) {
@@ -114,11 +118,15 @@ function startTimer(seconds) {
     updateTimerDisplay(remaining);
     if (remaining <= 0) {
       clearInterval(timerInterval);
+      closeChaosStream();
       resultEl.textContent = 'TIME EXPIRED \u2014 LOCK REASSERTED';
       resultEl.className = 'denied';
       submitBtn.disabled = true;
     }
   }, 1000);
+  // Expose a mutable ref so chaos timer_jolt can adjust it.
+  startTimer._remaining = () => remaining;
+  startTimer._adjust = (delta) => { remaining = Math.max(0, remaining + delta); };
 }
 
 function updateTimerDisplay(seconds) {
@@ -130,6 +138,7 @@ function updateTimerDisplay(seconds) {
 submitBtn.addEventListener('click', async () => {
   if (!currentPuzzle) return;
   submitBtn.disabled = true;
+  closeChaosStream();
   resultEl.textContent = 'RUNNING PIPELINE\u2026';
   resultEl.className = '';
 
@@ -196,3 +205,64 @@ function unlockDoor(door) {
   };
   openAnim();
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3 — React to chaos events dispatched by chaosEvents.js
+// ---------------------------------------------------------------------------
+
+/** Briefly pulse an element with the chaos-pulse CSS animation. */
+function chaosPulse(el) {
+  el.classList.remove('chaos-pulse');
+  // Force a reflow so re-adding the class restarts the animation.
+  void el.offsetWidth;
+  el.classList.add('chaos-pulse');
+  el.addEventListener('animationend', () => el.classList.remove('chaos-pulse'), { once: true });
+}
+
+window.addEventListener('chaos', (e) => {
+  const ev = e.detail;
+
+  // -- metric_shift: update the threshold label in the terminal brief --
+  if (ev.type === 'metric_shift' && currentPuzzle) {
+    currentPuzzle.threshold = ev.new_threshold;
+    const sign = ev.delta > 0 ? '+' : '';
+    const metricLabel = ev.metric === 'silhouette' ? 'SILHOUETTE' : ev.metric.toUpperCase();
+    metricLabelEl.textContent = `${metricLabel} \u2265 ${ev.new_threshold.toFixed(3)}`;
+    metricLabelEl.title = `CHAOS: threshold shifted ${sign}${ev.delta.toFixed(3)}`;
+    chaosPulse(metricLabelEl);
+  }
+
+  // -- data_inject: prepend new rows to the preview table --
+  if (ev.type === 'data_inject' && currentPuzzle && ev.rows?.length) {
+    const cols = currentPuzzle.target_col
+      ? [...currentPuzzle.feature_cols, currentPuzzle.target_col]
+      : [...currentPuzzle.feature_cols];
+    const newRows = ev.rows.map((row) => {
+      const cells = cols.map((c) => {
+        const v = row[c];
+        if (v === null || v === undefined) return `<td class="na">NaN</td>`;
+        return `<td class="chaos-new">${typeof v === 'number' ? v.toFixed(2) : v}</td>`;
+      }).join('');
+      return `<tr class="chaos-row">${cells}</tr>`;
+    }).join('');
+    // Prepend after the header row (first <tr>).
+    const firstRow = previewTable.querySelector('tr');
+    if (firstRow) firstRow.insertAdjacentHTML('afterend', newRows);
+    // Update stat counters
+    const currentMissing = parseInt(statMissing.textContent, 10) || 0;
+    const currentRows = parseInt(statRows.textContent, 10) || 0;
+    statRows.textContent = currentRows + ev.count;
+    statMissing.textContent = currentMissing + ev.rows.filter((r) => Object.values(r).some((v) => v === null)).length;
+    chaosPulse(statRows);
+  }
+
+  // -- timer_jolt: adjust remaining seconds --
+  if (ev.type === 'timer_jolt' && typeof startTimer._adjust === 'function') {
+    startTimer._adjust(ev.delta_seconds);
+    puzzleTimerEl.classList.add(ev.delta_seconds < 0 ? 'timer-jolt-negative' : 'timer-jolt-positive');
+    setTimeout(() => {
+      puzzleTimerEl.classList.remove('timer-jolt-negative', 'timer-jolt-positive');
+    }, 900);
+  }
+});
+
