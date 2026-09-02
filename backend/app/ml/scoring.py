@@ -47,28 +47,67 @@ def score_to_stars(score: float, target: float, time_taken: float, time_limit: f
 
 
 def _score_cleaning(level, actions, challenge_data, time_taken, config):
-    """Score data cleaning actions."""
-    answer = challenge_data.get("answer", {})
-    total_issues = answer.get("issues", 5) + answer.get("duplicates", 0)
+    """Score data cleaning actions using precise issue-based validation."""
+    from app.ml.problems.cleaning import validate_actions
 
-    # Each correct action fixes some issues
-    correct_actions = {"remove_missing", "fill_missing_mean", "fill_missing_mode",
-                       "remove_duplicates", "fix_data_types", "remove_outliers", "cap_outliers"}
-    player_correct = [a for a in actions if a in correct_actions]
+    issue_breakdown = challenge_data.get("issue_breakdown")
+    if not issue_breakdown:
+        # Fallback for old-style challenge data
+        answer = challenge_data.get("answer", {})
+        total_issues = answer.get("issues", 5) + answer.get("duplicates", 0)
+        correct_actions = {"remove_missing", "fill_missing_mean", "fill_missing_mode",
+                           "remove_duplicates", "fix_data_types", "remove_outliers", "cap_outliers"}
+        player_correct = [a for a in actions if a in correct_actions]
+        fixes_per_action = max(1, total_issues // len(correct_actions)) if correct_actions else 0
+        issues_fixed = min(total_issues, len(player_correct) * fixes_per_action)
+        score = issues_fixed / max(1, total_issues)
+        target = config["threshold_modifier"]
+        return {
+            "score": round(score, 4),
+            "target": target,
+            "metric_name": "cleaning_accuracy",
+            "message": f"Fixed {issues_fixed}/{total_issues} issues ({score:.0%})",
+            "details": {"issues_fixed": issues_fixed, "total_issues": total_issues},
+        }
 
-    # Score = percentage of issues addressed
-    fixes_per_action = max(1, total_issues // len(correct_actions)) if correct_actions else 0
-    issues_fixed = min(total_issues, len(player_correct) * fixes_per_action)
-    score = issues_fixed / max(1, total_issues)
-
+    # Use precise validation
+    validation = validate_actions(actions, issue_breakdown)
+    score = validation["effectiveness"]
     target = config["threshold_modifier"]
+
+    total_issues = issue_breakdown["total"]
+    issues_addressed_types = len(validation["issues_addressed"])
+    total_issue_types = sum(1 for c in issue_breakdown["counts"].values() if c > 0)
+
+    # Count actual issues fixed (by count, not just type)
+    issues_fixed = sum(
+        issue_breakdown["counts"].get(it, 0)
+        for it in validation["issues_addressed"]
+    )
+
+    if score >= target:
+        if score >= target * 1.15:
+            msg = f"Excellent! Fixed {issues_fixed}/{total_issues} issues — data is pristine!"
+        else:
+            msg = f"Good work! Fixed {issues_fixed}/{total_issues} issues."
+    else:
+        msg = f"Only fixed {issues_fixed}/{total_issues} issues. Try addressing all issue types."
 
     return {
         "score": round(score, 4),
         "target": target,
         "metric_name": "cleaning_accuracy",
-        "message": f"Fixed {issues_fixed}/{total_issues} issues ({score:.0%})",
-        "details": {"issues_fixed": issues_fixed, "total_issues": total_issues},
+        "message": msg,
+        "details": {
+            "issues_fixed": issues_fixed,
+            "total_issues": total_issues,
+            "issue_types_addressed": issues_addressed_types,
+            "total_issue_types": total_issue_types,
+            "unnecessary_actions": validation["unnecessary_count"],
+            "unaddressed": validation["unaddressed"],
+            "issue_breakdown": issue_breakdown["counts"],
+        },
+        "feedback": validation["feedback"],
     }
 
 

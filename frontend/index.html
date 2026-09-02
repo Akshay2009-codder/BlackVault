@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BlackVault ML Lab — Solve machine learning challenges behind 5 doors in a high-tech lab facility">
+    <title>BlackVault — ML Escape Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <!-- Three.js Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Crosshair -->
+    <div id="crosshair">+</div>
+
+    <!-- Main Menu Overlay -->
+    <div id="main-menu" class="overlay active">
+        <div class="menu-bg-particles" id="menu-particles"></div>
+        <div class="menu-content">
+            <div class="logo-container">
+                <div class="logo-glow"></div>
+                <h1 class="game-title">
+                    <span class="title-black">BLACK</span><span class="title-vault">VAULT</span>
+                </h1>
+                <p class="game-subtitle">ML ESCAPE LAB</p>
+            </div>
+            <div class="menu-buttons">
+                <button id="btn-play" class="menu-btn primary">
+                    <span class="btn-icon">▶</span>
+                    <span class="btn-text">ENTER LAB</span>
+                    <span class="btn-shine"></span>
+                </button>
+                <button id="btn-levels" class="menu-btn secondary">
+                    <span class="btn-icon">◈</span>
+                    <span class="btn-text">LEVEL SELECT</span>
+                    <span class="btn-shine"></span>
+                </button>
+            </div>
+            <div class="menu-stats" id="menu-stats">
+                <div class="stat-item">
+                    <span class="stat-label">LEVEL</span>
+                    <span class="stat-value" id="stat-level">1</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">STARS</span>
+                    <span class="stat-value" id="stat-stars">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Select Overlay -->
+    <div id="level-select" class="overlay">
+        <div class="overlay-header">
+            <button class="back-btn" id="btn-back-menu">← BACK</button>
+            <h2 class="overlay-title">LEVEL SELECT</h2>
+        </div>
+        <div class="level-grid" id="level-grid">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- HUD (visible during gameplay) -->
+    <div id="hud" class="hud hidden">
+        <div class="hud-top">
+            <div class="hud-level">
+                <span class="hud-label">LEVEL</span>
+                <span class="hud-value" id="hud-level">1</span>
+            </div>
+            <div class="hud-stars">
+                <span class="hud-label">STARS</span>
+                <span class="hud-value" id="hud-stars">⭐ 0 / 15</span>
+            </div>
+            <div class="hud-doors">
+                <span class="hud-label">DOORS</span>
+                <span class="hud-value" id="hud-doors">0 / 5</span>
+            </div>
+        </div>
+        <div class="hud-bottom">
+            <div class="hud-interact hidden" id="hud-interact">
+                <span class="interact-key">E</span>
+                <span class="interact-text" id="interact-text">Open Door</span>
+            </div>
+        </div>
+        <div class="hud-corner">
+            <button class="pause-btn" id="btn-pause">⏸ ESC</button>
+        </div>
+    </div>
+
+    <!-- Door Interaction Prompt -->
+    <div id="door-prompt" class="door-prompt hidden">
+        <div class="prompt-card">
+            <div class="prompt-icon" id="prompt-icon">🧹</div>
+            <h3 class="prompt-title" id="prompt-title">Data Cleaning</h3>
+            <p class="prompt-desc" id="prompt-desc">Fix dirty data: missing values, duplicates, bad types</p>
+            <div class="prompt-stars" id="prompt-stars">☆ ☆ ☆</div>
+            <div class="prompt-actions">
+                <button class="prompt-btn enter" id="btn-enter-door">
+                    ENTER <span class="key-hint">[E]</span>
+                </button>
+                <button class="prompt-btn cancel" id="btn-cancel-door">
+                    BACK <span class="key-hint">[ESC]</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal / Challenge UI (Phase 2 will populate this) -->
+    <div id="terminal-overlay" class="overlay">
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <div class="terminal-title" id="terminal-title">DATA CLEANING TERMINAL</div>
+                <div class="terminal-timer" id="terminal-timer">02:00</div>
+                <button class="terminal-close" id="btn-close-terminal">✕</button>
+            </div>
+            <div class="terminal-body">
+                <div class="terminal-data" id="terminal-data">
+                    <!-- Dataset table rendered here -->
+                </div>
+                <div class="terminal-actions" id="terminal-actions">
+                    <!-- Action buttons rendered here -->
+                </div>
+                <div class="terminal-output" id="terminal-output">
+                    <p class="terminal-log">System ready. Awaiting input...</p>
+                </div>
+            </div>
+            <div class="terminal-footer">
+                <button class="terminal-submit" id="btn-submit-challenge">SUBMIT SOLUTION</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="results-overlay" class="overlay">
+        <div class="results-card">
+            <h2 class="results-title" id="results-title">CHALLENGE COMPLETE</h2>
+            <div class="results-stars" id="results-stars">
+                <span class="result-star">⭐</span>
+                <span class="result-star dim">⭐</span>
+                <span class="result-star dim">⭐</span>
+            </div>
+            <div class="results-details" id="results-details">
+                <p>Score: 0.85</p>
+                <p>Target: 0.70</p>
+                <p>Time: 45s</p>
+            </div>
+            <div class="results-message" id="results-message">Great work, Agent!</div>
+            <button class="menu-btn primary" id="btn-results-continue">
+                <span class="btn-text">CONTINUE</span>
+                <span class="btn-shine"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="overlay">
+        <div class="pause-card">
+            <h2 class="pause-title">PAUSED</h2>
+            <button class="menu-btn primary" id="btn-resume">
+                <span class="btn-text">RESUME</span>
+                <span class="btn-shine"></span>
+            </button>
+            <button class="menu-btn secondary" id="btn-quit">
+                <span class="btn-text">QUIT TO MENU</span>
+                <span class="btn-shine"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">INITIALIZING LAB SYSTEMS...</p>
+        </div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+</body>
+</html>

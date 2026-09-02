@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response models.
 """
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 
 
 # ---------- Door Types ----------
@@ -66,6 +66,9 @@ class ChallengeResponse(BaseModel):
     time_limit: float
     available_actions: List[str]
     hints: List[str]
+    issue_breakdown: Optional[Dict[str, Any]] = None
+    cell_issues: Optional[List[Dict[str, Any]]] = None
+    action_details: Optional[Dict[str, Any]] = None
 
 
 class SubmitResponse(BaseModel):
@@ -76,6 +79,7 @@ class SubmitResponse(BaseModel):
     message: str
     metric_name: str
     details: dict = {}
+    feedback: Optional[List[Dict[str, Any]]] = None
 
 
 class ProgressResponse(BaseModel):

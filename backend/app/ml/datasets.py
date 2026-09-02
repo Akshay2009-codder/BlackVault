@@ -28,6 +28,8 @@ def generate_dataset(door_type: str, level: int, config: dict) -> dict:
 
 def _gen_cleaning(level: int, config: dict) -> dict:
     """Generate a dirty dataset for data cleaning challenges."""
+    from app.ml.problems.cleaning import get_issue_breakdown, CLEANING_ACTIONS
+
     n_rows = 15 + level * 3
     corruption_rate = config["corruption_rate"]
 
@@ -36,6 +38,8 @@ def _gen_cleaning(level: int, config: dict) -> dict:
     departments = ["Engineering", "Marketing", "Sales", "HR", "Finance"]
     clean_rows = []
     dirty_rows = []
+    # Track cell-level issues for frontend highlighting
+    cell_issues = []  # list of {row, column, type, value}
 
     for i in range(n_rows):
         row = {
@@ -55,44 +59,65 @@ def _gen_cleaning(level: int, config: dict) -> dict:
             if corruption_type == "missing":
                 field = random.choice(["age", "salary", "department", "rating"])
                 dirty_row[field] = None
+                cell_issues.append({
+                    "row": len(dirty_rows), "column": field,
+                    "type": "missing", "value": None,
+                })
             elif corruption_type == "bad_type":
                 dirty_row["age"] = "unknown"
+                cell_issues.append({
+                    "row": len(dirty_rows), "column": "age",
+                    "type": "bad_type", "value": "unknown",
+                })
             elif corruption_type == "outlier":
-                dirty_row["salary"] = round(random.uniform(900000, 9999999), 2)
+                outlier_val = round(random.uniform(900000, 9999999), 2)
+                dirty_row["salary"] = outlier_val
+                cell_issues.append({
+                    "row": len(dirty_rows), "column": "salary",
+                    "type": "outlier", "value": outlier_val,
+                })
             elif corruption_type == "duplicate":
-                dirty_rows.append(dirty_row.copy())  # Add a duplicate
+                # Add a duplicate row before the original
+                dirty_rows.append(dirty_row.copy())
+                cell_issues.append({
+                    "row": len(dirty_rows) - 1, "column": "id",
+                    "type": "duplicate", "value": dirty_row["id"],
+                })
         dirty_rows.append(dirty_row)
 
-    # Count issues
-    n_issues = sum(1 for r in dirty_rows if
-                   any(v is None for v in r.values()) or
-                   isinstance(r.get("age"), str) or
-                   r.get("salary", 0) > 500000)
-    n_duplicates = len(dirty_rows) - len(clean_rows)
+    # Get structured issue breakdown using the cleaning module
+    breakdown = get_issue_breakdown(dirty_rows, clean_rows)
 
     return {
         "dataset": {
             "headers": headers,
             "rows": dirty_rows,
             "row_count": len(dirty_rows),
-            "issue_count": n_issues + n_duplicates,
+            "issue_count": breakdown["total"],
         },
         "clean_dataset": clean_rows,
-        "answer": {"issues": n_issues, "duplicates": n_duplicates},
+        "answer": {
+            "issues": breakdown["counts"]["missing"] + breakdown["counts"]["bad_type"] + breakdown["counts"]["outlier"],
+            "duplicates": breakdown["counts"]["duplicate"],
+        },
+        "issue_breakdown": breakdown,
+        "cell_issues": cell_issues,
         "target_metric": "cleaning_accuracy",
         "target_value": config["threshold_modifier"],
-        "available_actions": [
-            "remove_missing",
-            "fill_missing_mean",
-            "fill_missing_mode",
-            "remove_duplicates",
-            "fix_data_types",
-            "remove_outliers",
-            "cap_outliers",
-        ],
+        "available_actions": list(CLEANING_ACTIONS.keys()),
+        "action_details": {
+            key: {
+                "description": val["description"],
+                "impact": val["impact"],
+                "icon": val["icon"],
+                "fixes": val["fixes"],
+            }
+            for key, val in CLEANING_ACTIONS.items()
+        },
         "hints": [
-            f"This dataset has {n_issues + n_duplicates} issues to fix",
+            f"This dataset has {breakdown['total']} issues to fix",
             "Look for missing values, wrong data types, and extreme outliers",
+            f"Issue types: {', '.join(t for t, c in breakdown['counts'].items() if c > 0)}",
         ],
     }
 
