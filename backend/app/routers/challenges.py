@@ -42,6 +42,7 @@ async def start_challenge(req: ChallengeStartRequest):
         "dataset": challenge_data["dataset"],
         "clean_dataset": challenge_data.get("clean_dataset"),
         "answer": challenge_data.get("answer"),
+        "issue_breakdown": challenge_data.get("issue_breakdown"),
         "config": config,
     }
 
@@ -54,6 +55,9 @@ async def start_challenge(req: ChallengeStartRequest):
         time_limit=config["time_limit"],
         available_actions=challenge_data["available_actions"],
         hints=challenge_data.get("hints", []),
+        issue_breakdown=challenge_data.get("issue_breakdown"),
+        cell_issues=challenge_data.get("cell_issues"),
+        action_details=challenge_data.get("action_details"),
     )
 
 
@@ -111,6 +115,7 @@ async def submit_challenge(req: ChallengeSubmitRequest):
         message=result["message"],
         metric_name=result["metric_name"],
         details=result.get("details", {}),
+        feedback=result.get("feedback"),
     )
 
 
