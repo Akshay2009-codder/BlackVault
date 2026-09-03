@@ -1,39 +1,33 @@
 """
-BlackVault Backend — FastAPI entry point
+BlackVault backend entrypoint.
+
+Run with: uvicorn main:app --reload --port 8000
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
-from app.database import init_db
-from app.routers import levels, challenges, progress
+from app.config import CORS_ORIGINS
+from app.routes import router
+from app import store
 
-app = FastAPI(title="BlackVault ML Lab", version="1.0.0")
+app = FastAPI(title="BlackVault API")
 
-# CORS — allow frontend dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(levels.router, prefix="/api/levels", tags=["levels"])
-app.include_router(challenges.router, prefix="/api/challenges", tags=["challenges"])
-app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
+app.include_router(router)
 
 
 @app.on_event("startup")
-async def startup():
-    init_db()
+def startup():
+    store.init_db()
 
 
-@app.get("/health")
-async def health():
-    return {"status": "ok", "game": "BlackVault ML Lab"}
-
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
