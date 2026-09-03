@@ -46,7 +46,7 @@ export class APIClient {
         });
     }
 
-    async submitChallenge(level, doorType, actions, timeTaken, playerId = 1) {
+    async submitChallenge(level, doorType, actions, timeTaken, playerId = 1, code = '') {
         return this._fetch('/challenges/submit', {
             method: 'POST',
             body: JSON.stringify({
@@ -55,6 +55,7 @@ export class APIClient {
                 door_type: doorType,
                 actions: actions,
                 time_taken: timeTaken,
+                code: code,
             }),
         });
     }

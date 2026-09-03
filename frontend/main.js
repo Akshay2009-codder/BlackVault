@@ -13,9 +13,12 @@ import { Terminal } from './src/ui/Terminal.js';
 import { Results } from './src/ui/Results.js';
 import { APIClient } from './src/api/client.js';
 
+// ───── Door Order ─────
+const DOOR_ORDER = ['cleaning', 'regression', 'classification', 'clustering', 'anomaly'];
+
 // ───── Game State ─────
 const state = {
-    currentScreen: 'menu',  // menu | levelSelect | playing | doorPrompt | terminal | results | paused
+    currentScreen: 'menu',
     currentLevel: 1,
     playerData: null,
     levelData: null,
@@ -170,7 +173,7 @@ function showResults(resultData) {
     state.currentScreen = 'results';
     state.lastResult = resultData;
     terminal.hide();
-    results.show(resultData);
+    results.show(resultData, state.activeDoor);
 }
 
 async function returnToLab() {
@@ -180,20 +183,41 @@ async function returnToLab() {
     const solvedDoor = state.activeDoor;
     state.activeDoor = null;
 
-    // Refresh level data
+    // Screen flash for success
+    if (state.lastResult?.success && solvedDoor) {
+        const flash = document.createElement('div');
+        flash.className = 'door-unlock-overlay';
+        document.body.appendChild(flash);
+        setTimeout(() => flash.remove(), 1600);
+    }
+
+    // Refresh level data from backend
     try {
         state.playerData = await api.getPlayer();
         state.currentLevel = state.playerData.current_level;
         const data = await api.getLevel(state.currentLevel);
         state.levelData = data;
         labScene.setLevel(state.currentLevel, state.levelData);
-        
-        // Trigger celebratory unlock effect if solved
+
         if (state.lastResult?.success && solvedDoor) {
+            // Flash completed door
             labScene.unlockDoorEffect(solvedDoor.type);
+            // Unlock the next door in sequence
+            labScene.unlockNextDoor(solvedDoor.type);
+            // Update HUD with next door hint
+            const nextIdx = DOOR_ORDER.indexOf(solvedDoor.type) + 1;
+            if (nextIdx < DOOR_ORDER.length) {
+                const nextName = DOOR_ORDER[nextIdx].charAt(0).toUpperCase() + DOOR_ORDER[nextIdx].slice(1);
+                hud.showNextDoorHint(nextName);
+            }
         }
     } catch (e) {
         console.warn('Could not refresh data');
+        // Still update locally on error
+        if (state.lastResult?.success && solvedDoor) {
+            labScene.unlockDoorEffect(solvedDoor.type);
+            labScene.unlockNextDoor(solvedDoor.type);
+        }
     }
 
     hud.update(state);
