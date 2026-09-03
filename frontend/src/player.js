@@ -1,4 +1,4 @@
-// First-person movement and collision controls.
+// First-person movement and collision controls within the studio lab.
 
 import * as THREE from "three";
 
@@ -11,8 +11,13 @@ const moveState = { forward: false, backward: false, left: false, right: false }
 
 let isLocked = false;
 let euler = new THREE.Euler(0, 0, 0, "YXZ");
-const SPEED = 8.0;
-const ROOM_RADIUS = 15.0;
+const SPEED = 7.0;
+
+// Studio room boundaries
+const BOUND_MIN_X = -12.0;
+const BOUND_MAX_X = 12.0;
+const BOUND_MIN_Z = -13.5;
+const BOUND_MAX_Z = 13.5;
 
 export function initPlayer(cam, element = document.body) {
   camera = cam;
@@ -23,7 +28,6 @@ export function initPlayer(cam, element = document.body) {
   document.addEventListener("mousemove", onMouseMove);
 
   element.addEventListener("click", () => {
-    // Only request lock if not already inside a modal/terminal
     const terminal = document.getElementById("terminal");
     if (!terminal || terminal.classList.contains("hidden")) {
       element.requestPointerLock();
@@ -84,23 +88,17 @@ export function updatePlayer(delta) {
     velocity.x += direction.x * SPEED * 10.0 * delta;
   }
 
-  // Translate relative to camera facing (XZ plane only)
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
   const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
 
   camera.position.addScaledVector(forward, -velocity.z * delta);
   camera.position.addScaledVector(right, velocity.x * delta);
 
-  // Keep player on floor
   camera.position.y = 1.7;
 
-  // Clamp player within circular hub bounds
-  const xzDist = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
-  if (xzDist > ROOM_RADIUS) {
-    const angle = Math.atan2(camera.position.x, camera.position.z);
-    camera.position.x = Math.sin(angle) * ROOM_RADIUS;
-    camera.position.z = Math.cos(angle) * ROOM_RADIUS;
-  }
+  // Clamp within realistic studio room rectangle
+  camera.position.x = Math.max(BOUND_MIN_X, Math.min(BOUND_MAX_X, camera.position.x));
+  camera.position.z = Math.max(BOUND_MIN_Z, Math.min(BOUND_MAX_Z, camera.position.z));
 }
 
 export function getPlayerPosition() {
