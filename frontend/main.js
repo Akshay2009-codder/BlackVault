@@ -1,15 +1,16 @@
 // BlackVault frontend entrypoint.
 // Connects Three.js hub scene, player controls, raycasting interactions,
-// terminal puzzle UI, level progression, and security guard AI voice.
+// terminal puzzle UI, level progression, security guard AI voice, and 3D character.
 
 import * as THREE from "three";
 import { initScene, getCamera, getRenderer, getScene } from "./src/sceneSetup.js";
 import { initWorld } from "./src/world.js";
-import { initPlayer, updatePlayer } from "./src/player.js";
+import { initPlayer, updatePlayer, getPlayerPosition } from "./src/player.js";
 import { initInteractions, updateInteractions } from "./src/interactions.js";
 import { initTerminalUI, openTerminal } from "./src/puzzleTerminal.js";
 import { initLevelManager } from "./src/levelManager.js";
 import { initGuardVoice } from "./src/guardVoice.js";
+import { createGuard, updateGuard } from "./src/character.js";
 
 const BUILD_TAG = "blackvault-level-hub-v2";
 const tagEl = document.getElementById("build-tag");
@@ -22,20 +23,23 @@ const { scene, camera, renderer } = initScene();
 // 2. Hub geometry & 5 doors
 initWorld(scene);
 
-// 3. Player movement & pointer lock
+// 3. Security Guard 3D character
+createGuard(scene);
+
+// 4. Player movement & pointer lock
 initPlayer(camera, renderer.domElement);
 
-// 4. Raycasting door interactions
+// 5. Raycasting door interactions
 initInteractions(camera, (doorType) => {
   openTerminal(doorType);
 });
 
-// 5. Terminal UI & Level Progression
+// 6. Terminal UI & Level Progression
 initTerminalUI();
 initGuardVoice();
 initLevelManager({ level: 1 });
 
-// 6. Animation Loop
+// 7. Animation Loop
 const clock = new THREE.Clock();
 
 function animate() {
@@ -44,6 +48,9 @@ function animate() {
   const delta = clock.getDelta();
   updatePlayer(delta);
   updateInteractions();
+
+  // Update guard AI & animation
+  updateGuard(delta, getPlayerPosition());
 
   renderer.render(scene, camera);
 }
