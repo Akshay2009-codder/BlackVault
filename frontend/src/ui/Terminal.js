@@ -1,56 +1,64 @@
 /**
- * Terminal — ML Challenge UI with rich data table, issue highlighting,
- * action details, real-time pipeline preview, timer, and output log.
+ * Terminal — ML Challenge UI.
+ * Left panel: dataset table with issue highlighting.
+ * Right panel: Python code editor (CodeEditor component).
+ * Bottom: log console + timer + submit.
  */
+import { CodeEditor } from './CodeEditor.js';
+
 export class Terminal {
     constructor(state, api, callbacks) {
-        this.state = state;
-        this.api = api;
+        this.state     = state;
+        this.api       = api;
         this.callbacks = callbacks;
 
-        this.el = document.getElementById('terminal-overlay');
-        this.titleEl = document.getElementById('terminal-title');
-        this.timerEl = document.getElementById('terminal-timer');
-        this.dataEl = document.getElementById('terminal-data');
-        this.actionsEl = document.getElementById('terminal-actions');
-        this.outputEl = document.getElementById('terminal-output');
-        this.btnSubmit = document.getElementById('btn-submit-challenge');
-        this.btnClose = document.getElementById('btn-close-terminal');
+        this.el           = document.getElementById('terminal-overlay');
+        this.containerEl  = document.getElementById('terminal-container');
+        this.accentBar    = document.getElementById('terminal-accent-bar');
+        this.titleEl      = document.getElementById('terminal-title');
+        this.timerEl      = document.getElementById('terminal-timer');
+        this.dataEl       = document.getElementById('terminal-data');
+        this.editorEl     = document.getElementById('terminal-editor');
+        this.outputEl     = document.getElementById('terminal-output');
+        this.issueBanner  = document.getElementById('terminal-issue-banner');
+        this.footerLeft   = document.getElementById('terminal-footer-left');
+        this.btnSubmit    = document.getElementById('btn-submit-challenge');
+        this.btnClose     = document.getElementById('btn-close-terminal');
 
-        this.selectedActions = [];
-        this.challengeData = null;
-        this.timerInterval = null;
-        this.timeRemaining = 0;
-        this.startTime = 0;
+        this.challengeData  = null;
+        this.codeEditor     = null;
+        this.timerInterval  = null;
+        this.timeRemaining  = 0;
+        this.startTime      = 0;
+        this.currentDoor    = null;
 
         this.btnSubmit.addEventListener('click', () => this._submit());
-        this.btnClose.addEventListener('click', () => callbacks.onClose());
+        this.btnClose.addEventListener('click',  () => callbacks.onClose());
     }
 
     async show(door, state) {
-        this.selectedActions = [];
-        this.titleEl.innerHTML = `<span class="terminal-door-badge" style="background:${door.color ? '#' + (typeof door.color === 'number' ? door.color.toString(16).padStart(6, '0') : door.color) : 'var(--neon-green)'}"></span> ${door.name.toUpperCase()} TERMINAL`;
-
+        this.currentDoor = door;
         this.outputEl.innerHTML = '';
+
+        const doorColor = this._doorColor(door);
+        this._applyTheme(doorColor, door.name);
+
         this._log('Connecting to BlackVault Secure Subsystem...', 'sys');
+        this._log(`Loading ${door.name.toUpperCase()} challenge module...`, 'sys');
 
         try {
-            this.challengeData = await this.api.startChallenge(
-                state.currentLevel, door.type
-            );
-            
-            this._renderTerminalUI();
+            this.challengeData = await this.api.startChallenge(state.currentLevel, door.type);
+            this._renderUI();
             this._startTimer(this.challengeData.time_limit);
-            this._log(`Challenge loaded: Level ${state.currentLevel} ${door.name}`);
-            this._log(`Target: ${this.challengeData.target_metric} ≥ ${this.challengeData.target_value}`);
-
-            if (this.challengeData.hints?.length > 0) {
-                this.challengeData.hints.forEach(hint => this._log(`Hint: ${hint}`, 'hint'));
+            this._log(`Challenge ready — Level ${state.currentLevel}`, 'info');
+            this._log(`Target: ${this.challengeData.target_metric} ≥ ${(this.challengeData.target_value * 100).toFixed(0)}%`, 'info');
+            if (this.challengeData.hints?.length) {
+                this.challengeData.hints.forEach(h => this._log(`💡 ${h}`, 'hint'));
             }
         } catch (e) {
-            console.error('Error starting challenge:', e);
-            this._log(`ERROR: Could not connect to ML evaluation engine: ${e.message}`, 'error');
-            this._renderDemoData(door.type);
+            console.error('Challenge load error:', e);
+            this._log(`Backend offline — loading demo mode`, 'warn');
+            this._loadDemo(door.type);
             this._startTimer(120);
         }
 
@@ -61,36 +69,58 @@ export class Terminal {
     hide() {
         this.el.classList.remove('active');
         this._stopTimer();
+        this._resetTheme();
     }
 
-    _renderTerminalUI() {
-        this._renderIssueSummary();
-        this._renderDataset(this.challengeData.dataset, this.challengeData.cell_issues);
-        this._renderActions(this.challengeData.available_actions, this.challengeData.action_details);
-        this._renderPipeline();
+    // ─────────────────────────────────────────────
+    //  THEME
+    // ─────────────────────────────────────────────
+
+    _doorColor(door) {
+        if (typeof door.color === 'number')
+            return '#' + door.color.toString(16).padStart(6, '0');
+        return door.color?.startsWith?.('#') ? door.color : '#00f0ff';
     }
 
-    _renderIssueSummary() {
-        const breakdown = this.challengeData.issue_breakdown;
-        if (!breakdown) return;
-
-        let banner = document.getElementById('terminal-issue-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = 'terminal-issue-banner';
-            banner.className = 'terminal-issue-banner';
-            const body = document.querySelector('.terminal-body');
-            body.insertBefore(banner, body.firstChild);
+    _applyTheme(hex, name) {
+        if (this.accentBar) {
+            this.accentBar.style.background = hex;
+            this.accentBar.style.boxShadow  = `0 0 18px ${hex}`;
         }
+        if (this.containerEl) {
+            this.containerEl.style.borderColor = hex + '55';
+            this.containerEl.style.boxShadow   = `0 0 80px ${hex}18`;
+        }
+        this.titleEl.innerHTML = `<span class="terminal-door-badge" style="background:${hex};box-shadow:0 0 10px ${hex}"></span>${name.toUpperCase()} TERMINAL`;
+    }
 
-        const counts = breakdown.counts || {};
-        banner.innerHTML = `
-            <div class="issue-pill issue-total">Total Issues: <strong>${breakdown.total || 0}</strong></div>
-            <div class="issue-pill issue-missing">Missing: <strong>${counts.missing || 0}</strong></div>
-            <div class="issue-pill issue-duplicate">Duplicates: <strong>${counts.duplicate || 0}</strong></div>
-            <div class="issue-pill issue-bad_type">Type Errors: <strong>${counts.bad_type || 0}</strong></div>
-            <div class="issue-pill issue-outlier">Outliers: <strong>${counts.outlier || 0}</strong></div>
+    _resetTheme() {
+        if (this.accentBar) { this.accentBar.style.background = ''; this.accentBar.style.boxShadow = ''; }
+        if (this.containerEl) { this.containerEl.style.borderColor = ''; this.containerEl.style.boxShadow = ''; }
+    }
+
+    // ─────────────────────────────────────────────
+    //  RENDERING
+    // ─────────────────────────────────────────────
+
+    _renderUI() {
+        this._renderIssueBanner();
+        this._renderDataset(this.challengeData.dataset, this.challengeData.cell_issues);
+        this._renderCodeEditor();
+    }
+
+    _renderIssueBanner() {
+        const bd = this.challengeData.issue_breakdown;
+        if (!bd || !this.issueBanner) return;
+        const c = bd.counts || {};
+        this.issueBanner.innerHTML = `
+            <div class="issue-pill issue-total">⚠ Total Issues: <strong>${bd.total || 0}</strong></div>
+            ${c.missing   > 0 ? `<div class="issue-pill issue-missing">Missing: <strong>${c.missing}</strong></div>`     : ''}
+            ${c.duplicate > 0 ? `<div class="issue-pill issue-duplicate">Duplicates: <strong>${c.duplicate}</strong></div>` : ''}
+            ${c.bad_type  > 0 ? `<div class="issue-pill issue-bad_type">Type Errors: <strong>${c.bad_type}</strong></div>`   : ''}
+            ${c.outlier   > 0 ? `<div class="issue-pill issue-outlier">Outliers: <strong>${c.outlier}</strong></div>`        : ''}
         `;
+        this.issueBanner.style.display = 'flex';
     }
 
     _renderDataset(dataset, cellIssues = []) {
@@ -99,233 +129,126 @@ export class Terminal {
             return;
         }
 
-        const headers = dataset.headers || Object.keys(dataset.rows[0]);
-        const rows = dataset.rows.slice(0, 100);
-
-        // Build quick lookup for cell issues: `rowIdx_col` -> issueType
+        const headers  = dataset.headers || Object.keys(dataset.rows[0]);
+        const rows     = dataset.rows.slice(0, 80);
         const issueMap = new Map();
-        if (cellIssues && Array.isArray(cellIssues)) {
-            cellIssues.forEach(issue => {
-                issueMap.set(`${issue.row}_${issue.column}`, issue.type);
-            });
-        }
 
-        let html = '<div class="table-wrapper"><table><thead><tr>';
-        html += '<th class="row-num">#</th>';
+        (cellIssues || []).forEach(ci => issueMap.set(`${ci.row}_${ci.column}`, ci.type));
+
+        let html = '<div class="table-wrapper"><table><thead><tr><th class="row-num">#</th>';
         headers.forEach(h => { html += `<th>${h}</th>`; });
         html += '</tr></thead><tbody>';
 
-        rows.forEach((row, rowIdx) => {
-            html += `<tr><td class="row-num">${rowIdx + 1}</td>`;
+        rows.forEach((row, ri) => {
+            html += `<tr><td class="row-num">${ri + 1}</td>`;
             headers.forEach(h => {
                 const val = row[h];
-                let issueType = issueMap.get(`${rowIdx}_${h}`);
-                let cls = '';
-                let title = '';
+                let issueType = issueMap.get(`${ri}_${h}`);
+                let cls = '', title = '';
 
                 if (issueType) {
-                    cls = `cell-issue issue-${issueType}`;
-                    title = `Issue: ${issueType}`;
+                    cls = `cell-issue issue-${issueType}`; title = `Issue: ${issueType}`;
                 } else if (val === null || val === undefined) {
-                    cls = 'cell-issue issue-missing';
-                    title = 'Missing value (NULL)';
-                } else if (typeof val === 'string' && h !== 'name' && h !== 'department' && h !== 'label' && h !== 'transaction_id') {
-                    cls = 'cell-issue issue-bad_type';
-                    title = 'Invalid data type';
+                    cls = 'cell-issue issue-missing';      title = 'Missing value (NULL)';
+                } else if (typeof val === 'string' && !['name','department','label','transaction_id'].includes(h)) {
+                    cls = 'cell-issue issue-bad_type';     title = 'Invalid data type';
                 } else if (h === 'salary' && typeof val === 'number' && val > 500000) {
-                    cls = 'cell-issue issue-outlier';
-                    title = 'Extreme outlier';
+                    cls = 'cell-issue issue-outlier';      title = 'Extreme outlier';
                 }
 
-                const displayVal = val === null || val === undefined ? '∅ NULL' : val;
-                html += `<td class="${cls}" title="${title}">${displayVal}</td>`;
+                const dv = (val === null || val === undefined) ? '∅ NULL' : val;
+                html += `<td class="${cls}" title="${title}">${dv}</td>`;
             });
             html += '</tr>';
         });
 
         html += '</tbody></table></div>';
-        if (dataset.row_count > rows.length) {
-            html += `<p class="table-subtext">Showing first ${rows.length} of ${dataset.row_count} rows</p>`;
-        }
+        if (dataset.row_count > rows.length)
+            html += `<p class="table-subtext">Showing ${rows.length} of ${dataset.row_count} rows</p>`;
 
         this.dataEl.innerHTML = html;
     }
 
-    _renderActions(actions, actionDetails = {}) {
-        this.actionsEl.innerHTML = '<div class="actions-header">AVAILABLE ACTIONS</div>';
-
-        if (!actions?.length) return;
-
-        const actionLabels = {
-            remove_missing: '🗑️ Remove Missing',
-            fill_missing_mean: '📊 Fill Mean',
-            fill_missing_mode: '📋 Fill Mode',
-            remove_duplicates: '♻️ Remove Duplicates',
-            fix_data_types: '🔧 Fix Types',
-            remove_outliers: '✂️ Remove Outliers',
-            cap_outliers: '📏 Cap Outliers',
-            linear_regression: '📈 Linear Regression',
-            ridge_regression: '📈 Ridge Regression',
-            lasso_regression: '📈 Lasso Regression',
-            decision_tree: '🌳 Decision Tree',
-            random_forest: '🌲 Random Forest',
-            logistic_regression: '📊 Logistic Regression',
-            svm: '⚡ SVM',
-            knn: '🎯 K-Nearest Neighbors',
-            kmeans: '🎯 K-Means',
-            dbscan: '🔬 DBSCAN',
-            agglomerative: '🔗 Agglomerative',
-            set_clusters_2: '#2 Clusters',
-            set_clusters_3: '#3 Clusters',
-            set_clusters_4: '#4 Clusters',
-            set_clusters_5: '#5 Clusters',
-            set_clusters_6: '#6 Clusters',
-            isolation_forest: '🌲 Isolation Forest',
-            local_outlier_factor: '📍 Local Outlier Factor',
-            one_class_svm: '⚡ One-Class SVM',
-            statistical_threshold: '📐 Statistical Threshold',
-            set_threshold_low: '🔽 Low Threshold',
-            set_threshold_medium: '➡️ Med Threshold',
-            set_threshold_high: '🔼 High Threshold',
-            normalize_features: '📏 Normalize',
-            balance_classes: '⚖️ Balance Classes',
-        };
-
-        const container = document.createElement('div');
-        container.className = 'actions-list';
-
-        actions.forEach(action => {
-            const btn = document.createElement('button');
-            btn.className = 'action-btn';
-            if (this.selectedActions.includes(action)) {
-                btn.classList.add('selected');
-            }
-
-            const label = actionLabels[action] || action;
-            const details = actionDetails[action];
-
-            btn.innerHTML = `
-                <div class="action-btn-main">
-                    <span class="action-label">${label}</span>
-                </div>
-                ${details?.description ? `<div class="action-desc">${details.description}</div>` : ''}
-            `;
-            btn.dataset.action = action;
-
-            btn.addEventListener('click', () => {
-                if (btn.classList.contains('selected')) {
-                    btn.classList.remove('selected');
-                    this.selectedActions = this.selectedActions.filter(a => a !== action);
-                    this._log(`Removed action: ${label}`, 'warn');
-                } else {
-                    btn.classList.add('selected');
-                    this.selectedActions.push(action);
-                    this._log(`Added action: ${label}`, 'success');
-                }
-                this._renderPipeline();
-            });
-
-            container.appendChild(btn);
+    _renderCodeEditor() {
+        if (!this.editorEl) return;
+        this.codeEditor = new CodeEditor(this.currentDoor.type, (code) => {
+            if (this.footerLeft)
+                this.footerLeft.textContent = `${code.split('\n').filter(l => l.trim() && !l.trim().startsWith('#')).length} lines of code`;
         });
-
-        this.actionsEl.appendChild(container);
+        this.editorEl.innerHTML = this.codeEditor.getHTML();
+        this.codeEditor.mount();
     }
 
-    _renderPipeline() {
-        let pipelineEl = document.getElementById('terminal-pipeline');
-        if (!pipelineEl) {
-            pipelineEl = document.createElement('div');
-            pipelineEl.id = 'terminal-pipeline';
-            pipelineEl.className = 'terminal-pipeline';
-            this.actionsEl.appendChild(pipelineEl);
-        }
+    // ─────────────────────────────────────────────
+    //  DEMO (offline fallback)
+    // ─────────────────────────────────────────────
 
-        if (this.selectedActions.length === 0) {
-            pipelineEl.innerHTML = '<span class="pipeline-placeholder">No actions selected in pipeline</span>';
-            return;
-        }
-
-        pipelineEl.innerHTML = `
-            <div class="pipeline-title">PIPELINE (${this.selectedActions.length}):</div>
-            <div class="pipeline-tags">
-                ${this.selectedActions.map((a, i) => `
-                    <span class="pipeline-tag">
-                        <span class="pipeline-step">${i + 1}</span>
-                        ${a.replace(/_/g, ' ')}
-                    </span>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    _renderDemoData(doorType) {
-        const demoData = {
-            headers: ['id', 'name', 'age', 'salary', 'department', 'rating'],
-            rows: [
-                { id: 1, name: 'Employee_1', age: 28, salary: 65000, department: 'Engineering', rating: 4.2 },
-                { id: 2, name: 'Employee_2', age: 'unknown', salary: 72000, department: 'Marketing', rating: 3.8 },
-                { id: 3, name: 'Employee_3', age: 35, salary: null, department: 'Sales', rating: 4.5 },
-                { id: 3, name: 'Employee_3', age: 35, salary: null, department: 'Sales', rating: 4.5 },
-                { id: 4, name: 'Employee_4', age: 44, salary: 2500000, department: 'Finance', rating: 2.1 },
-            ],
-            row_count: 5,
-        };
+    _loadDemo(doorType) {
         this.challengeData = {
-            dataset: demoData,
+            dataset: {
+                headers: ['id','name','age','salary','department','rating'],
+                rows: [
+                    { id:1, name:'Employee_1', age:28,        salary:65000,   department:'Engineering', rating:4.2 },
+                    { id:2, name:'Employee_2', age:'unknown',  salary:72000,   department:'Marketing',   rating:3.8 },
+                    { id:3, name:'Employee_3', age:35,         salary:null,    department:'Sales',       rating:4.5 },
+                    { id:3, name:'Employee_3', age:35,         salary:null,    department:'Sales',       rating:4.5 },
+                    { id:4, name:'Employee_4', age:44,         salary:2500000, department:'Finance',     rating:2.1 },
+                ],
+                row_count: 5,
+            },
             target_metric: 'cleaning_accuracy',
             target_value: 0.7,
             time_limit: 120,
-            available_actions: ['remove_missing', 'fill_missing_mean', 'remove_duplicates', 'fix_data_types', 'remove_outliers', 'cap_outliers'],
-            action_details: {},
-            issue_breakdown: { total: 4, counts: { missing: 1, duplicate: 1, bad_type: 1, outlier: 1 } },
-            hints: ['Demo mode active. Clean the missing, duplicate, and outlier values.'],
+            issue_breakdown: { total: 4, counts: { missing:1, duplicate:1, bad_type:1, outlier:1 } },
+            hints: ['DEMO MODE — Backend offline'],
+            cell_issues: [
+                { row:1, column:'age',    type:'bad_type'  },
+                { row:2, column:'salary', type:'missing'   },
+                { row:3, column:'id',     type:'duplicate' },
+                { row:4, column:'salary', type:'outlier'   },
+            ],
         };
-        this._renderTerminalUI();
+        this._renderUI();
     }
+
+    // ─────────────────────────────────────────────
+    //  TIMER
+    // ─────────────────────────────────────────────
 
     _startTimer(seconds) {
         this.timeRemaining = seconds;
-        this._updateTimerDisplay();
-
+        this._updateTimer();
         if (this.timerInterval) clearInterval(this.timerInterval);
-
         this.timerInterval = setInterval(() => {
             this.timeRemaining--;
-            this._updateTimerDisplay();
-
-            if (this.timeRemaining <= 0) {
-                this._stopTimer();
-                this._log('TIME LIMIT EXPIRED! Submitting current pipeline...', 'error');
-                this._submit();
-            }
+            this._updateTimer();
+            if (this.timeRemaining <= 0) { this._stopTimer(); this._submit(); }
         }, 1000);
     }
 
     _stopTimer() {
-        if (this.timerInterval) {
-            clearInterval(this.timerInterval);
-            this.timerInterval = null;
-        }
+        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
     }
 
-    _updateTimerDisplay() {
-        const mins = Math.max(0, Math.floor(this.timeRemaining / 60));
-        const secs = Math.max(0, this.timeRemaining % 60);
-        this.timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
+    _updateTimer() {
+        const m = Math.max(0, Math.floor(this.timeRemaining / 60));
+        const s = Math.max(0, this.timeRemaining % 60);
+        this.timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
         this.timerEl.className = 'terminal-timer';
-        if (this.timeRemaining <= 15) {
-            this.timerEl.classList.add('critical');
-        } else if (this.timeRemaining <= 30) {
-            this.timerEl.classList.add('warning');
-        }
+        if      (this.timeRemaining <= 15) this.timerEl.classList.add('critical');
+        else if (this.timeRemaining <= 30) this.timerEl.classList.add('warning');
     }
+
+    // ─────────────────────────────────────────────
+    //  SUBMIT
+    // ─────────────────────────────────────────────
 
     async _submit() {
         this._stopTimer();
         const timeTaken = (Date.now() - this.startTime) / 1000;
+        const code = this.codeEditor?.getCode() || '';
 
-        this._log('Evaluating pipeline on validation server...', 'sys');
+        this._log('⟳ Evaluating code on validation server...', 'sys');
         this.btnSubmit.disabled = true;
         this.btnSubmit.textContent = 'EVALUATING...';
 
@@ -333,27 +256,28 @@ export class Terminal {
             const result = await this.api.submitChallenge(
                 this.state.currentLevel,
                 this.state.activeDoor.type,
-                this.selectedActions,
-                timeTaken
+                [],        // actions array (legacy)
+                timeTaken,
+                1,         // playerId
+                code       // new: submitted code
             );
-
             this.btnSubmit.disabled = false;
             this.btnSubmit.textContent = 'SUBMIT SOLUTION';
             this.callbacks.onComplete(result);
         } catch (e) {
-            console.error('Error submitting challenge:', e);
+            console.error('Submit error:', e);
+            this._log('Backend unreachable — using code-analysis scoring', 'warn');
+            const ops = this.codeEditor?._detectOperations(code) ?? [];
+            const score = Math.min(1, 0.3 + ops.length * 0.12);
+            const success = score >= 0.7;
             const demoResult = {
-                success: this.selectedActions.length >= 2,
-                score: Math.min(1, 0.4 + this.selectedActions.length * 0.2),
+                success,
+                score,
                 target: 0.7,
-                stars: Math.min(3, Math.max(1, this.selectedActions.length - 1)),
-                message: this.selectedActions.length >= 2 ? 'Pipeline accepted!' : 'Insufficient cleaning steps.',
-                metric_name: 'cleaning_accuracy',
-                feedback: this.selectedActions.map(a => ({
-                    action: a,
-                    status: 'correct',
-                    message: `Applied ${a.replace(/_/g, ' ')}`,
-                })),
+                stars: success ? (score >= 0.85 ? 2 : 1) : 0,
+                message: success ? `Good work! Detected ${ops.length} ML operations.` : 'Not enough ML operations found in code.',
+                metric_name: this.challengeData?.target_metric || 'cleaning_accuracy',
+                feedback: ops.map(op => ({ action: op, status: 'correct', message: `✓ ${op}` })),
             };
             this.btnSubmit.disabled = false;
             this.btnSubmit.textContent = 'SUBMIT SOLUTION';
@@ -361,11 +285,15 @@ export class Terminal {
         }
     }
 
+    // ─────────────────────────────────────────────
+    //  LOG
+    // ─────────────────────────────────────────────
+
     _log(message, type = 'info') {
         const p = document.createElement('p');
         p.className = `terminal-log log-${type}`;
-        const timeStr = new Date().toLocaleTimeString([], { hour12: false });
-        p.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+        const t = new Date().toLocaleTimeString([], { hour12: false });
+        p.innerHTML = `<span class="log-time">[${t}]</span> ${message}`;
         this.outputEl.appendChild(p);
         this.outputEl.scrollTop = this.outputEl.scrollHeight;
     }

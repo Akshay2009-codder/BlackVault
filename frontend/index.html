@@ -109,26 +109,31 @@
         </div>
     </div>
 
-    <!-- Terminal / Challenge UI (Phase 2 will populate this) -->
+    <!-- Terminal / Challenge UI -->
     <div id="terminal-overlay" class="overlay">
-        <div class="terminal-container">
+        <div class="terminal-container" id="terminal-container">
+            <div class="terminal-accent-bar" id="terminal-accent-bar"></div>
             <div class="terminal-header">
                 <div class="terminal-title" id="terminal-title">DATA CLEANING TERMINAL</div>
                 <div class="terminal-timer" id="terminal-timer">02:00</div>
                 <button class="terminal-close" id="btn-close-terminal">✕</button>
             </div>
+            <div class="terminal-issue-banner" id="terminal-issue-banner" style="display:none">
+                <!-- Issue summary pills rendered here -->
+            </div>
             <div class="terminal-body">
                 <div class="terminal-data" id="terminal-data">
                     <!-- Dataset table rendered here -->
                 </div>
-                <div class="terminal-actions" id="terminal-actions">
-                    <!-- Action buttons rendered here -->
-                </div>
-                <div class="terminal-output" id="terminal-output">
-                    <p class="terminal-log">System ready. Awaiting input...</p>
+                <div class="terminal-editor" id="terminal-editor">
+                    <!-- Code editor injected here by Terminal.js -->
                 </div>
             </div>
+            <div class="terminal-output" id="terminal-output">
+                <p class="terminal-log">System ready. Awaiting input...</p>
+            </div>
             <div class="terminal-footer">
+                <div class="terminal-footer-left" id="terminal-footer-left">Write Python code in the editor →</div>
                 <button class="terminal-submit" id="btn-submit-challenge">SUBMIT SOLUTION</button>
             </div>
         </div>
@@ -172,7 +177,7 @@
     </div>
 
     <!-- Loading Screen -->
-    <div id="loading-screen" class="overlay">
+    <div id="loading-screen" class="overlay active">
         <div class="loading-content">
             <div class="loading-spinner"></div>
             <p class="loading-text">INITIALIZING LAB SYSTEMS...</p>

@@ -17,14 +17,16 @@ export class Results {
         this.btnContinue.addEventListener('click', () => callbacks.onContinue());
     }
 
-    show(result) {
+    show(result, door = null) {
+        const doorName = door?.name || this.state.activeDoor?.name || 'CHALLENGE';
+
         // Title
         if (result.success && result.stars > 0) {
-            this.titleEl.textContent = 'CHALLENGE CLEARED';
+            this.titleEl.textContent = `${doorName.toUpperCase()} — CLEARED`;
             this.titleEl.classList.remove('failed');
             this.titleEl.classList.add('success');
         } else {
-            this.titleEl.textContent = 'CHALLENGE FAILED';
+            this.titleEl.textContent = `${doorName.toUpperCase()} — FAILED`;
             this.titleEl.classList.add('failed');
             this.titleEl.classList.remove('success');
         }
@@ -42,8 +44,10 @@ export class Results {
         // Details grid
         const scorePercent = typeof result.score === 'number' ? (result.score * 100).toFixed(1) : result.score;
         const targetPercent = typeof result.target === 'number' ? (result.target * 100).toFixed(1) : result.target;
+        const metricName = result.metric_name ? result.metric_name.replace(/_/g, ' ').toUpperCase() : 'SCORE';
 
         let detailsHtml = `
+            <div class="result-metric-name">${metricName}</div>
             <div class="result-stats-row">
                 <div class="result-stat-box">
                     <span class="stat-lbl">SCORE</span>
@@ -82,10 +86,10 @@ export class Results {
 
         // Custom narrative message
         const messages = {
-            0: 'Threshold not met. Review the issue breakdown and refine your cleaning actions.',
-            1: 'Security clearance verified. Door unlocked with standard efficiency.',
-            2: 'Commendable work, Agent! Clean optimization and fast execution.',
-            3: 'OUTSTANDING AGENT PERFORMANCE! Flawless ML pipeline deployed!',
+            0: 'Threshold not met. Review the issues and refine your pipeline.',
+            1: 'Security clearance granted. Door unlocked — standard efficiency.',
+            2: 'Excellent work, Agent! Clean pipeline and swift execution.',
+            3: '⭐ OUTSTANDING PERFORMANCE! Flawless ML pipeline deployed!',
         };
         this.messageEl.textContent = result.message || messages[result.stars] || '';
         this.messageEl.className = `results-message msg-stars-${result.stars}`;

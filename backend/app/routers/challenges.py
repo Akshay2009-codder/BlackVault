@@ -76,11 +76,17 @@ async def submit_challenge(req: ChallengeSubmitRequest):
 
     config = challenge["config"]
 
+    # If code submitted (from code editor), parse it into actions
+    effective_actions = req.actions or []
+    if req.code and not effective_actions:
+        from app.ml.scoring import code_to_actions
+        effective_actions = code_to_actions(req.code)
+
     # Compute score based on actions taken
     result = compute_score(
         door_type=req.door_type,
         level=req.level,
-        actions=req.actions,
+        actions=effective_actions,
         challenge_data=challenge,
         time_taken=req.time_taken,
         config=config,

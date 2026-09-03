@@ -1,7 +1,64 @@
 """
-Scoring engine — computes metrics from player actions and maps to 1–3 stars.
+Scoring engine — computes metrics from player actions/code and maps to 1–3 stars.
 """
 import random
+import re
+
+
+# ── Code → Action mapping ──
+CODE_ACTION_MAP = {
+    # Cleaning
+    r'dropna|\.dropna\(\)':           'remove_missing',
+    r'fillna.*mean\(\)|\.mean\(\).*fillna': 'fill_missing_mean',
+    r'fillna.*mode\(\)|\.mode\(\).*fillna': 'fill_missing_mode',
+    r'drop_duplicates':               'remove_duplicates',
+    r'astype|\.astype\(':             'fix_data_types',
+    r'\[.*<=.*\]|clip\(':             'cap_outliers',
+    # Regression
+    r'LinearRegression':              'linear_regression',
+    r'Ridge\b|RidgeRegression':       'ridge_regression',
+    r'Lasso\b|LassoRegression':       'lasso_regression',
+    r'RandomForestRegressor':         'random_forest',
+    r'DecisionTreeRegressor':         'decision_tree',
+    # Classification
+    r'LogisticRegression':            'logistic_regression',
+    r'RandomForestClassifier':        'random_forest',
+    r'DecisionTreeClassifier':        'decision_tree',
+    r'SVC\b|SVM\b':                   'svm',
+    r'KNeighbors':                    'knn',
+    # Clustering
+    r'KMeans\b':                      'kmeans',
+    r'DBSCAN\b':                      'dbscan',
+    r'AgglomerativeClustering':       'agglomerative',
+    r'n_clusters\s*=\s*2':            'set_clusters_2',
+    r'n_clusters\s*=\s*3':            'set_clusters_3',
+    r'n_clusters\s*=\s*4':            'set_clusters_4',
+    r'n_clusters\s*=\s*5':            'set_clusters_5',
+    r'n_clusters\s*=\s*6':            'set_clusters_6',
+    # Anomaly
+    r'IsolationForest':               'isolation_forest',
+    r'LocalOutlierFactor':            'local_outlier_factor',
+    r'OneClassSVM':                   'one_class_svm',
+    r'zscore|z_score|threshold':      'statistical_threshold',
+    r'contamination\s*=\s*0\.[01]':   'set_threshold_low',
+    r'contamination\s*=\s*0\.[23]':   'set_threshold_medium',
+    r'contamination\s*=\s*0\.[4-9]':  'set_threshold_high',
+    # Preprocessing
+    r'StandardScaler|MinMaxScaler|normalize': 'normalize_features',
+    r'class_weight|SMOTE|resample':   'balance_classes',
+    r'dropna|fillna':                 'remove_missing',
+}
+
+
+def code_to_actions(code: str) -> list:
+    """Parse submitted Python code and extract matching action names."""
+    if not code:
+        return []
+    actions = set()
+    for pattern, action in CODE_ACTION_MAP.items():
+        if re.search(pattern, code, re.IGNORECASE):
+            actions.add(action)
+    return list(actions)
 
 
 def compute_score(door_type: str, level: int, actions: list,

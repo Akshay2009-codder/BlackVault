@@ -28,8 +28,9 @@ class ChallengeSubmitRequest(BaseModel):
     player_id: int = 1
     level: int
     door_type: str
-    actions: List[str]
+    actions: List[str] = []
     time_taken: float
+    code: Optional[str] = None
 
 
 # ---------- Response Models ----------
