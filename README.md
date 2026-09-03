@@ -1,31 +1,28 @@
-# BlackVault — ML Escape Lab
+# BlackVault (Level-Based Plan)
 
-A browser-based 3D game where you solve real Machine Learning challenges behind 5 doors in a high-tech lab facility. Level-based progression with 1–3 star ratings.
+See `idea.md` for the full concept and phase breakdown.
 
-## Quick Start
+## Layout
 
-### Backend
-```bash
-cd backend
-pip install -r requirements.txt
-python main.py
-```
-Server runs on `http://localhost:8000`
+- `idea.md` — concept + phase plan (start here)
+- `backend/` — FastAPI + scikit-learn backend
+  - `main.py` — entrypoint (`uvicorn main:app --reload --port 8000`)
+  - `app/levels.py` — per-level difficulty config for the 5 doors
+  - `app/stars.py` — 1-3 star scoring formula
+  - `app/guard.py` — Security Guard AI line pools
+  - `app/routes.py` — API routes (door open/submit, guard line, level progress)
+  - `app/generators/` — one dataset generator per puzzle type (stubs, Phase 2)
+- `frontend/` — Three.js (no game engine) browser frontend
+  - `main.js` — entrypoint
+  - `src/levelManager.js` — hub state (level, doors cleared, stars)
+  - `src/guardVoice.js` — speechSynthesis-based guard voice lines
+  - `src/sceneSetup.js`, `world.js`, `player.js`, `interactions.js`,
+    `puzzleTerminal.js`, `hud.js`, `narrative.js`, `modelLoader.js` — stubs,
+    ported from the old plan and adapted to the hub-of-5-doors layout in
+    later phases
+  - `assets/models/` — drop-in .glb models go here
 
-### Frontend
-```bash
-cd frontend
-npm install
-npx vite
-```
-Open `http://localhost:5173` in your browser.
+## Status
 
-## Game Controls
-- **WASD** — Move
-- **Mouse** — Look around
-- **Click** — Interact with doors
-- **ESC** — Pause / Release cursor
-
-## Tech Stack
-- **Frontend**: Three.js, Howler.js, Vite
-- **Backend**: Python, FastAPI, scikit-learn, SQLite
+Phase 1 only: structure, idea.md, and interface-level skeleton files.
+Nothing is playable yet -- Phase 2 makes Level 1 fully playable end to end.
