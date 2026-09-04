@@ -1,34 +1,45 @@
-// Renders the top-left HUD (level, total stars, doors remaining) and the
-// interact prompt. Pure DOM -- no Three.js here.
+// Renders top-left HUD with active sector, total stars, active door, and prompts.
 
 import { DOOR_TYPES } from "./config.js";
 
 export function renderHud(state) {
-  const totalStars = Object.values(state.starsByDoor).reduce((a, b) => a + b, 0);
-  document.getElementById("level-label").textContent = `Level ${state.level}`;
-  document.getElementById("stars-total").textContent = `Stars: ${totalStars} / ${DOOR_TYPES.length * 3}`;
+  const totalStars = Object.values(state.starsByDoor || {}).reduce((a, b) => a + b, 0);
+  const sectorNames = [
+    "Sector 01: Classification Hub",
+    "Sector 02: Regression Core",
+    "Sector 03: Clustering Manifold",
+    "Sector 04: Threat & Anomaly Lab",
+    "Sector 05: Core BlackVault Sanctuary",
+  ];
 
-  const remaining = DOOR_TYPES.filter(d => !state.doorsCleared.includes(d));
-  document.getElementById("doors-remaining").textContent =
-    remaining.length === 0 ? "All doors cleared -- vault exit open" : `Doors remaining: ${remaining.length}`;
+  const levelLabel = document.getElementById("level-label");
+  if (levelLabel) {
+    levelLabel.textContent = sectorNames[state.currentSector - 1] || `Sector 0${state.currentSector}`;
+  }
+
+  const starsTotal = document.getElementById("stars-total");
+  if (starsTotal) {
+    starsTotal.textContent = `Total Stars: ★ ${totalStars} / 15`;
+  }
+
+  const doorsRemaining = document.getElementById("doors-remaining");
+  if (doorsRemaining) {
+    const clearedCount = state.doorsCleared ? state.doorsCleared.length : 0;
+    doorsRemaining.textContent = `Sectors Cleared: ${clearedCount} / 5`;
+  }
 }
 
 export function showInteractPrompt(text) {
   const el = document.getElementById("interact-prompt");
-  el.textContent = text;
-  el.classList.remove("hidden");
+  if (el) {
+    el.textContent = text;
+    el.classList.remove("hidden");
+  }
 }
 
 export function hideInteractPrompt() {
-  document.getElementById("interact-prompt").classList.add("hidden");
-}
-
-export function showLevelComplete(level, totalStars, maxStars) {
-  document.getElementById("level-complete-summary").textContent =
-    `Level ${level} cleared with ${totalStars} / ${maxStars} stars.`;
-  document.getElementById("level-complete").classList.remove("hidden");
-}
-
-export function hideLevelComplete() {
-  document.getElementById("level-complete").classList.add("hidden");
+  const el = document.getElementById("interact-prompt");
+  if (el) {
+    el.classList.add("hidden");
+  }
 }

@@ -1,10 +1,13 @@
-// Security Guard 3D Character with procedural geometry and walk/idle animation.
-// Fully self-contained, no external assets needed.
+// Security Guard / Tactical 3D Character
+// Loads the GLB model from assets/models/character.glb with procedural fallback.
 
 import * as THREE from "three";
+import { loadModel } from "./modelLoader.js";
 
 let guardMesh = null;
 let guardMixer = null;
+let activeAction = null;
+let isGlbLoaded = false;
 let guardParts = {};
 let walkCycle = 0;
 let idleTime = 0;
@@ -21,9 +24,64 @@ let patrolIndex = 0;
 const GUARD_SPEED = 1.6;
 
 export function createGuard(scene) {
-  const group = new THREE.Group();
+  // Main container group
+  guardMesh = new THREE.Group();
+  guardMesh.position.set(-4, 0, -2);
+  scene.add(guardMesh);
 
-  // ── Materials ──
+  // 1. Build procedural character as immediate render/fallback
+  const proceduralGroup = buildProceduralGuard();
+  guardMesh.add(proceduralGroup);
+
+  // 2. Load the tactical GLB character model
+  loadModel(
+    "/assets/models/character.glb",
+    (gltf) => {
+      console.log("[Character] Tactical 3D model loaded successfully!", gltf);
+      // Remove procedural group
+      guardMesh.remove(proceduralGroup);
+
+      const model = gltf.scene;
+
+      // Auto-scale to human proportions (~1.85m tall)
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      if (size.y > 0) {
+        const scale = 1.85 / size.y;
+        model.scale.set(scale, scale, scale);
+      } else {
+        model.scale.set(1, 1, 1);
+      }
+
+      // Re-center model on ground
+      const newBox = new THREE.Box3().setFromObject(model);
+      model.position.y = -newBox.min.y;
+
+      guardMesh.add(model);
+      isGlbLoaded = true;
+
+      // Animations
+      if (gltf.animations && gltf.animations.length > 0) {
+        guardMixer = new THREE.AnimationMixer(model);
+        const clip = gltf.animations.find((a) => /walk|run|patrol/i.test(a.name)) || gltf.animations[0];
+        if (clip) {
+          activeAction = guardMixer.clipAction(clip);
+          activeAction.play();
+        }
+      }
+    },
+    (err) => {
+      console.log("[Character] Using high-fidelity procedural tactical guard.");
+    }
+  );
+
+  return guardMesh;
+}
+
+function buildProceduralGuard() {
+  const group = new THREE.Group();
+  group.name = "ProceduralGuardGroup";
+
   const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4956a, roughness: 0.7, metalness: 0.0 });
   const uniformMat = new THREE.MeshStandardMaterial({ color: 0x1a2235, roughness: 0.7, metalness: 0.1 });
   const bootsMat = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 0.5, metalness: 0.3 });
@@ -40,17 +98,14 @@ export function createGuard(scene) {
   });
   const badgeMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
-  // ── Torso ──
-  const torso = new THREE.Mesh(
-    new THREE.BoxGeometry(0.44, 0.52, 0.22),
-    uniformMat
-  );
+  // Torso
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.52, 0.22), uniformMat);
   torso.position.y = 1.35;
   torso.castShadow = true;
   group.add(torso);
   guardParts.torso = torso;
 
-  // Chest badge / rank stripe
+  // Chest badge
   const badge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.01), badgeMat);
   badge.position.set(-0.1, 0.12, 0.11);
   torso.add(badge);
@@ -62,23 +117,22 @@ export function createGuard(scene) {
     torso.add(shoulder);
   });
 
-  // ── Hips / Pelvis ──
+  // Hips
   const hips = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.16, 0.2), uniformMat);
   hips.position.y = 1.08;
   group.add(hips);
   guardParts.hips = hips;
 
-  // Belt
+  // Belt & holster
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.22), beltMat);
   belt.position.y = 1.12;
   group.add(belt);
 
-  // Belt gadget (holster / device)
   const holster = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.06), bootsMat);
   holster.position.set(0.19, 1.08, 0.08);
   group.add(holster);
 
-  // ── Left Arm ──
+  // Arms
   const leftArmGroup = new THREE.Group();
   leftArmGroup.position.set(0.28, 1.5, 0);
   group.add(leftArmGroup);
@@ -98,10 +152,10 @@ export function createGuard(scene) {
   leftForearmGroup.add(leftForearm);
 
   const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.065), skinMat);
-  leftHand.position.y = -0.32;
+  leftHand.position.y = -0.3;
   leftForearmGroup.add(leftHand);
 
-  // ── Right Arm ──
+  // Right Arm
   const rightArmGroup = new THREE.Group();
   rightArmGroup.position.set(-0.28, 1.5, 0);
   group.add(rightArmGroup);
@@ -121,220 +175,134 @@ export function createGuard(scene) {
   rightForearmGroup.add(rightForearm);
 
   const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.065), skinMat);
-  rightHand.position.y = -0.32;
+  rightHand.position.y = -0.3;
   rightForearmGroup.add(rightHand);
 
-  // ── Left Leg ──
+  // Legs
   const leftLegGroup = new THREE.Group();
-  leftLegGroup.position.set(0.12, 1.05, 0);
+  leftLegGroup.position.set(0.12, 1.0, 0);
   group.add(leftLegGroup);
   guardParts.leftLegGroup = leftLegGroup;
 
-  const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.38, 12), uniformMat);
-  leftThigh.position.y = -0.19;
+  const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.44, 12), uniformMat);
+  leftThigh.position.y = -0.22;
   leftLegGroup.add(leftThigh);
 
   const leftShinGroup = new THREE.Group();
-  leftShinGroup.position.y = -0.38;
+  leftShinGroup.position.y = -0.44;
   leftLegGroup.add(leftShinGroup);
   guardParts.leftShinGroup = leftShinGroup;
 
-  const leftShin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.36, 12), uniformMat);
-  leftShin.position.y = -0.18;
+  const leftShin = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.44, 12), uniformMat);
+  leftShin.position.y = -0.22;
   leftShinGroup.add(leftShin);
 
-  const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), bootsMat);
-  leftBoot.position.set(0, -0.41, 0.04);
+  const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.14, 0.24), bootsMat);
+  leftBoot.position.set(0, -0.44, 0.04);
   leftShinGroup.add(leftBoot);
 
-  // ── Right Leg ──
+  // Right Leg
   const rightLegGroup = new THREE.Group();
-  rightLegGroup.position.set(-0.12, 1.05, 0);
+  rightLegGroup.position.set(-0.12, 1.0, 0);
   group.add(rightLegGroup);
   guardParts.rightLegGroup = rightLegGroup;
 
-  const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.38, 12), uniformMat);
-  rightThigh.position.y = -0.19;
+  const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.44, 12), uniformMat);
+  rightThigh.position.y = -0.22;
   rightLegGroup.add(rightThigh);
 
   const rightShinGroup = new THREE.Group();
-  rightShinGroup.position.y = -0.38;
+  rightShinGroup.position.y = -0.44;
   rightLegGroup.add(rightShinGroup);
   guardParts.rightShinGroup = rightShinGroup;
 
-  const rightShin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.36, 12), uniformMat);
-  rightShin.position.y = -0.18;
+  const rightShin = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.44, 12), uniformMat);
+  rightShin.position.y = -0.22;
   rightShinGroup.add(rightShin);
 
-  const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), bootsMat);
-  rightBoot.position.set(0, -0.41, 0.04);
+  const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.14, 0.24), bootsMat);
+  rightBoot.position.set(0, -0.44, 0.04);
   rightShinGroup.add(rightBoot);
 
-  // ── Neck ──
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.08, 0.1, 12), skinMat);
-  neck.position.y = 1.63;
-  group.add(neck);
-
-  // ── Head ──
+  // Head & Tactical Helmet
   const headGroup = new THREE.Group();
-  headGroup.position.y = 1.74;
+  headGroup.position.y = 1.72;
   group.add(headGroup);
   guardParts.headGroup = headGroup;
 
-  // Helmet outer shell
-  const helmetShell = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.68),
-    helmetMat
-  );
-  helmetShell.position.y = 0.04;
-  helmetShell.castShadow = true;
-  headGroup.add(helmetShell);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), skinMat);
+  headGroup.add(head);
 
-  // Lower face (chin/jaw)
-  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.24), skinMat);
-  jaw.position.set(0, -0.06, 0.02);
-  headGroup.add(jaw);
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.155, 16, 16), helmetMat);
+  helmet.scale.set(1, 1.08, 1.05);
+  headGroup.add(helmet);
 
-  // Visor (glowing red panel across eyes)
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.07, 0.04), visorMat);
-  visor.position.set(0, 0.04, 0.17);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.065, 0.09), visorMat);
+  visor.position.set(0, 0.01, 0.135);
   headGroup.add(visor);
-
-  // Visor glow light
-  const visorLight = new THREE.PointLight(0xff3300, 0.8, 1.5);
-  visorLight.position.set(0, 0.04, 0.22);
-  headGroup.add(visorLight);
-
-  // Helmet chin strap
-  const chinStrap = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.02), helmetMat);
-  chinStrap.position.set(0, -0.12, 0.12);
-  headGroup.add(chinStrap);
-
-  // Antenna on helmet
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.15, 8), helmetMat);
-  antenna.position.set(0.12, 0.22, 0.0);
-  headGroup.add(antenna);
-
-  // ── Place guard in scene ──
-  group.position.set(0, 0, -2);
-  group.castShadow = true;
-  scene.add(group);
-  guardMesh = group;
 
   return group;
 }
 
-// Called every frame from the animation loop
-export function updateGuard(delta, playerPosition) {
+export function updateGuard(delta, playerPos) {
   if (!guardMesh) return;
 
-  walkCycle += delta;
-  idleTime += delta;
+  // Advance animation mixer if GLB is loaded
+  if (guardMixer) {
+    guardMixer.update(delta);
+  }
 
-  const distToPlayer = guardMesh.position.distanceTo(playerPosition);
+  // AI State & Patrol Logic
+  const distToPlayer = guardMesh.position.distanceTo(playerPos);
 
-  // ── State machine ──
-  if (distToPlayer < 3.5) {
+  if (distToPlayer < 4.0) {
     guardState = "alert";
-  } else if (guardState === "alert" && distToPlayer > 5) {
+  } else {
     guardState = "patrol";
   }
 
-  if (guardState === "patrol") {
-    const target = patrolPoints[patrolIndex];
-    const dir = new THREE.Vector3().subVectors(target, guardMesh.position);
-    dir.y = 0;
-    const dist = dir.length();
+  if (guardState === "alert") {
+    // Look at player
+    const lookTarget = playerPos.clone();
+    lookTarget.y = guardMesh.position.y;
+    guardMesh.lookAt(lookTarget);
 
-    if (dist < 0.4) {
+    idleTime += delta * 2;
+    if (!isGlbLoaded && guardParts.torso) {
+      guardParts.torso.position.y = 1.35 + Math.sin(idleTime) * 0.015;
+    }
+  } else {
+    // Patrol between waypoints
+    const curTarget = patrolPoints[patrolIndex];
+    const toTarget = curTarget.clone().sub(guardMesh.position);
+    toTarget.y = 0;
+    const dist = toTarget.length();
+
+    if (dist < 0.3) {
       patrolIndex = (patrolIndex + 1) % patrolPoints.length;
     } else {
-      dir.normalize();
-      guardMesh.position.addScaledVector(dir, GUARD_SPEED * delta);
+      toTarget.normalize();
+      guardMesh.position.addScaledVector(toTarget, GUARD_SPEED * delta);
+      guardMesh.lookAt(guardMesh.position.clone().add(toTarget));
 
-      // Face movement direction
-      const angle = Math.atan2(dir.x, dir.z);
-      guardMesh.rotation.y = THREE.MathUtils.lerp(
-        guardMesh.rotation.y, angle, 0.1
-      );
-    }
-    animateWalk(walkCycle, 1.0);
+      walkCycle += delta * 8;
+      if (!isGlbLoaded && guardParts.leftLegGroup) {
+        // Procedural walk animation
+        const legSwing = Math.sin(walkCycle) * 0.55;
+        guardParts.leftLegGroup.rotation.x = legSwing;
+        guardParts.rightLegGroup.rotation.x = -legSwing;
 
-  } else if (guardState === "alert") {
-    // Face player
-    const dir = new THREE.Vector3().subVectors(playerPosition, guardMesh.position);
-    dir.y = 0;
-    const angle = Math.atan2(dir.x, dir.z);
-    guardMesh.rotation.y = THREE.MathUtils.lerp(guardMesh.rotation.y, angle, 0.12);
+        guardParts.leftArmGroup.rotation.x = -legSwing * 0.6;
+        guardParts.rightArmGroup.rotation.x = legSwing * 0.6;
 
-    // Slow approach
-    if (distToPlayer > 2.2) {
-      dir.normalize();
-      guardMesh.position.addScaledVector(dir, GUARD_SPEED * 0.5 * delta);
-      animateWalk(walkCycle, 0.5);
-    } else {
-      animateIdle(walkCycle);
-    }
-
-    // Alert: red visor pulses faster
-    if (guardParts.headGroup) {
-      const visor = guardParts.headGroup.children.find(c => c.material && c.material.emissive);
-      if (visor) {
-        visor.material.emissiveIntensity = 1.0 + Math.sin(walkCycle * 10) * 0.5;
+        if (guardParts.torso) {
+          guardParts.torso.position.y = 1.35 + Math.abs(Math.sin(walkCycle)) * 0.04;
+        }
       }
     }
   }
-
-  // Clamp guard within room
-  guardMesh.position.x = Math.max(-11, Math.min(11, guardMesh.position.x));
-  guardMesh.position.z = Math.max(-13, Math.min(13, guardMesh.position.z));
-  guardMesh.position.y = 0;
 }
 
-function animateWalk(t, speed = 1.0) {
-  const freq = t * 3.5 * speed;
-  const legSwing = Math.sin(freq) * 0.45;
-  const armSwing = Math.sin(freq) * 0.35;
-  const bobY = Math.abs(Math.sin(freq * 2)) * 0.015;
-
-  if (guardParts.torso) guardParts.torso.position.y = 1.35 + bobY;
-
-  if (guardParts.leftLegGroup) guardParts.leftLegGroup.rotation.x = legSwing;
-  if (guardParts.rightLegGroup) guardParts.rightLegGroup.rotation.x = -legSwing;
-  if (guardParts.leftShinGroup) guardParts.leftShinGroup.rotation.x = Math.max(0, -legSwing * 0.6);
-  if (guardParts.rightShinGroup) guardParts.rightShinGroup.rotation.x = Math.max(0, legSwing * 0.6);
-
-  if (guardParts.leftArmGroup) guardParts.leftArmGroup.rotation.x = -armSwing;
-  if (guardParts.rightArmGroup) guardParts.rightArmGroup.rotation.x = armSwing;
-
-  if (guardParts.headGroup) guardParts.headGroup.rotation.y = Math.sin(freq * 0.5) * 0.08;
-}
-
-function animateIdle(t) {
-  const breathe = Math.sin(t * 1.2) * 0.008;
-  if (guardParts.torso) guardParts.torso.position.y = 1.35 + breathe;
-
-  // Slight head look-around
-  if (guardParts.headGroup) {
-    guardParts.headGroup.rotation.y = Math.sin(t * 0.5) * 0.3;
-    guardParts.headGroup.rotation.x = Math.sin(t * 0.35) * 0.05;
-  }
-
-  // Arms hang at sides with subtle sway
-  if (guardParts.leftArmGroup) guardParts.leftArmGroup.rotation.x = Math.sin(t * 0.8) * 0.06;
-  if (guardParts.rightArmGroup) guardParts.rightArmGroup.rotation.x = -Math.sin(t * 0.8) * 0.06;
-
-  // Reset legs
-  if (guardParts.leftLegGroup) guardParts.leftLegGroup.rotation.x = 0;
-  if (guardParts.rightLegGroup) guardParts.rightLegGroup.rotation.x = 0;
-  if (guardParts.leftShinGroup) guardParts.leftShinGroup.rotation.x = 0;
-  if (guardParts.rightShinGroup) guardParts.rightShinGroup.rotation.x = 0;
-}
-
-export function getGuardState() {
-  return guardState;
-}
-
-export function getGuardPosition() {
-  return guardMesh ? guardMesh.position : new THREE.Vector3();
+export function getGuardMesh() {
+  return guardMesh;
 }

@@ -1,40 +1,40 @@
 // BlackVault frontend entrypoint.
-// Connects Three.js hub scene, player controls, raycasting interactions,
-// terminal puzzle UI, level progression, security guard AI voice, and 3D character.
+// Connects Three.js multi-sector facility, tactical 3D character,
+// player movement, door computer workstation seating, PyCharm ML IDE, and level progression.
 
 import * as THREE from "three";
-import { initScene, getCamera, getRenderer, getScene } from "./src/sceneSetup.js";
-import { initWorld } from "./src/world.js";
+import { initScene } from "./src/sceneSetup.js";
+import { initWorld, getCurrentRoomIndex } from "./src/world.js";
 import { initPlayer, updatePlayer, getPlayerPosition } from "./src/player.js";
 import { initInteractions, updateInteractions } from "./src/interactions.js";
 import { initTerminalUI, openTerminal } from "./src/puzzleTerminal.js";
-import { initLevelManager } from "./src/levelManager.js";
+import { initLevelManager, updateCurrentSector } from "./src/levelManager.js";
 import { initGuardVoice } from "./src/guardVoice.js";
 import { createGuard, updateGuard } from "./src/character.js";
 
-const BUILD_TAG = "blackvault-level-hub-v2";
+const BUILD_TAG = "blackvault-pycharm-sector-v3";
 const tagEl = document.getElementById("build-tag");
 if (tagEl) tagEl.textContent = BUILD_TAG;
-console.log("[BlackVault] Initializing hub:", BUILD_TAG);
+console.log("[BlackVault] Initializing multi-sector facility:", BUILD_TAG);
 
 // 1. Scene & Renderer
 const { scene, camera, renderer } = initScene();
 
-// 2. Hub geometry & 5 doors
+// 2. Multi-room facility layout & door stations
 initWorld(scene);
 
-// 3. Security Guard 3D character
+// 3. Tactical 3D Character (GLB loader + animation)
 createGuard(scene);
 
 // 4. Player movement & pointer lock
 initPlayer(camera, renderer.domElement);
 
-// 5. Raycasting door interactions
-initInteractions(camera, (doorType) => {
-  openTerminal(doorType);
+// 5. Workstation seating & PyCharm interactions
+initInteractions(camera, (doorType, roomIndex) => {
+  openTerminal(doorType, roomIndex);
 });
 
-// 6. Terminal UI & Level Progression
+// 6. PyCharm ML IDE UI & Level Progression
 initTerminalUI();
 initGuardVoice();
 initLevelManager({ level: 1 });
@@ -50,7 +50,12 @@ function animate() {
   updateInteractions();
 
   // Update guard AI & animation
-  updateGuard(delta, getPlayerPosition());
+  const playerPos = getPlayerPosition();
+  updateGuard(delta, playerPos);
+
+  // Update active sector based on player position in facility
+  const activeSector = getCurrentRoomIndex(playerPos.z);
+  updateCurrentSector(activeSector);
 
   renderer.render(scene, camera);
 }

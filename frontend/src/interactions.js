@@ -1,44 +1,54 @@
-// Raycasts from the camera each frame to detect when the player is looking
-// at a door within interaction range, shows the "Press E" prompt, and opens
-// the terminal for that door type. Also owns pointer-lock lifecycle so the
-// terminal (a normal DOM overlay) can release/reacquire the mouse cleanly.
+// Raycasts and proximity detection for door computer workstations.
+// Transitions player into seated view at the computer when pressing 'E',
+// opening the PyCharm ML Code Editor.
 
 import * as THREE from "three";
-import { getDoorRegistry, getExitDoor } from "./world.js";
-import { getPlayerPosition, getControls } from "./player.js";
+import { getDoorRegistry, getCurrentRoomIndex } from "./world.js";
+import { getPlayerPosition, seatPlayerAtWorkstation, standPlayerUp, getControls } from "./player.js";
 import * as hud from "./hud.js";
-import * as levelManager from "./levelManager.js";
 
-const INTERACT_RANGE = 4.5;
+const INTERACT_RANGE = 4.2;
 const raycaster = new THREE.Raycaster();
 const forward = new THREE.Vector3();
 
 let camera = null;
 let openTerminalCallback = null;
-let targetedDoorType = null;
-let targetedIsExit = false;
+let targetedEntry = null;
 
-export function initInteractions(cam, onOpenDoor) {
+export function initInteractions(cam, onOpenTerminal) {
   camera = cam;
-  openTerminalCallback = onOpenDoor;
+  openTerminalCallback = onOpenTerminal;
   document.addEventListener("keydown", onKeyDown);
 }
 
 function onKeyDown(e) {
   if (e.code !== "KeyE") return;
-  if (!targetedDoorType) return;
-  if (targetedIsExit) {
-    if (levelManager.isLevelComplete()) levelManager.advanceLevel();
-  } else {
-    openTerminalCallback(targetedDoorType);
+  if (!targetedEntry) return;
+
+  const controls = getControls();
+  if (controls.isSeated) return;
+
+  // Seat player at the workstation
+  seatPlayerAtWorkstation(targetedEntry.deskPosition, targetedEntry.deskLookAt);
+  unlockPointer();
+
+  // Open PyCharm IDE
+  if (openTerminalCallback) {
+    openTerminalCallback(targetedEntry.doorType, targetedEntry.roomIndex);
   }
 }
 
 export function updateInteractions() {
   if (!camera) return;
 
-  targetedDoorType = null;
-  targetedIsExit = false;
+  const controls = getControls();
+  if (controls.isSeated) {
+    targetedEntry = null;
+    hud.hideInteractPrompt();
+    return;
+  }
+
+  targetedEntry = null;
   hud.hideInteractPrompt();
 
   const playerPos = getPlayerPosition();
@@ -46,39 +56,26 @@ export function updateInteractions() {
   raycaster.set(camera.position, forward);
 
   const doors = getDoorRegistry();
-  let closest = { dist: Infinity, doorType: null, isExit: false };
+  let closest = { dist: Infinity, entry: null };
 
   for (const [doorType, entry] of Object.entries(doors)) {
     const dist = playerPos.distanceTo(entry.position);
     if (dist > INTERACT_RANGE) continue;
-    const toDoor = entry.position.clone().sub(camera.position).normalize();
-    const angle = forward.angleTo(toDoor);
-    if (angle < 0.5 && dist < closest.dist) {
-      closest = { dist, doorType, isExit: false };
+
+    const toStation = entry.position.clone().sub(camera.position).normalize();
+    const angle = forward.angleTo(toStation);
+
+    if (angle < 0.75 && dist < closest.dist) {
+      closest = { dist, entry };
     }
   }
 
-  const exitDoor = getExitDoor();
-  if (exitDoor) {
-    const dist = playerPos.distanceTo(exitDoor.position);
-    if (dist <= INTERACT_RANGE) {
-      const toDoor = exitDoor.position.clone().sub(camera.position).normalize();
-      const angle = forward.angleTo(toDoor);
-      if (angle < 0.5 && dist < closest.dist) {
-        closest = { dist, doorType: "exit", isExit: true };
-      }
-    }
-  }
-
-  if (closest.doorType) {
-    targetedDoorType = closest.doorType;
-    targetedIsExit = closest.isExit;
-    if (closest.isExit) {
-      if (levelManager.isLevelComplete()) {
-        hud.showInteractPrompt("Press E to advance to the next level");
-      }
+  if (closest.entry) {
+    targetedEntry = closest.entry;
+    if (targetedEntry.isUnlocked) {
+      hud.showInteractPrompt(`Door Unlocked — Proceed to Next Sector`);
     } else {
-      hud.showInteractPrompt(`Press E to access ${closest.doorType} terminal`);
+      hud.showInteractPrompt(`Press E to sit at computer & open PyCharm IDE`);
     }
   }
 }

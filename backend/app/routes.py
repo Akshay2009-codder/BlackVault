@@ -1,6 +1,7 @@
 """
 API routes for the level+door contract.
-Connects generators, in-memory puzzle state, scikit-learn scoring, guard AI, and SQLite store.
+Connects generators, in-memory puzzle state, scikit-learn scoring, guard AI, SQLite store,
+and PyCharm IDE Python code execution.
 """
 
 import uuid
@@ -10,10 +11,12 @@ from .schemas import (
     DoorPuzzleRequest, DoorPuzzleResponse,
     SubmitAttemptRequest, SubmitAttemptResponse,
     LevelProgressResponse,
+    CodeSubmitRequest, CodeSubmitResponse,
 )
 from .levels import get_level_config
 from .guard import get_guard_line
 from .generators import generate_puzzle
+from .code_evaluator import evaluate_python_puzzle
 from . import puzzle_state, scoring, store
 
 router = APIRouter()
@@ -81,6 +84,39 @@ def submit_attempt(req: SubmitAttemptRequest):
         attempts_remaining=attempts_remaining,
         door_type=door_type,
         stars=res.get("stars"),
+    )
+
+
+@router.post("/api/door/code_submit", response_model=CodeSubmitResponse)
+def code_submit(req: CodeSubmitRequest):
+    """
+    Executes and evaluates player-submitted Python code in PyCharm IDE puzzle.
+    """
+    res = evaluate_python_puzzle(
+        door_type=req.door_type,
+        level=req.level,
+        code=req.submitted_code,
+        attempts=req.attempts_used or 1,
+        time_remaining=req.time_remaining_seconds or 300,
+    )
+
+    if res["passed"] and res["stars"]:
+        store.save_door_result(
+            level=req.level,
+            door_type=req.door_type,
+            stars=res["stars"],
+            score=res["score"],
+            attempts_used=req.attempts_used or 1,
+        )
+
+    return CodeSubmitResponse(
+        passed=res["passed"],
+        output=res.get("output"),
+        error=res.get("error"),
+        score=res.get("score"),
+        stars=res.get("stars"),
+        door_type=req.door_type,
+        level=req.level,
     )
 
 

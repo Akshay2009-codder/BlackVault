@@ -44,3 +44,21 @@ class LevelProgressResponse(BaseModel):
     doors_cleared: List[str]
     stars_by_door: Dict[str, int]
     level_complete: bool
+
+
+class CodeSubmitRequest(BaseModel):
+    door_type: str
+    level: int
+    submitted_code: str
+    time_remaining_seconds: Optional[int] = 300
+    attempts_used: Optional[int] = 1
+
+
+class CodeSubmitResponse(BaseModel):
+    passed: bool
+    output: Optional[str] = None
+    error: Optional[str] = None
+    score: Optional[float] = 0.0
+    stars: Optional[int] = 3
+    door_type: str
+    level: int
