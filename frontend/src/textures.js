@@ -1,31 +1,31 @@
-// Procedural high-detail canvas textures for realistic studio environment.
-
+// Procedural canvas textures — bright scientific lab edition.
 import * as THREE from "three";
 
+// ── NEW: Bright white polished tile floor ────────────────────────────────────
 export function createFloorTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Base dark polished concrete
-  ctx.fillStyle = "#161d28";
+  // Base: warm white tile
+  ctx.fillStyle = "#f2f0ec";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Subtle concrete grain noise
+  // Subtle noise grain
   const imgData = ctx.getImageData(0, 0, 1024, 1024);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 16;
-    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+    const noise = (Math.random() - 0.5) * 10;
+    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
     data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
     data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Floor slab seams
-  ctx.strokeStyle = "#0b1017";
-  ctx.lineWidth = 4;
+  // Grout lines — light grey
+  ctx.strokeStyle = "#d0ccc8";
+  ctx.lineWidth = 5;
   ctx.beginPath();
   for (let x = 0; x <= 1024; x += 256) {
     ctx.moveTo(x, 0); ctx.lineTo(x, 1024);
@@ -35,21 +35,184 @@ export function createFloorTexture() {
   }
   ctx.stroke();
 
-  // Subtle tile bevel specular line
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+  // Bevel highlight on grout
+  ctx.strokeStyle = "rgba(255,255,255,0.45)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (let x = 2; x <= 1024; x += 256) {
+  for (let x = 3; x <= 1024; x += 256) {
     ctx.moveTo(x, 0); ctx.lineTo(x, 1024);
   }
+  for (let y = 3; y <= 1024; y += 256) {
+    ctx.moveTo(0, y); ctx.lineTo(1024, y);
+  }
   ctx.stroke();
+
+  // Specular gloss patches
+  for (let i = 0; i < 18; i++) {
+    const px = Math.random() * 1024, py = Math.random() * 1024;
+    const r = 40 + Math.random() * 80;
+    const g2 = ctx.createRadialGradient(px, py, 0, px, py, r);
+    g2.addColorStop(0, "rgba(255,255,255,0.18)");
+    g2.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.ellipse(px, py, r, r * 0.5, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 6);
+  texture.repeat.set(5, 5);
   return texture;
 }
+
+// ── NEW: Off-white painted lab wall ──────────────────────────────────────────
+export function createWallTexture(tintHex = 0xeaeef4) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+
+  // Convert hex color to rgb string
+  const r = (tintHex >> 16) & 0xff;
+  const g = (tintHex >> 8) & 0xff;
+  const b = tintHex & 0xff;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Very subtle painted texture noise
+  const imgData = ctx.getImageData(0, 0, 512, 512);
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 8;
+    d[i]     = Math.max(0, Math.min(255, d[i]     + n));
+    d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+    d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Horizontal painted roller lines (very faint)
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for (let y = 0; y < 512; y += 3) {
+    ctx.beginPath();
+    ctx.moveTo(0, y); ctx.lineTo(512, y);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 2);
+  return texture;
+}
+
+// ── NEW: Lab room sign (white panel, colored accent, dark text) ──────────────
+export function createLabSignTexture(text, accentColor) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 112;
+  const ctx = canvas.getContext("2d");
+
+  // White panel background
+  ctx.fillStyle = "#f8f9fb";
+  ctx.fillRect(0, 0, 640, 112);
+
+  // Left accent stripe
+  const r = (accentColor >> 16) & 0xff;
+  const g = (accentColor >> 8)  & 0xff;
+  const b = accentColor & 0xff;
+  const accentStr = `rgb(${r},${g},${b})`;
+  ctx.fillStyle = accentStr;
+  ctx.fillRect(0, 0, 14, 112);
+
+  // Subtle bottom shadow line
+  ctx.fillStyle = "#d8dde4";
+  ctx.fillRect(0, 108, 640, 4);
+
+  // Text
+  ctx.font = "bold 34px 'Inter', Arial, sans-serif";
+  ctx.fillStyle = "#1a2130";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 28, 54);
+
+  // Small accent dot after text
+  ctx.fillStyle = accentStr;
+  ctx.beginPath();
+  ctx.arc(30, 90, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ── NEW: Computer screen texture (dark editor with tinted header) ─────────────
+export function createScreenTexture(accentColor) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 340;
+  const ctx = canvas.getContext("2d");
+
+  // Dark IDE background
+  ctx.fillStyle = "#1e2330";
+  ctx.fillRect(0, 0, 1024, 340);
+
+  // Title bar
+  const r = (accentColor >> 16) & 0xff;
+  const g = (accentColor >> 8) & 0xff;
+  const b = accentColor & 0xff;
+  ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
+  ctx.fillRect(0, 0, 1024, 32);
+
+  // Traffic light dots
+  ["#ff5f57", "#febc2e", "#28c840"].forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(20 + i * 22, 16, 7, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Title text
+  ctx.font = "bold 14px 'Courier New', monospace";
+  ctx.fillStyle = "#c8d4e4";
+  ctx.fillText("pipeline.py — BlackVault ML Core — PyCharm 2025.1", 90, 21);
+
+  // Code lines
+  const lines = [
+    { indent: 0,  color: "#7eb6f0", text: "import pandas as pd" },
+    { indent: 0,  color: "#7eb6f0", text: "import numpy as np" },
+    { indent: 0,  color: "#7eb6f0", text: "from sklearn.ensemble import RandomForestClassifier" },
+    { indent: 0,  color: "#888",    text: "" },
+    { indent: 0,  color: "#888",    text: "# ─── BUILD ML PIPELINE ───────────────────────" },
+    { indent: 0,  color: "#c678dd", text: "def build_pipeline(df, target):" },
+    { indent: 2,  color: "#abb2bf", text: 'X = df.drop(columns=[target])' },
+    { indent: 2,  color: "#abb2bf", text: 'y = df[target]' },
+    { indent: 2,  color: "#c678dd", text: 'if drop_duplicates:' },
+    { indent: 4,  color: "#abb2bf", text: 'X = X.drop_duplicates()' },
+    { indent: 2,  color: "#abb2bf", text: 'model = RandomForestClassifier(n_estimators=100)' },
+    { indent: 2,  color: "#abb2bf", text: 'model.fit(X_train, y_train)' },
+    { indent: 2,  color: "#e5c07b", text: 'return model.score(X_test, y_test)' },
+  ];
+
+  ctx.font = "13px 'Courier New', monospace";
+  lines.forEach((ln, i) => {
+    const x = 18 + ln.indent * 10;
+    const y = 52 + i * 20;
+    ctx.fillStyle = ln.color;
+    ctx.fillText(ln.text, x, y);
+  });
+
+  // Bottom status bar
+  ctx.fillStyle = `rgba(${r},${g},${b},0.7)`;
+  ctx.fillRect(0, 320, 1024, 20);
+  ctx.font = "11px 'Courier New', monospace";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("  pipeline.py   UTF-8   Python 3.11   Ln 12, Col 1", 8, 333);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+
 
 export function createCitySkylineTexture() {
   const canvas = document.createElement("canvas");

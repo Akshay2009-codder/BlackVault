@@ -1,6 +1,6 @@
 /* ==========================================================================
-   BlackVault — PyCharm IDE & 3D Sci-Fi Facility Stylesheet
-   Theme: JetBrains PyCharm Darcula + Cyberpunk HUD
+   BlackVault — Bright Scientific Lab + PyCharm IDE Stylesheet
+   Theme: Clean White Lab + Light Frosted Glass HUD
    ========================================================================== */
 
 * {
@@ -13,8 +13,8 @@ body, html {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #050811;
-  color: #abb2bf;
+  background-color: #d8e8f5;
+  color: #1a2130;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   user-select: none;
 }
@@ -29,20 +29,20 @@ body, html {
   z-index: 1;
 }
 
-/* Crosshair */
+/* Crosshair — sharp dark dot for bright environment */
 #crosshair {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 8px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1.5px solid rgba(0, 0, 0, 0.8);
+  width: 7px;
+  height: 7px;
+  background: rgba(30, 40, 60, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 10;
-  box-shadow: 0 0 8px rgba(94, 200, 216, 0.8);
+  box-shadow: 0 0 6px rgba(0,0,0,0.5);
 }
 
 /* HUD Overlay */
@@ -58,46 +58,47 @@ body, html {
 }
 
 .hud-item {
-  background: rgba(14, 20, 32, 0.85);
-  border: 1px solid rgba(94, 200, 216, 0.35);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(180, 195, 215, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #e2e8f0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  letter-spacing: 0.5px;
+  color: #1a2130;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  letter-spacing: 0.4px;
 }
 
 .hud-sector {
-  border-left: 4px solid #4caf50;
-  color: #69f0ae;
-  font-size: 16px;
+  border-left: 4px solid #2ecc71;
+  color: #166a3a;
+  font-size: 15px;
 }
 
 #stars-total {
-  color: #ffd700;
+  color: #b07d10;
 }
 
 #build-tag {
   font-size: 10px;
-  color: #64748b;
+  color: #7a8898;
   font-family: monospace;
   margin-top: 4px;
 }
 
-/* Interact Prompt */
+/* Interact Prompt — light frosted card */
 #interact-prompt {
   position: fixed;
   bottom: 120px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid #5ec8d8;
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1.5px solid rgba(46, 204, 113, 0.6);
+  color: #1a2130;
   padding: 12px 24px;
   border-radius: 30px;
   font-family: 'JetBrains Mono', monospace;
@@ -114,23 +115,23 @@ body, html {
   50% { box-shadow: 0 0 28px rgba(94, 200, 216, 0.8); }
 }
 
-/* Guard Subtitles */
+/* Guard Subtitles — dark band for legibility on bright bg */
 #guard-subtitle {
   position: fixed;
   bottom: 40px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  background: rgba(10, 14, 22, 0.9);
-  border: 1px solid #ff5722;
-  color: #ffccbc;
+  background: rgba(20, 28, 44, 0.9);
+  border: 1px solid rgba(46, 204, 113, 0.5);
+  color: #e8f4ff;
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
-  max-width: 650px;
+  max-width: 680px;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;

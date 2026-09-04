@@ -260,16 +260,74 @@
         </div>
       </div>
     </div>
+  <!-- Click to Play Overlay -->
+  <div id="click-to-play" class="overlay hidden">
+    <div class="overlay-box">
+      <h1>BLACKVAULT</h1>
+      <p>Lab Entrance Hub — Level 1</p>
+      <p class="hint">Click to enter. WASD to move, mouse to look, E to interact.</p>
+      <button id="start-btn">Enter Facility</button>
+    </div>
+  </div>
+
+  <!-- Level Complete Overlay -->
+  <div id="level-complete" class="overlay hidden">
+    <div class="overlay-box">
+      <h1>Level Complete</h1>
+      <p id="level-complete-summary"></p>
+      <button id="next-level-btn">Advance to Next Level</button>
+    </div>
+  </div>
+
+  <!-- Terminal Code Overlay -->
+  <div id="terminal" class="overlay hidden">
+    <div class="ide-window">
+      <div class="ide-titlebar">
+        <div class="ide-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <div class="ide-tab" id="ide-tab-label">predict.py</div>
+        <div class="ide-meta">
+          <span id="terminal-timer">05:00</span>
+          <span id="terminal-attempts">Attempts: 5</span>
+          <button id="terminal-close" title="Close">&times;</button>
+        </div>
+      </div>
+
+      <div class="ide-body">
+        <div class="ide-left">
+          <div id="problem-statement" class="problem-statement"></div>
+          <div id="terminal-hint" class="hidden"></div>
+
+          <div class="dataset-panel">
+            <div class="dataset-panel-title">Dataset Preview</div>
+            <div id="dataset-stats"></div>
+            <div id="dataset-table-wrap">
+              <table id="dataset-table"><thead></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="ide-right">
+          <div id="code-editor"></div>
+          <div class="ide-console">
+            <div class="ide-console-title">Console</div>
+            <div id="terminal-result"></div>
+          </div>
+          <button id="submit-btn">Run &amp; Submit (Ctrl+Enter)</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="importmap">
   {
     "imports": {
       "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/",
       "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.168.0/examples/jsm/loaders/GLTFLoader.js"
     }
   }
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
   <script type="module" src="main.js"></script>
 </body>
 </html>

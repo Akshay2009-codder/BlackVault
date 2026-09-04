@@ -1,4 +1,5 @@
-// Three.js renderer, camera, and lighting setup for the BlackVault Studio Lab.
+// Three.js renderer, camera, and lighting setup.
+// Bright, clean scientific facility — daylight + fluorescent overhead fill.
 
 import * as THREE from "three";
 
@@ -8,18 +9,18 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070b12);
-  scene.fog = new THREE.FogExp2(0x09101c, 0.012);
+  // Bright sky-blue background — facility has large skylights
+  scene.background = new THREE.Color(0xd8e8f5);
+  // Very subtle light haze for depth
+  scene.fog = new THREE.FogExp2(0xd8e8f5, 0.006);
 
   camera = new THREE.PerspectiveCamera(
-    62,
+    68,
     window.innerWidth / window.innerHeight,
-    0.1,
-    1000
+    0.05,
+    800
   );
-  // Positioned slightly elevated, looking down over the foreground workstations into the studio
-  camera.position.set(0, 1.92, 5.5);
-  camera.lookAt(0, 1.45, -4.5);
+  camera.position.set(0, 1.72, 4.0);
 
   renderer = new THREE.WebGLRenderer({
     canvas,
@@ -29,33 +30,45 @@ export function initScene() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // ACES Filmic Tone Mapping & SRGB for photorealistic lighting balance
+  // Reinhard tone mapping — accurate bright-light rendering
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.35;
+  renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // 1. Studio ambient fill (slate cool tone)
-  const ambientLight = new THREE.AmbientLight(0x283850, 2.2);
-  scene.add(ambientLight);
+  // ── Lighting ──────────────────────────────────────────────────────────────
 
-  // 2. City skyline & moonlight directional fill
-  const skyDirLight = new THREE.DirectionalLight(0x70a0d4, 2.4);
-  skyDirLight.position.set(0, 8.0, -20);
-  skyDirLight.target.position.set(0, 1.0, 0);
-  scene.add(skyDirLight);
-  scene.add(skyDirLight.target);
+  // 1. Hemisphere light: daylight sky + light concrete ground bounce
+  const hemi = new THREE.HemisphereLight(0xddeeff, 0xc8d4c0, 3.2);
+  scene.add(hemi);
 
-  // 3. Central studio ceiling fill lights
-  const mainStudioLight = new THREE.PointLight(0xe2f0fb, 2.5, 32, 1.1);
-  mainStudioLight.position.set(0, 4.8, 1.5);
-  scene.add(mainStudioLight);
+  // 2. Warm overall ambient fill — bright lab fluorescent feel
+  const ambient = new THREE.AmbientLight(0xfff8f0, 2.8);
+  scene.add(ambient);
 
-  const backStudioLight = new THREE.PointLight(0xb0d8f8, 2.2, 26, 1.1);
-  backStudioLight.position.set(0, 4.8, -6.5);
-  scene.add(backStudioLight);
+  // 3. Main overhead directional sun (casting sharp shadows)
+  const sun = new THREE.DirectionalLight(0xfff5e0, 3.5);
+  sun.position.set(5, 14, 6);
+  sun.target.position.set(0, 0, -10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 300;
+  sun.shadow.camera.left = -30;
+  sun.shadow.camera.right = 30;
+  sun.shadow.camera.top = 30;
+  sun.shadow.camera.bottom = -30;
+  sun.shadow.bias = -0.0005;
+  scene.add(sun);
+  scene.add(sun.target);
+
+  // 4. Cool fill from opposite side to soften shadows
+  const fillLight = new THREE.DirectionalLight(0xd0e8ff, 1.6);
+  fillLight.position.set(-8, 8, -15);
+  scene.add(fillLight);
 
   window.addEventListener("resize", onWindowResize);
 

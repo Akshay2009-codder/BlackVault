@@ -1,21 +1,14 @@
-// Security Guard / Warden AI Voice & Subtitle System
-// Speaks lines using browser's built-in speechSynthesis API with subtitle HUD.
+// Speaks Security Guard AI lines using the browser's built-in
+// speechSynthesis API (no external TTS/API key -- keeps this within the
+// "no Generative AI" constraint). Falls back to subtitle-only if
+// speechSynthesis is unavailable.
 
 import { API_BASE } from "./config.js";
 
 let voiceEnabled = true;
-let subtitleTimer = null;
-
-const FALLBACK_LINES = {
-  attempt_passed_3star: "Flawless optimization. Access granted to the next sector.",
-  attempt_passed_2star: "Clean execution. Door bulkhead unlocked.",
-  attempt_passed_1star: "Barely met tolerance margins, but a pass is a pass. Move through.",
-  attempt_failed: "Pipeline crashed. Anomaly threshold breached. Try again, intruder.",
-  door_opened: "Accessing sector workstation terminal. Let's see your machine learning skills.",
-};
 
 export function initGuardVoice() {
-  // Guard voice setup
+  // Placeholder for a future mute toggle wired up in Phase 5.
 }
 
 export function setVoiceEnabled(enabled) {
@@ -37,40 +30,34 @@ export function onPuzzleFailed() {
 }
 
 export async function guardSpeak(event) {
-  let line = FALLBACK_LINES[event] || "Security system alert.";
+  let line;
   try {
     const res = await fetch(`${API_BASE}/api/guard/line/${event}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.line) line = data.line;
-    }
+    const data = await res.json();
+    line = data.line;
   } catch (err) {
-    // Fallback line used
+    console.warn("[BlackVault] guard line fetch failed", err);
+    return;
   }
 
-  // Display Subtitle
   const subtitle = document.getElementById("guard-subtitle");
   if (subtitle) {
-    subtitle.textContent = `[WARDEN AI]: "${line}"`;
+    subtitle.textContent = line;
     subtitle.classList.add("visible");
-
-    clearTimeout(subtitleTimer);
-    subtitleTimer = setTimeout(() => {
+    setTimeout(() => {
       subtitle.classList.remove("visible");
     }, 4500);
   }
 
-  // Speech synthesis
   if (voiceEnabled && "speechSynthesis" in window) {
     try {
-      window.speechSynthesis.cancel(); // cancel previous
+      window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(line);
-      utter.pitch = 0.65;
+      utter.pitch = 0.7;
       utter.rate = 0.95;
-      utter.volume = 0.9;
       window.speechSynthesis.speak(utter);
     } catch (e) {
-      // Audio fallback ignored
+      // Audio speech error fallback ignored
     }
   }
 }
