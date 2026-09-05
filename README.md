@@ -24,5 +24,5 @@ See `idea.md` for the full concept and phase breakdown.
 
 ## Status
 
-Phase 1 only: structure, idea.md, and interface-level skeleton files...
+Phase 1 only: structure, idea.md, and interface-level skeleton files.
 Nothing is playable yet -- Phase 2 makes Level 1 fully playable end to end.
