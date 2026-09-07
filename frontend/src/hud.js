@@ -4,14 +4,17 @@
 import { DOOR_TYPES } from "./config.js";
 
 export function renderHud(state) {
-  const totalStars = Object.values(state.starsByDoor || {}).reduce((a, b) => a + b, 0);
+  const starsMap = state.starsByDoor || {};
+  const totalStars = Object.values(starsMap).reduce((a, b) => a + b, 0);
+
   const lvlEl = document.getElementById("level-label");
   if (lvlEl) lvlEl.textContent = `Level ${state.level || state.currentSector || 1}`;
 
   const starsEl = document.getElementById("stars-total");
   if (starsEl) starsEl.textContent = `Stars: ${totalStars} / ${DOOR_TYPES.length * 3}`;
 
-  const remaining = DOOR_TYPES.filter(d => !(state.doorsCleared || []).includes(d));
+  const cleared = state.doorsCleared || [];
+  const remaining = DOOR_TYPES.filter(d => !cleared.includes(d));
   const doorsEl = document.getElementById("doors-remaining");
   if (doorsEl) {
     doorsEl.textContent =
@@ -34,7 +37,9 @@ export function hideInteractPrompt() {
 
 export function showLevelComplete(level, totalStars, maxStars) {
   const summaryEl = document.getElementById("level-complete-summary");
-  if (summaryEl) summaryEl.textContent = `Level ${level} cleared with ${totalStars} / ${maxStars} stars.`;
+  if (summaryEl) {
+    summaryEl.textContent = `Level ${level} cleared with ${totalStars} / ${maxStars} stars.`;
+  }
   const lc = document.getElementById("level-complete");
   if (lc) lc.classList.remove("hidden");
 }

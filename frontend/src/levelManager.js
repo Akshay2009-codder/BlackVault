@@ -42,3 +42,8 @@ export function getState() {
 export function isLevelComplete() {
   return state.doorsCleared.length >= 5;
 }
+
+export function advanceLevel() {
+  state.currentSector = Math.min(5, (state.currentSector || 1) + 1);
+  renderHud(state);
+}

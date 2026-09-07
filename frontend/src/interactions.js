@@ -33,13 +33,14 @@ function onKeyDown(e) {
     }
   } else {
     const entry = getDoorRegistry()[targetedDoorType];
-    if (!entry) return;
+    if (!entry || !entry.seatPosition) {
+      if (openTerminalCallback) openTerminalCallback(targetedDoorType, entry?.roomIndex);
+      return;
+    }
     // Walk-up-and-sit: camera tweens to the terminal seat, then the code
     // editor opens once the player has visually sat down.
-    const seatPos = entry.seatPosition || entry.deskPosition;
-    const seatLook = entry.seatLookAt || entry.deskLookAt;
-    sitAt(camera, seatPos, seatLook, () => {
-      openTerminalCallback(targetedDoorType, entry.roomIndex);
+    sitAt(entry.seatPosition, entry.seatLookAt, () => {
+      if (openTerminalCallback) openTerminalCallback(targetedDoorType, entry.roomIndex);
     });
   }
 }
