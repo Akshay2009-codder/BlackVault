@@ -26,4 +26,4 @@ def remove_puzzle(puzzle_id: str) -> Optional[dict]:
 
 def clear_puzzles() -> None:
     """Clear all active puzzles."""
-    _active_puzzles.clear(),,
+    _active_puzzles.clear()
