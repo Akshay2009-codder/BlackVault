@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="BlackVault — 3D ML Escape Lab. Solve machine learning challenges in PyCharm to unlock security doors." />
-  <title>BlackVault — 3D ML Escape Facility</title>
+  <meta name="description" content="BlackVault — 3D ML Escape Lab. Write real Python code to unlock security doors." />
+  <title>BlackVault — 3D ML Code Lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,274 +17,39 @@
 
   <!-- HUD overlay -->
   <div id="hud">
-    <div class="hud-item hud-sector" id="level-label">Sector 01: Classification Hub</div>
-    <div class="hud-item" id="stars-total">Total Stars: ★ 0 / 15</div>
-    <div class="hud-item" id="doors-remaining">Active Door: Sector 1 Door</div>
+    <div class="hud-item hud-sector" id="level-label">Level 1</div>
+    <div class="hud-item" id="stars-total">Stars: ★ 0 / 12</div>
+    <div class="hud-item" id="doors-remaining">Doors remaining: 4</div>
     <div id="build-tag"></div>
   </div>
 
   <!-- Interact prompt -->
-  <div id="interact-prompt" class="hidden">Press E to sit at computer &amp; open PyCharm IDE</div>
+  <div id="interact-prompt" class="hidden">Press E to access terminal</div>
 
   <!-- Security Guard subtitle -->
   <div id="guard-subtitle"></div>
 
+  <!-- Voice mute toggle -->
+  <div id="voice-toggle-btn">🔊 VOICE</div>
+
   <!-- Sector Cleared Notification -->
   <div id="sector-cleared-banner" class="hidden">
     <div class="cleared-content">
-      <span class="cleared-badge">SECTOR DOOR UNLOCKED</span>
-      <h2 id="cleared-title">Sector 01 Cleared!</h2>
-      <p id="cleared-desc">Security bulkhead opened. Proceed through the doorway to the next sector.</p>
+      <span class="cleared-badge">SECURITY DOOR UNLOCKED</span>
+      <h2 id="cleared-title">Door Cleared!</h2>
+      <p id="cleared-desc">Security bulkhead opened. Proceed through the doorway.</p>
     </div>
   </div>
 
-  <!-- PyCharm IDE Window Overlay -->
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CODE EDITOR TERMINAL — Real Python code editing with Monaco
+       ═══════════════════════════════════════════════════════════════════ -->
   <div id="pycharm-ide" class="overlay hidden">
-    <div class="pycharm-window">
-      <!-- 1. Top Titlebar & Menu -->
-      <div class="pycharm-titlebar">
-        <div class="pycharm-titlebar-left">
-          <svg class="pycharm-icon" viewBox="0 0 32 32" width="18" height="18">
-            <rect width="32" height="32" rx="4" fill="#21D789"/>
-            <path d="M6 6h9v5H6zM6 14h14v5H6zM6 22h7v5H6z" fill="#000"/>
-            <path d="M17 19l4-4 4 4-4 4z" fill="#000"/>
-          </svg>
-          <span class="project-title" id="ide-project-title">pipeline.py — [BlackVault ML Core] — PyCharm 2024.2</span>
-        </div>
-        <div class="pycharm-menu-bar">
-          <span class="menu-item">File</span>
-          <span class="menu-item">Edit</span>
-          <span class="menu-item">View</span>
-          <span class="menu-item">Navigate</span>
-          <span class="menu-item">Code</span>
-          <span class="menu-item">Refactor</span>
-          <span class="menu-item active">Run</span>
-          <span class="menu-item">Tools</span>
-          <span class="menu-item">VCS</span>
-          <span class="menu-item">Help</span>
-        </div>
-        <div class="pycharm-titlebar-controls">
-          <button id="pycharm-minimize" class="win-btn" title="Minimize">─</button>
-          <button id="pycharm-maximize" class="win-btn" title="Maximize">□</button>
-          <button id="pycharm-close" class="win-btn win-close" title="Exit Computer (Stand Up)">✕</button>
-        </div>
-      </div>
-
-      <!-- 2. Main Toolbar -->
-      <div class="pycharm-toolbar">
-        <div class="toolbar-left">
-          <div class="branch-tag">🌿 main*</div>
-          <div class="run-config-selector">
-            <span class="py-icon">🐍</span>
-            <span class="config-name" id="toolbar-file-name">pipeline.py</span>
-          </div>
-          <button id="run-btn" class="run-action-btn" title="Run 'pipeline.py' (Shift+F10)">
-            <span class="play-icon">▶</span> Run
-          </button>
-          <button class="debug-action-btn" title="Debug 'pipeline.py'">
-            <span class="bug-icon">🪲</span>
-          </button>
-          <button id="stop-btn" class="stop-action-btn" title="Stop Execution">
-            <span class="stop-icon">■</span>
-          </button>
-        </div>
-        <div class="toolbar-right">
-          <div class="problem-counter-badge" id="problem-badge">
-            <span class="error-dot">●</span> 1 Error
-          </div>
-          <div class="timer-badge" id="terminal-timer">⏱ 05:00</div>
-          <div class="attempts-badge" id="terminal-attempts">Attempts: 5</div>
-        </div>
-      </div>
-
-      <!-- 3. PyCharm Main Body: Sidebar + Editor + Problem/Run Console -->
-      <div class="pycharm-main-area">
-        <!-- Sidebar: Project Explorer -->
-        <div class="pycharm-sidebar">
-          <div class="sidebar-header">
-            <span>PROJECT</span>
-            <span class="sidebar-gear">⚙</span>
-          </div>
-          <div class="project-tree">
-            <div class="tree-node folder expanded">▼ BlackVault <span class="tree-dim">~/ml-core</span></div>
-            <div class="tree-node folder expanded tree-sub-1">▼ src</div>
-            <div class="tree-node file tree-sub-2" id="file-dataset-csv">📄 dataset.csv</div>
-            <div class="tree-node file active tree-sub-2" id="file-pipeline-py">🐍 pipeline.py</div>
-            <div class="tree-node file tree-sub-2">🐍 scoring.py</div>
-            <div class="tree-node folder collapsed tree-sub-1">▶ venv</div>
-            <div class="tree-node file tree-sub-1">📄 requirements.txt</div>
-          </div>
-        </div>
-
-        <!-- Center Editor Area -->
-        <div class="pycharm-editor-container">
-          <!-- Editor Tabs -->
-          <div class="editor-tabs">
-            <div class="editor-tab active" id="tab-pipeline">
-              <span class="py-icon">🐍</span>
-              <span class="tab-title">pipeline.py</span>
-              <span class="tab-close">×</span>
-            </div>
-            <div class="editor-tab" id="tab-dataset">
-              <span class="doc-icon">📄</span>
-              <span class="tab-title">dataset.csv</span>
-            </div>
-          </div>
-
-          <!-- Breadcrumbs -->
-          <div class="editor-breadcrumbs">
-            <span>BlackVault</span> &rsaquo; <span>src</span> &rsaquo; <span>pipeline.py</span> &rsaquo; <span id="breadcrumb-fn">build_ml_pipeline()</span>
-          </div>
-
-          <!-- RED Problem / Inspection Alert Banner -->
-          <div class="pycharm-problem-banner" id="problem-banner">
-            <div class="problem-banner-icon">⛔</div>
-            <div class="problem-banner-content">
-              <span class="problem-title" id="problem-banner-title">CRITICAL ERROR: High Data Corruption & Model Metric Sub-threshold</span>
-              <span class="problem-desc" id="problem-banner-desc">The dataset contains unhandled dirty/missing rows. The model pipeline fails to meet the target threshold (Score &lt; Target). Fix the red-underlined pipeline parameters below.</span>
-            </div>
-          </div>
-
-          <!-- Code Editor Body -->
-          <div class="editor-scroll-area">
-            <div class="code-editor" id="code-editor">
-              <div class="line-gutter" id="line-gutter">
-                <!-- Line numbers rendered here -->
-              </div>
-              <div class="code-lines-container">
-                <div class="code-line"><span class="kw">import</span> <span class="imp">pandas</span> <span class="kw">as</span> <span class="var">pd</span></div>
-                <div class="code-line"><span class="kw">import</span> <span class="imp">numpy</span> <span class="kw">as</span> <span class="var">np</span></div>
-                <div class="code-line"><span class="kw">from</span> <span class="imp">sklearn.model_selection</span> <span class="kw">import</span> <span class="var">train_test_split</span></div>
-                <div class="code-line"><span class="kw">from</span> <span class="imp">sklearn.preprocessing</span> <span class="kw">import</span> <span class="var">StandardScaler, OneHotEncoder</span></div>
-                <div class="code-line"><span class="kw">from</span> <span class="imp">sklearn.impute</span> <span class="kw">import</span> <span class="var">SimpleImputer</span></div>
-                <div class="code-line"></div>
-                <div class="code-line"><span class="cm"># ========================================================</span></div>
-                <div class="code-line"><span class="cm"># [MISSION] FIX THE PIPELINE TO PASS THE SECURITY THRESHOLD</span></div>
-                <div class="code-line"><span class="cm"># ========================================================</span></div>
-                <div class="code-line"><span class="kw">def</span> <span class="fn">build_ml_pipeline</span>(df_raw, target_col):</div>
-
-                <!-- RED PROBLEM HIGHLIGHT SECTION IN CODE -->
-                <div class="code-line red-problem-line">
-                  <span class="red-error-text"># ❌ [ERROR LINE]: Unresolved data anomalies & sub-optimal model architecture!</span>
-                </div>
-
-                <!-- Interactive Pipeline Controls embedded inside PyCharm Darcula UI -->
-                <div class="pycharm-inline-config">
-                  <div class="config-grid">
-                    <!-- Column 1: Preprocessing -->
-                    <div class="config-panel">
-                      <div class="panel-header">1. Data Preprocessing &amp; Cleaning</div>
-                      <label class="ide-checkbox-row">
-                        <input type="checkbox" id="opt-drop-duplicates" />
-                        <span>df.drop_duplicates(inplace=True)</span>
-                      </label>
-                      <label class="ide-select-row">
-                        <span>Missing Imputation:</span>
-                        <select id="opt-fill-missing" class="ide-select">
-                          <option value="">None (Keep NaN)</option>
-                          <option value="drop_rows">df.dropna(axis=0)</option>
-                          <option value="mean">SimpleImputer(strategy='mean')</option>
-                          <option value="median">SimpleImputer(strategy='median')</option>
-                        </select>
-                      </label>
-                      <label class="ide-checkbox-row">
-                        <input type="checkbox" id="opt-encode" />
-                        <span>OneHotEncoder(handle_unknown='ignore')</span>
-                      </label>
-                      <label class="ide-checkbox-row">
-                        <input type="checkbox" id="opt-scale" />
-                        <span>StandardScaler().fit_transform(X)</span>
-                      </label>
-                    </div>
-
-                    <!-- Column 2: Algorithm & Hyperparameters -->
-                    <div class="config-panel">
-                      <div class="panel-header">2. Model Architecture &amp; Hyperparameters</div>
-                      <label class="ide-select-row">
-                        <span>Estimator:</span>
-                        <select id="opt-algorithm" class="ide-select"></select>
-                      </label>
-                      <div id="opt-extra-params" class="extra-params-container"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="code-line"><span class="kw">    return</span> <span class="var">model, X_test, y_test</span></div>
-              </div>
-            </div>
-
-            <!-- Dataset View Tab (toggleable) -->
-            <div id="dataset-preview-view" class="dataset-preview-container hidden">
-              <div class="dataset-meta-bar" id="dataset-stats">Loading sector dataset...</div>
-              <div class="table-scroll-container">
-                <table id="dataset-table">
-                  <thead></thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Tool Window: Problems & Run Console -->
-          <div class="pycharm-bottom-dock">
-            <div class="dock-tabs">
-              <button class="dock-tab" id="dock-tab-problems">
-                <span class="red-badge">❌ 1</span> Problems
-              </button>
-              <button class="dock-tab active" id="dock-tab-run">
-                ▶ Run: pipeline.py
-              </button>
-              <button class="dock-tab" id="dock-tab-terminal">
-                Terminal
-              </button>
-            </div>
-            
-            <div class="dock-content">
-              <!-- Run Console -->
-              <div class="run-console" id="run-console">
-                <div class="console-line sys">C:\Users\BlackVault\venv\Scripts\python.exe C:/Users/BlackVault/src/pipeline.py</div>
-                <div class="console-line info" id="console-dataset-info">Sector dataset loaded: waiting for execution...</div>
-                <div class="console-line" id="console-output"></div>
-              </div>
-
-              <!-- Problems Tab Content -->
-              <div class="problems-view hidden" id="problems-view">
-                <div class="problem-item red-error" id="problem-detail-item">
-                  <span class="prob-icon">❌</span>
-                  <span class="prob-file">pipeline.py:12</span>
-                  <span class="prob-msg" id="prob-msg-text">DataAnomalyWarning: High noise ratio. Target metric criteria not met.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  <!-- Click to Play Overlay -->
-  <div id="click-to-play" class="overlay hidden">
-    <div class="overlay-box">
-      <h1>BLACKVAULT</h1>
-      <p>Lab Entrance Hub — Level 1</p>
-      <p class="hint">Click to enter. WASD to move, mouse to look, E to interact.</p>
-      <button id="start-btn">Enter Facility</button>
-    </div>
-  </div>
-
-  <!-- Level Complete Overlay -->
-  <div id="level-complete" class="overlay hidden">
-    <div class="overlay-box">
-      <h1>Level Complete</h1>
-      <p id="level-complete-summary"></p>
-      <button id="next-level-btn">Advance to Next Level</button>
-    </div>
-  </div>
-
-  <!-- Terminal Code Overlay -->
-  <div id="terminal" class="overlay hidden">
     <div class="ide-window">
+      <!-- Titlebar -->
       <div class="ide-titlebar">
         <div class="ide-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
-        <div class="ide-tab" id="ide-tab-label">predict.py</div>
+        <div class="ide-tab" id="ide-tab-label">solve.py</div>
         <div class="ide-meta">
           <span id="terminal-timer">05:00</span>
           <span id="terminal-attempts">Attempts: 5</span>
@@ -293,28 +58,39 @@
       </div>
 
       <div class="ide-body">
+        <!-- Left Panel: Problem statement + dataset preview -->
         <div class="ide-left">
-          <div id="problem-statement" class="problem-statement"></div>
-          <div id="terminal-hint" class="hidden"></div>
+          <div id="problem-statement" class="problem-statement">Loading challenge...</div>
+          <div id="terminal-hint" class="terminal-hint hidden"></div>
 
           <div class="dataset-panel">
             <div class="dataset-panel-title">Dataset Preview</div>
-            <div id="dataset-stats"></div>
-            <div id="dataset-table-wrap">
+            <div class="dataset-stats" id="dataset-stats"></div>
+            <div class="table-scroll-container" id="dataset-table-wrap">
               <table id="dataset-table"><thead></thead><tbody></tbody></table>
             </div>
           </div>
         </div>
 
+        <!-- Right Panel: Monaco Code Editor + Console -->
         <div class="ide-right">
-          <div id="code-editor"></div>
+          <div id="code-editor-container" style="flex: 1; min-height: 200px;"></div>
           <div class="ide-console">
-            <div class="ide-console-title">Console</div>
+            <div class="ide-console-title">Console Output</div>
             <div id="terminal-result"></div>
           </div>
-          <button id="submit-btn">Run &amp; Submit (Ctrl+Enter)</button>
+          <button id="submit-btn" class="primary-btn">▶ Run &amp; Submit (Ctrl+Enter)</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Level Complete Overlay -->
+  <div id="level-complete" class="overlay hidden">
+    <div class="modal-card">
+      <h2>Level Complete</h2>
+      <p id="level-complete-summary"></p>
+      <p class="sub-text">All required doors cleared. The vault exit is open!</p>
     </div>
   </div>
 

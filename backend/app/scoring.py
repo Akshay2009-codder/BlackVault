@@ -16,6 +16,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 
 from .stars import StarInput, compute_stars
+from . import code_runner
 
 
 def evaluate_submission(puzzle: dict, pipeline_choice: dict, time_remaining: int) -> Dict[str, Any]:
@@ -187,4 +188,121 @@ def evaluate_submission(puzzle: dict, pipeline_choice: dict, time_remaining: int
         "target": threshold,
         "higher_is_better": higher_is_better,
         "stars": stars,
+    }
+
+
+def _to_1d_array(result, expected_len: int):
+    """Coerce a player's returned predictions into a flat Python list of the
+    expected length, raising a player-facing error if it doesn't fit."""
+    if result is None:
+        raise code_runner.CodeRunError("Your function returned None instead of predictions.")
+    if isinstance(result, (pd.Series, pd.DataFrame)):
+        result = result.values
+    if isinstance(result, np.ndarray):
+        result = result.ravel().tolist()
+    if not isinstance(result, (list, tuple)):
+        raise code_runner.CodeRunError(
+            f"Expected a list/array of predictions, got {type(result).__name__}."
+        )
+    result = list(result)
+    if len(result) != expected_len:
+        raise code_runner.CodeRunError(
+            f"Expected {expected_len} predictions (one per row), got {len(result)}."
+        )
+    return result
+
+
+def score_code(puzzle: dict, code: str, time_remaining: int) -> Dict[str, Any]:
+    """The real gameplay path: run the player's own Python (written line by
+    line in the in-game editor, not a checkbox pipeline) against the real
+    dataset, then grade it with the puzzle's real metric.
+
+    puzzle["type"] is what the door is labeled (may be "mystery"); puzzle
+    real problem type is puzzle.get("real_type") or puzzle["type"] -- the
+    player must diagnose this themselves for a mystery door by inspecting
+    the data and defining the matching function (predict/cluster/detect).
+    """
+    df_full = puzzle["dataframe"].copy(deep=True)
+    feature_cols = list(puzzle["feature_cols"])
+    target_col = puzzle.get("target_col")
+    ptype = puzzle.get("real_type") or puzzle.get("type", "classification")
+    threshold = float(puzzle["threshold"])
+    higher_is_better = puzzle.get("higher_is_better", True)
+
+    def _fail(msg: str) -> Dict[str, Any]:
+        return {
+            "passed": False, "score": 0.0, "target": threshold,
+            "higher_is_better": higher_is_better, "stars": None, "error_message": msg,
+        }
+
+    try:
+        if ptype in ("classification", "regression"):
+            stratify = None
+            if ptype == "classification" and df_full[target_col].nunique() > 1:
+                stratify = df_full[target_col]
+            train_df, test_df = train_test_split(
+                df_full, test_size=0.25, random_state=42, stratify=stratify
+            )
+            train_df = train_df.reset_index(drop=True).copy()
+            test_full = test_df.reset_index(drop=True).copy()
+            y_test = test_full[target_col].values
+            test_input = test_full[feature_cols].copy()
+            train_input = train_df[feature_cols + [target_col]].copy()
+
+            result = code_runner.run_player_code(
+                code, "predict", (train_input, test_input, target_col)
+            )
+            preds = _to_1d_array(result, len(test_input))
+
+            if ptype == "classification":
+                score = float(f1_score(y_test, preds, average="weighted", zero_division=0))
+            else:
+                score = float(r2_score(y_test, preds))
+
+        elif ptype == "clustering":
+            feature_df = df_full[feature_cols].copy()
+            result = code_runner.run_player_code(code, "cluster", (feature_df,))
+            labels = _to_1d_array(result, len(feature_df))
+            n_labels = len(set(labels) - {-1})
+            if n_labels < 2 or n_labels >= len(feature_df):
+                score = -0.5
+            else:
+                clean_X = feature_df.apply(lambda c: c.fillna(c.mean())).values
+                score = float(silhouette_score(clean_X, labels))
+
+        elif ptype == "anomaly":
+            feature_df = df_full[feature_cols].copy()
+            y_true = df_full[target_col].values
+            result = code_runner.run_player_code(code, "detect", (feature_df,))
+            preds = _to_1d_array(result, len(feature_df))
+            preds_bin = [1 if p in (1, True, "1", 1.0) else 0 for p in preds]
+            score = float(recall_score(y_true, preds_bin, zero_division=0))
+
+        else:
+            return _fail(f"Unknown problem type '{ptype}'.")
+
+    except code_runner.CodeRunError as e:
+        return _fail(str(e))
+    except Exception as e:  # noqa: BLE001 -- any grading failure is shown to the player, not a 500
+        return _fail(f"{type(e).__name__}: {e}")
+
+    score = round(float(score), 4)
+    passed = bool(score >= threshold if higher_is_better else score <= threshold)
+
+    stars = None
+    if passed:
+        star_in = StarInput(
+            score=score,
+            target=threshold,
+            higher_is_better=higher_is_better,
+            attempts_used=puzzle.get("attempts_used", 1),
+            max_attempts=puzzle.get("max_attempts", 5),
+            time_remaining_seconds=max(0, time_remaining),
+            time_limit_seconds=puzzle.get("time_limit_seconds", 300),
+        )
+        stars = compute_stars(star_in)
+
+    return {
+        "passed": passed, "score": score, "target": threshold,
+        "higher_is_better": higher_is_better, "stars": stars, "error_message": None,
     }

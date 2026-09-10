@@ -1,7 +1,6 @@
 """
 API routes for the level+door contract.
-Connects generators, in-memory puzzle state, scikit-learn scoring, guard AI, SQLite store,
-and PyCharm IDE Python code execution.
+Connects generators, in-memory puzzle state, scikit-learn scoring, guard AI, and SQLite store.
 """
 
 import uuid
@@ -9,14 +8,13 @@ from fastapi import APIRouter, HTTPException
 
 from .schemas import (
     DoorPuzzleRequest, DoorPuzzleResponse,
-    SubmitAttemptRequest, SubmitAttemptResponse,
+    SubmitAttemptRequest, SubmitCodeRequest, SubmitAttemptResponse,
     LevelProgressResponse,
-    CodeSubmitRequest, CodeSubmitResponse,
 )
 from .levels import get_level_config
 from .guard import get_guard_line
 from .generators import generate_puzzle
-from .code_evaluator import evaluate_python_puzzle
+from .problem_statements import get_problem_statement, get_starter_code
 from . import puzzle_state, scoring, store
 
 router = APIRouter()
@@ -44,6 +42,49 @@ def open_door(req: DoorPuzzleRequest):
         max_attempts=door_cfg.max_attempts,
         max_attempts_remaining=door_cfg.max_attempts,
         hints_enabled=door_cfg.hints_enabled,
+        problem_statement=get_problem_statement(req.door_type),
+        starter_code=get_starter_code(req.door_type),
+    )
+
+
+@router.post("/api/door/submit_code", response_model=SubmitAttemptResponse)
+def submit_code(req: SubmitCodeRequest):
+    """The real gameplay path: the player writes actual Python, line by
+    line, in the in-game code editor -- no checkboxes. Their code is run in
+    a sandboxed subprocess (app/code_runner.py) against the puzzle's real
+    dataset, then graded with the real metric for that puzzle type."""
+    puzzle = puzzle_state.get_puzzle(req.puzzle_id)
+    if not puzzle:
+        raise HTTPException(404, "Active puzzle not found or expired. Please re-open the door.")
+
+    puzzle["attempts_used"] = puzzle.get("attempts_used", 0) + 1
+    max_attempts = puzzle.get("max_attempts", 5)
+    attempts_remaining = max(0, max_attempts - puzzle["attempts_used"])
+
+    res = scoring.score_code(puzzle, req.code, req.time_remaining_seconds)
+
+    door_type = puzzle.get("door_type", "")
+    level = puzzle.get("level", 1)
+
+    if res["passed"] and res["stars"]:
+        store.save_door_result(
+            level=level,
+            door_type=door_type,
+            stars=res["stars"],
+            score=res["score"],
+            attempts_used=puzzle["attempts_used"],
+        )
+
+    return SubmitAttemptResponse(
+        passed=res["passed"],
+        score=res["score"],
+        target=res["target"],
+        higher_is_better=res.get("higher_is_better", True),
+        attempts_used=puzzle["attempts_used"],
+        attempts_remaining=attempts_remaining,
+        door_type=door_type,
+        stars=res.get("stars"),
+        error_message=res.get("error_message"),
     )
 
 
@@ -87,39 +128,6 @@ def submit_attempt(req: SubmitAttemptRequest):
     )
 
 
-@router.post("/api/door/code_submit", response_model=CodeSubmitResponse)
-def code_submit(req: CodeSubmitRequest):
-    """
-    Executes and evaluates player-submitted Python code in PyCharm IDE puzzle.
-    """
-    res = evaluate_python_puzzle(
-        door_type=req.door_type,
-        level=req.level,
-        code=req.submitted_code,
-        attempts=req.attempts_used or 1,
-        time_remaining=req.time_remaining_seconds or 300,
-    )
-
-    if res["passed"] and res["stars"]:
-        store.save_door_result(
-            level=req.level,
-            door_type=req.door_type,
-            stars=res["stars"],
-            score=res["score"],
-            attempts_used=req.attempts_used or 1,
-        )
-
-    return CodeSubmitResponse(
-        passed=res["passed"],
-        output=res.get("output"),
-        error=res.get("error"),
-        score=res.get("score"),
-        stars=res.get("stars"),
-        door_type=req.door_type,
-        level=req.level,
-    )
-
-
 @router.get("/api/guard/line/{event}")
 def guard_line(event: str):
     try:
@@ -134,7 +142,11 @@ def level_progress(level: int):
     stars_by_door = {r["door_type"]: r["best_stars"] for r in rows}
     doors_cleared = [d for d, s in stars_by_door.items() if s > 0]
     level_cfg = get_level_config(level)
-    level_complete = set(doors_cleared) >= set(level_cfg.doors.keys())
+    # Mystery is a bonus/hardest door, not required to clear a level -- the
+    # frontend's exit-vault check only requires the 4 core door types, so
+    # keep this consistent (mystery still awards its own stars if cleared).
+    required_doors = {d for d in level_cfg.doors.keys() if d != "mystery"}
+    level_complete = required_doors <= set(doors_cleared)
     return LevelProgressResponse(
         level=level,
         doors_cleared=doors_cleared,

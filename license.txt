@@ -1,0 +1,11 @@
+Model Information:
+* title:	Cyberpunk man
+* source:	https://sketchfab.com/3d-models/cyberpunk-man-da0af91a6f434e43bdb02f9f60e473c3
+* author:	puzanovanton2015 (https://sketchfab.com/puzanovanton2015)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Cyberpunk man" (https://sketchfab.com/3d-models/cyberpunk-man-da0af91a6f434e43bdb02f9f60e473c3) by puzanovanton2015 (https://sketchfab.com/puzanovanton2015) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

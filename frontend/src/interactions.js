@@ -32,13 +32,14 @@ function onKeyDown(e) {
       if (levelManager.advanceLevel) levelManager.advanceLevel();
     }
   } else {
+    if (levelManager.isDoorActive && !levelManager.isDoorActive(targetedDoorType)) {
+      return;
+    }
     const entry = getDoorRegistry()[targetedDoorType];
     if (!entry || !entry.seatPosition) {
       if (openTerminalCallback) openTerminalCallback(targetedDoorType, entry?.roomIndex);
       return;
     }
-    // Walk-up-and-sit: camera tweens to the terminal seat, then the code
-    // editor opens once the player has visually sat down.
     sitAt(entry.seatPosition, entry.seatLookAt, () => {
       if (openTerminalCallback) openTerminalCallback(targetedDoorType, entry.roomIndex);
     });
@@ -87,9 +88,17 @@ export function updateInteractions() {
     if (closest.isExit) {
       if (levelManager.isLevelComplete && levelManager.isLevelComplete()) {
         hud.showInteractPrompt("Press E to advance to the next level");
+      } else {
+        hud.showInteractPrompt("DOOR LOCKED — Complete all 5 sector terminals first");
       }
     } else {
-      hud.showInteractPrompt(`Press E to access ${closest.doorType} terminal`);
+      const isActive = levelManager.isDoorActive ? levelManager.isDoorActive(closest.doorType) : true;
+      if (isActive) {
+        hud.showInteractPrompt(`Press E to access ${closest.doorType} terminal`);
+      } else {
+        const activeDoor = levelManager.getActiveDoor ? levelManager.getActiveDoor() : "active";
+        hud.showInteractPrompt(`DOOR LOCKED — Complete active ${activeDoor} door terminal first`);
+      }
     }
   }
 }

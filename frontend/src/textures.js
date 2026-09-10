@@ -1,31 +1,31 @@
-// Procedural canvas textures — bright scientific lab edition.
+// Procedural high-detail canvas textures for realistic studio environment.
+
 import * as THREE from "three";
 
-// ── NEW: Bright white polished tile floor ────────────────────────────────────
 export function createFloorTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Base: warm white tile
-  ctx.fillStyle = "#f2f0ec";
+  // Dark polished concrete base
+  ctx.fillStyle = "#1a1e28";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Subtle noise grain
+  // Subtle grain noise
   const imgData = ctx.getImageData(0, 0, 1024, 1024);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
     const noise = (Math.random() - 0.5) * 10;
-    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));
     data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
     data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Grout lines — light grey
-  ctx.strokeStyle = "#d0ccc8";
-  ctx.lineWidth = 5;
+  // Floor slab seams
+  ctx.strokeStyle = "#252a36";
+  ctx.lineWidth = 3;
   ctx.beginPath();
   for (let x = 0; x <= 1024; x += 256) {
     ctx.moveTo(x, 0); ctx.lineTo(x, 1024);
@@ -35,184 +35,21 @@ export function createFloorTexture() {
   }
   ctx.stroke();
 
-  // Bevel highlight on grout
-  ctx.strokeStyle = "rgba(255,255,255,0.45)";
+  // Subtle tile bevel highlight
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (let x = 3; x <= 1024; x += 256) {
+  for (let x = 2; x <= 1024; x += 256) {
     ctx.moveTo(x, 0); ctx.lineTo(x, 1024);
-  }
-  for (let y = 3; y <= 1024; y += 256) {
-    ctx.moveTo(0, y); ctx.lineTo(1024, y);
   }
   ctx.stroke();
 
-  // Specular gloss patches
-  for (let i = 0; i < 18; i++) {
-    const px = Math.random() * 1024, py = Math.random() * 1024;
-    const r = 40 + Math.random() * 80;
-    const g2 = ctx.createRadialGradient(px, py, 0, px, py, r);
-    g2.addColorStop(0, "rgba(255,255,255,0.18)");
-    g2.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g2;
-    ctx.beginPath();
-    ctx.ellipse(px, py, r, r * 0.5, Math.random() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(5, 5);
+  texture.repeat.set(6, 6);
   return texture;
 }
-
-// ── NEW: Off-white painted lab wall ──────────────────────────────────────────
-export function createWallTexture(tintHex = 0xeaeef4) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext("2d");
-
-  // Convert hex color to rgb string
-  const r = (tintHex >> 16) & 0xff;
-  const g = (tintHex >> 8) & 0xff;
-  const b = tintHex & 0xff;
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0, 0, 512, 512);
-
-  // Very subtle painted texture noise
-  const imgData = ctx.getImageData(0, 0, 512, 512);
-  const d = imgData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const n = (Math.random() - 0.5) * 8;
-    d[i]     = Math.max(0, Math.min(255, d[i]     + n));
-    d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
-    d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
-  }
-  ctx.putImageData(imgData, 0, 0);
-
-  // Horizontal painted roller lines (very faint)
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  for (let y = 0; y < 512; y += 3) {
-    ctx.beginPath();
-    ctx.moveTo(0, y); ctx.lineTo(512, y);
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 2);
-  return texture;
-}
-
-// ── NEW: Lab room sign (white panel, colored accent, dark text) ──────────────
-export function createLabSignTexture(text, accentColor) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 640;
-  canvas.height = 112;
-  const ctx = canvas.getContext("2d");
-
-  // White panel background
-  ctx.fillStyle = "#f8f9fb";
-  ctx.fillRect(0, 0, 640, 112);
-
-  // Left accent stripe
-  const r = (accentColor >> 16) & 0xff;
-  const g = (accentColor >> 8)  & 0xff;
-  const b = accentColor & 0xff;
-  const accentStr = `rgb(${r},${g},${b})`;
-  ctx.fillStyle = accentStr;
-  ctx.fillRect(0, 0, 14, 112);
-
-  // Subtle bottom shadow line
-  ctx.fillStyle = "#d8dde4";
-  ctx.fillRect(0, 108, 640, 4);
-
-  // Text
-  ctx.font = "bold 34px 'Inter', Arial, sans-serif";
-  ctx.fillStyle = "#1a2130";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 28, 54);
-
-  // Small accent dot after text
-  ctx.fillStyle = accentStr;
-  ctx.beginPath();
-  ctx.arc(30, 90, 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  return new THREE.CanvasTexture(canvas);
-}
-
-// ── NEW: Computer screen texture (dark editor with tinted header) ─────────────
-export function createScreenTexture(accentColor) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 340;
-  const ctx = canvas.getContext("2d");
-
-  // Dark IDE background
-  ctx.fillStyle = "#1e2330";
-  ctx.fillRect(0, 0, 1024, 340);
-
-  // Title bar
-  const r = (accentColor >> 16) & 0xff;
-  const g = (accentColor >> 8) & 0xff;
-  const b = accentColor & 0xff;
-  ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
-  ctx.fillRect(0, 0, 1024, 32);
-
-  // Traffic light dots
-  ["#ff5f57", "#febc2e", "#28c840"].forEach((c, i) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.arc(20 + i * 22, 16, 7, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Title text
-  ctx.font = "bold 14px 'Courier New', monospace";
-  ctx.fillStyle = "#c8d4e4";
-  ctx.fillText("pipeline.py — BlackVault ML Core — PyCharm 2025.1", 90, 21);
-
-  // Code lines
-  const lines = [
-    { indent: 0,  color: "#7eb6f0", text: "import pandas as pd" },
-    { indent: 0,  color: "#7eb6f0", text: "import numpy as np" },
-    { indent: 0,  color: "#7eb6f0", text: "from sklearn.ensemble import RandomForestClassifier" },
-    { indent: 0,  color: "#888",    text: "" },
-    { indent: 0,  color: "#888",    text: "# ─── BUILD ML PIPELINE ───────────────────────" },
-    { indent: 0,  color: "#c678dd", text: "def build_pipeline(df, target):" },
-    { indent: 2,  color: "#abb2bf", text: 'X = df.drop(columns=[target])' },
-    { indent: 2,  color: "#abb2bf", text: 'y = df[target]' },
-    { indent: 2,  color: "#c678dd", text: 'if drop_duplicates:' },
-    { indent: 4,  color: "#abb2bf", text: 'X = X.drop_duplicates()' },
-    { indent: 2,  color: "#abb2bf", text: 'model = RandomForestClassifier(n_estimators=100)' },
-    { indent: 2,  color: "#abb2bf", text: 'model.fit(X_train, y_train)' },
-    { indent: 2,  color: "#e5c07b", text: 'return model.score(X_test, y_test)' },
-  ];
-
-  ctx.font = "13px 'Courier New', monospace";
-  lines.forEach((ln, i) => {
-    const x = 18 + ln.indent * 10;
-    const y = 52 + i * 20;
-    ctx.fillStyle = ln.color;
-    ctx.fillText(ln.text, x, y);
-  });
-
-  // Bottom status bar
-  ctx.fillStyle = `rgba(${r},${g},${b},0.7)`;
-  ctx.fillRect(0, 320, 1024, 20);
-  ctx.font = "11px 'Courier New', monospace";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText("  pipeline.py   UTF-8   Python 3.11   Ln 12, Col 1", 8, 333);
-
-  return new THREE.CanvasTexture(canvas);
-}
-
-
 
 export function createCitySkylineTexture() {
   const canvas = document.createElement("canvas");
@@ -220,31 +57,31 @@ export function createCitySkylineTexture() {
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Deep night sky gradient with atmospheric mist
+  // Night sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, 1024);
-  grad.addColorStop(0, "#04070d");
-  grad.addColorStop(0.4, "#081324");
-  grad.addColorStop(0.75, "#102542");
-  grad.addColorStop(1, "#1e3c66");
+  grad.addColorStop(0, "#05080e");
+  grad.addColorStop(0.3, "#0a1020");
+  grad.addColorStop(0.7, "#101828");
+  grad.addColorStop(1, "#182030");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 2048, 1024);
 
-  // Distant stars
-  for (let i = 0; i < 200; i++) {
+  // Stars
+  for (let i = 0; i < 120; i++) {
     const sx = Math.random() * 2048;
-    const sy = Math.random() * 450;
-    const r = Math.random() * 1.5;
-    ctx.fillStyle = `rgba(210, 235, 255, ${Math.random() * 0.8 + 0.2})`;
+    const sy = Math.random() * 400;
+    const sr = 0.5 + Math.random() * 1.5;
+    ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.7})`;
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Draw 50 realistic skyscrapers with lit windows
+  // Draw night skyscrapers, dark silhouettes with lit windows
   const layers = [
-    { color: "#060c18", minH: 350, maxH: 680, windowAlpha: 0.4, widthRange: [60, 120] },
-    { color: "#0a1526", minH: 450, maxH: 880, windowAlpha: 0.7, widthRange: [70, 150] },
-    { color: "#102036", minH: 550, maxH: 960, windowAlpha: 0.95, widthRange: [80, 170] },
+    { color: "#0c1018", minH: 320, maxH: 640, windowAlpha: 0.5, widthRange: [60, 120] },
+    { color: "#080c14", minH: 420, maxH: 840, windowAlpha: 0.65, widthRange: [70, 150] },
+    { color: "#060a10", minH: 520, maxH: 920, windowAlpha: 0.8, widthRange: [80, 170] },
   ];
 
   layers.forEach((layer) => {
@@ -257,36 +94,22 @@ export function createCitySkylineTexture() {
       ctx.fillStyle = layer.color;
       ctx.fillRect(currX, bY, bWidth, bHeight);
 
-      // Rooftop tower / spire
+      // Rooftop tower
       if (Math.random() > 0.4) {
         ctx.fillRect(currX + bWidth * 0.42, bY - 35, bWidth * 0.16, 35);
-        ctx.strokeStyle = "#557799";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(currX + bWidth * 0.5, bY - 35);
-        ctx.lineTo(currX + bWidth * 0.5, bY - 80);
-        ctx.stroke();
-
-        // Red flashing beacon
-        ctx.fillStyle = "#ff3333";
-        ctx.beginPath();
-        ctx.arc(currX + bWidth * 0.5, bY - 82, 3, 0, Math.PI * 2);
-        ctx.fill();
       }
 
-      // Lit office windows
+      // Glowing office windows at night (warm yellows, cool blues)
       const rows = Math.floor(bHeight / 14);
       const cols = Math.floor(bWidth / 10);
       for (let r = 2; r < rows - 2; r++) {
         for (let c = 1; c < cols - 1; c++) {
-          if (Math.random() > 0.42) {
+          if (Math.random() > 0.45) {
             const wx = currX + c * 10 + 2;
             const wy = bY + r * 14 + 2;
-            const isWarm = Math.random() > 0.35;
-            const color = isWarm
-              ? `rgba(255, 225, 160, ${layer.windowAlpha * (0.6 + Math.random() * 0.4)})`
-              : `rgba(150, 230, 255, ${layer.windowAlpha * (0.6 + Math.random() * 0.4)})`;
-            ctx.fillStyle = color;
+            const warm = Math.random() > 0.4;
+            const wColor = warm ? `rgba(255, 220, 130, ${layer.windowAlpha * (0.5 + Math.random() * 0.5)})` : `rgba(140, 200, 255, ${layer.windowAlpha * (0.3 + Math.random() * 0.4)})`;
+            ctx.fillStyle = wColor;
             ctx.fillRect(wx, wy, 6, 8);
           }
         }
@@ -558,31 +381,34 @@ export function createWhiteboardTexture() {
   canvas.height = 512;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#121822";
+  ctx.fillStyle = "#fbfcfe";
   ctx.fillRect(0, 0, 1024, 512);
+  ctx.strokeStyle = "#c9d2dc";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(6, 6, 1012, 500);
 
   // Header
   ctx.font = "bold 24px 'Inter', sans-serif";
-  ctx.fillStyle = "#5ec8d8";
+  ctx.fillStyle = "#2f6fb0";
   ctx.fillText("GAME BUILD IN PROGRESS", 50, 55);
 
   ctx.font = "bold 38px 'Inter', sans-serif";
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#182430";
   ctx.fillText("PROJECT COSMOS", 50, 105);
 
   // Diagrams and text boxes
-  ctx.strokeStyle = "#e8a33d";
+  ctx.strokeStyle = "#d98a2b";
   ctx.lineWidth = 2;
   ctx.strokeRect(50, 150, 260, 130);
   ctx.font = "16px 'Courier New', monospace";
-  ctx.fillStyle = "#e8a33d";
+  ctx.fillStyle = "#b5701e";
   ctx.fillText("[ ML SENSORS ]", 70, 185);
-  ctx.fillStyle = "#a0b8d8";
+  ctx.fillStyle = "#3a4a5c";
   ctx.fillText("• Clean missing vals", 70, 215);
   ctx.fillText("• Impute mean/median", 70, 240);
 
   // Arrow
-  ctx.strokeStyle = "#5ec8d8";
+  ctx.strokeStyle = "#2f8fa8";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(320, 215); ctx.lineTo(420, 215);
@@ -590,9 +416,9 @@ export function createWhiteboardTexture() {
   ctx.stroke();
 
   ctx.strokeRect(440, 150, 260, 130);
-  ctx.fillStyle = "#5ec8d8";
+  ctx.fillStyle = "#2f8fa8";
   ctx.fillText("[ NEURAL CORE ]", 460, 185);
-  ctx.fillStyle = "#a0b8d8";
+  ctx.fillStyle = "#3a4a5c";
   ctx.fillText("• Logistic / RF", 460, 215);
   ctx.fillText("• Silhouette > 0.6", 460, 240);
 
@@ -602,15 +428,15 @@ export function createWhiteboardTexture() {
   ctx.lineTo(790, 205); ctx.moveTo(800, 215); ctx.lineTo(790, 225);
   ctx.stroke();
 
-  ctx.strokeStyle = "#4caf50";
+  ctx.strokeStyle = "#3c9a4a";
   ctx.strokeRect(820, 150, 150, 130);
-  ctx.fillStyle = "#4caf50";
+  ctx.fillStyle = "#3c9a4a";
   ctx.fillText("[ UNLOCK ]", 840, 200);
   ctx.fillText("★ ★ ★", 855, 235);
 
   // Bottom notes
   ctx.font = "15px 'Courier New', monospace";
-  ctx.fillStyle = "#8ca2be";
+  ctx.fillStyle = "#5c6c7c";
   ctx.fillText("SECURITY PROTOCOL: WARDEN AI actively monitoring intruder pipelines.", 50, 360);
   ctx.fillText("STATUS: All 5 Security Doors active in hub.", 50, 395);
 
@@ -719,4 +545,65 @@ export function createCeilingScreenTexture(camLabel) {
   ctx.fillText("STATUS: SECTOR MONITORED", 44, 300);
 
   return new THREE.CanvasTexture(canvas);
+}
+
+export function createHubRugTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#0e131d";
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  const colors = ["#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+  const cx = 512, cy = 512;
+
+  // Concentric colorful rings, like a stylized compass/circuit hub --
+  // ties the 5 door colors together on the floor beneath the player.
+  for (let i = 0; i < colors.length; i++) {
+    const r = 480 - i * 80;
+    ctx.strokeStyle = colors[i];
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Radiating spokes toward each of the 5 doors
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    ctx.strokeStyle = colors[i];
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * 500, cy + Math.sin(angle) * 500);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Center hex badge
+  ctx.fillStyle = "#20304a";
+  ctx.beginPath();
+  const hexR = 70;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const px = cx + Math.cos(a) * hexR;
+    const py = cy + Math.sin(a) * hexR;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#5ec8d8";
+  ctx.font = "bold 22px 'Consolas', monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("BLACKVAULT", cx, cy + 8);
+  ctx.textAlign = "left";
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
 }

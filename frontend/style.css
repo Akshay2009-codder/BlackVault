@@ -1,7 +1,16 @@
-/* ==========================================================================
-   BlackVault — Bright Scientific Lab + PyCharm IDE Stylesheet
-   Theme: Clean White Lab + Light Frosted Glass HUD
-   ========================================================================== */
+:root {
+  --bg: #07090e;
+  --panel-bg: rgba(14, 18, 26, 0.94);
+  --panel-border: #1e2838;
+  --accent-cyan: #5ec8d8;
+  --accent-amber: #e8a33d;
+  --accent-green: #4caf50;
+  --accent-red: #ff5252;
+  --text-main: #e2e8f0;
+  --text-muted: #8492a6;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
 
 * {
   box-sizing: border-box;
@@ -9,802 +18,425 @@
   padding: 0;
 }
 
-body, html {
+html, body {
   width: 100%;
   height: 100%;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-sans);
   overflow: hidden;
-  background-color: #d8e8f5;
-  color: #1a2130;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   user-select: none;
 }
 
 #scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 1;
 }
 
-/* Crosshair — sharp dark dot for bright environment */
+.hidden {
+  display: none !important;
+}
+
+/* Crosshair */
 #crosshair {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 7px;
-  height: 7px;
-  background: rgba(30, 40, 60, 0.85);
-  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  width: 6px;
+  height: 6px;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 10;
-  box-shadow: 0 0 6px rgba(0,0,0,0.5);
 }
 
-/* HUD Overlay */
+/* Top-Left HUD */
 #hud {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.hud-item {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(180, 195, 215, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
+  top: 18px;
+  left: 18px;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid var(--panel-border);
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 600;
-  color: #1a2130;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  letter-spacing: 0.4px;
+  z-index: 15;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-.hud-sector {
-  border-left: 4px solid #2ecc71;
-  color: #166a3a;
+#level-label {
+  color: var(--accent-amber);
+  font-weight: 700;
   font-size: 15px;
+  margin-bottom: 6px;
+  letter-spacing: 0.05em;
 }
 
 #stars-total {
-  color: #b07d10;
+  color: #ffd700;
+  margin-bottom: 4px;
+}
+
+#doors-remaining {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 #build-tag {
+  opacity: 0.4;
   font-size: 10px;
-  color: #7a8898;
-  font-family: monospace;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
-/* Interact Prompt — light frosted card */
+/* Interaction Prompt */
 #interact-prompt {
   position: fixed;
-  bottom: 120px;
+  bottom: 22%;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 20;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1.5px solid rgba(46, 204, 113, 0.6);
-  color: #1a2130;
-  padding: 12px 24px;
-  border-radius: 30px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
+  background: rgba(10, 14, 22, 0.9);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 0 20px rgba(94, 200, 216, 0.4);
-  animation: pulse-glow 2s infinite ease-in-out;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
+  padding: 10px 22px;
+  border-radius: 4px;
+  box-shadow: 0 0 16px rgba(94, 200, 216, 0.4);
+  z-index: 20;
+  letter-spacing: 0.04em;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(94, 200, 216, 0.4); }
-  50% { box-shadow: 0 0 28px rgba(94, 200, 216, 0.8); }
-}
-
-/* Guard Subtitles — dark band for legibility on bright bg */
+/* Security Guard Subtitles */
 #guard-subtitle {
   position: fixed;
-  bottom: 40px;
+  bottom: 36px;
   left: 50%;
   transform: translateX(-50%);
+  color: #ff6b6b;
+  text-shadow: 0 0 10px rgba(255, 82, 82, 0.6);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
   z-index: 20;
-  background: rgba(20, 28, 44, 0.9);
-  border: 1px solid rgba(46, 204, 113, 0.5);
-  color: #e8f4ff;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  max-width: 680px;
+  max-width: 75vw;
   text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  min-height: 1.4em;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
 }
 #guard-subtitle.visible {
   opacity: 1;
 }
 
-/* Sector Cleared Banner */
-#sector-cleared-banner {
+/* Voice mute toggle */
+#voice-toggle-btn {
   position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-  background: rgba(10, 24, 18, 0.95);
-  border: 2px solid #4caf50;
-  color: #fff;
-  padding: 20px 40px;
-  border-radius: 12px;
+  top: 18px;
+  right: 18px;
+  z-index: 15;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: all 0.2s;
+}
+#voice-toggle-btn:hover {
+  background: rgba(94, 200, 216, 0.15);
+}
+#voice-toggle-btn.muted {
+  border-color: var(--accent-red, #ff6b6b);
+  color: var(--accent-red, #ff6b6b);
+}
+
+/* Overlay / Modal */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.82);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-green);
+  border-radius: 8px;
+  padding: 32px 40px;
   text-align: center;
-  box-shadow: 0 0 40px rgba(76, 175, 80, 0.6);
-  animation: banner-enter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 0 40px rgba(76, 175, 80, 0.3);
 }
 
-@keyframes banner-enter {
-  from { opacity: 0; transform: translate(-50%, -20px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+.modal-card h2 {
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+  font-size: 24px;
+  margin-bottom: 12px;
 }
 
-.cleared-badge {
-  display: inline-block;
-  background: #4caf50;
-  color: #0b1510;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+.modal-card .sub-text {
+  color: var(--text-muted);
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+/* Terminal Window */
+.terminal-window {
+  width: min(940px, 94vw);
+  max-height: 90vh;
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 50px rgba(94, 200, 216, 0.2);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: rgba(18, 24, 36, 0.9);
+  border-bottom: 1px solid var(--panel-border);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent-cyan);
   font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 4px;
-  letter-spacing: 1px;
+}
+
+.terminal-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#terminal-timer {
+  color: var(--accent-amber);
+  font-size: 15px;
+}
+
+#terminal-attempts {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+.close-btn:hover {
+  color: var(--accent-red);
+}
+
+.terminal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dataset-stats {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
-#cleared-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #69f0ae;
-  margin-bottom: 6px;
-}
-
-#cleared-desc {
-  font-size: 14px;
-  color: #cbd5e1;
-}
-
-/* Utility Hidden */
-.hidden {
-  display: none !important;
-}
-
-/* ==========================================================================
-   PYCHARM IDE DARACULA THEME WINDOW
-   ========================================================================== */
-
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(5, 8, 14, 0.8);
-  backdrop-filter: blur(6px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.pycharm-window {
-  width: 95vw;
-  max-width: 1380px;
-  height: 90vh;
-  max-height: 860px;
-  background-color: #2b2d30;
-  border: 1px solid #3c3f41;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 2px rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  font-family: 'Inter', -apple-system, sans-serif;
-  user-select: text;
-}
-
-/* 1. Titlebar */
-.pycharm-titlebar {
-  height: 38px;
-  background-color: #1e1f22;
-  border-bottom: 1px solid #323438;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  user-select: none;
-}
-
-.pycharm-titlebar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.project-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #bcbec4;
-}
-
-.pycharm-menu-bar {
-  display: flex;
-  gap: 16px;
-}
-
-.menu-item {
+.terminal-hint {
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: #9da0a8;
-  cursor: pointer;
-  padding: 2px 4px;
-}
-.menu-item:hover, .menu-item.active {
-  color: #dfe1e5;
-}
-
-.pycharm-titlebar-controls {
-  display: flex;
-  gap: 6px;
-}
-
-.win-btn {
-  background: none;
-  border: none;
-  color: #9da0a8;
-  font-size: 13px;
-  width: 26px;
-  height: 24px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.win-btn:hover {
-  background-color: #393b40;
-  color: #fff;
-}
-.win-btn.win-close:hover {
-  background-color: #e53935;
-  color: #fff;
-}
-
-/* 2. Main Toolbar */
-.pycharm-toolbar {
-  height: 42px;
-  background-color: #2b2d30;
-  border-bottom: 1px solid #393b40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  user-select: none;
-}
-
-.toolbar-left, .toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.branch-tag {
-  font-size: 12px;
-  color: #8c8f96;
-  background: #1e1f22;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid #3c3f41;
-}
-
-.run-config-selector {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #1e1f22;
-  border: 1px solid #3c3f41;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #dfe1e5;
-}
-
-.run-action-btn {
-  background-color: #2e7d32;
-  color: #ffffff;
-  border: none;
-  padding: 5px 14px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-.run-action-btn:hover {
-  background-color: #388e3c;
-}
-.run-action-btn:active {
-  background-color: #1b5e20;
-}
-
-.debug-action-btn, .stop-action-btn {
-  background: #1e1f22;
-  border: 1px solid #3c3f41;
-  color: #bcbec4;
-  padding: 5px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.debug-action-btn:hover, .stop-action-btn:hover {
-  background-color: #393b40;
-}
-
-.problem-counter-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(229, 57, 53, 0.15);
-  border: 1px solid #e53935;
-  color: #ff6b68;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-.error-dot {
-  color: #ff5252;
-  font-size: 10px;
-}
-
-.timer-badge, .attempts-badge {
-  background: #1e1f22;
-  border: 1px solid #3c3f41;
-  color: #bcbec4;
-  font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
-  padding: 4px 10px;
-  border-radius: 4px;
-}
-
-/* 3. PyCharm Main Body */
-.pycharm-main-area {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/* Sidebar */
-.pycharm-sidebar {
-  width: 220px;
-  background-color: #1e1f22;
-  border-right: 1px solid #323438;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-header {
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #8c8f96;
-  border-bottom: 1px solid #2b2d30;
-}
-
-.project-tree {
-  flex: 1;
-  padding: 8px 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-
-.tree-node {
-  padding: 4px 12px;
-  color: #bcbec4;
-  cursor: pointer;
-}
-.tree-node:hover {
-  background-color: #2b2d30;
-}
-.tree-node.active {
-  background-color: #2e436e;
-  color: #ffffff;
-}
-.tree-sub-1 { padding-left: 24px; }
-.tree-sub-2 { padding-left: 36px; }
-.tree-dim { color: #6e7278; font-size: 11px; }
-
-/* Editor Container */
-.pycharm-editor-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #1e1f22;
-  overflow: hidden;
-}
-
-.editor-tabs {
-  height: 34px;
-  background-color: #1e1f22;
-  border-bottom: 1px solid #323438;
-  display: flex;
-  align-items: center;
-  padding-left: 8px;
-}
-
-.editor-tab {
-  height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  font-size: 12px;
-  color: #8c8f96;
-  cursor: pointer;
-  border-right: 1px solid #2b2d30;
-  border-top: 2px solid transparent;
-}
-.editor-tab.active {
-  background-color: #2b2d30;
-  color: #dfe1e5;
-  border-top: 2px solid #3574f0;
-}
-.tab-close {
-  color: #6e7278;
-  font-size: 14px;
-}
-.tab-close:hover {
-  color: #fff;
-}
-
-.editor-breadcrumbs {
-  height: 24px;
-  background-color: #2b2d30;
-  border-bottom: 1px solid #393b40;
-  display: flex;
-  align-items: center;
-  padding: 0 14px;
-  font-size: 11px;
-  color: #8c8f96;
-  gap: 4px;
-}
-
-/* RED PROBLEM BANNER */
-.pycharm-problem-banner {
-  background: rgba(229, 57, 53, 0.12);
-  border: 1px solid #e53935;
-  border-left: 6px solid #e53935;
-  padding: 10px 14px;
-  margin: 8px 14px 4px 14px;
-  border-radius: 4px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  animation: problem-glow 2.5s infinite alternate ease-in-out;
-}
-
-@keyframes problem-glow {
-  0% { box-shadow: 0 0 4px rgba(229, 57, 53, 0.2); }
-  100% { box-shadow: 0 0 16px rgba(229, 57, 53, 0.5); }
-}
-
-.problem-banner-icon {
-  font-size: 18px;
-}
-
-.problem-banner-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.problem-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ff5252;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.problem-desc {
-  font-size: 12px;
-  color: #ffcdd2;
-  line-height: 1.4;
-}
-
-/* Editor Scroll Area */
-.editor-scroll-area {
-  flex: 1;
-  overflow-y: auto;
-  background-color: #1e1f22;
-  padding: 6px 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.code-editor {
-  display: flex;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.line-gutter {
-  width: 48px;
-  padding-right: 12px;
-  text-align: right;
-  color: #4b5059;
-  user-select: none;
-}
-
-.code-lines-container {
-  flex: 1;
-  padding-right: 20px;
-}
-
-.code-line {
-  min-height: 20px;
-  white-space: pre-wrap;
-  color: #bcbec4;
-}
-
-/* RED PROBLEM LINE IN CODE */
-.code-line.red-problem-line {
-  background: rgba(229, 57, 53, 0.2);
-  border-left: 3px solid #ff5252;
-  padding: 4px 8px;
-  margin: 6px 0;
-  border-radius: 2px;
-  text-decoration: underline wavy #ff5252;
-}
-
-.red-error-text {
-  color: #ff5252;
-  font-weight: 700;
-  text-shadow: 0 0 8px rgba(255, 82, 82, 0.6);
-}
-
-/* Syntax Highlighting */
-.kw { color: #cc7832; font-weight: 600; }  /* Python keywords: import, def, from, as */
-.fn { color: #ffc66d; }                    /* Function names */
-.imp { color: #9876aa; }                   /* Module names */
-.var { color: #a9b7c6; }                   /* Variables */
-.cm { color: #629755; font-style: italic;} /* Comments */
-
-/* Inline Config Area inside PyCharm */
-.pycharm-inline-config {
-  background: #2b2d30;
-  border: 1px solid #393b40;
-  border-radius: 6px;
-  padding: 12px;
-  margin: 8px 0 12px 0;
-}
-
-.config-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.config-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.panel-header {
-  font-size: 11px;
-  font-weight: 700;
-  color: #5ec8d8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #3c3f41;
-  padding-bottom: 4px;
-}
-
-.ide-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #dfe1e5;
-  cursor: pointer;
-}
-
-.ide-checkbox-row input[type="checkbox"] {
-  accent-color: #3574f0;
-  width: 14px;
-  height: 14px;
-}
-
-.ide-select-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #bcbec4;
-}
-
-.ide-select {
-  background-color: #1e1f22;
-  border: 1px solid #4e5157;
-  color: #dfe1e5;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  padding: 5px 8px;
-  border-radius: 4px;
-  outline: none;
-}
-.ide-select:focus {
-  border-color: #3574f0;
-}
-
-.extra-params-container {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-/* Dataset Preview View Tab */
-.dataset-preview-container {
-  padding: 14px;
-}
-
-.dataset-meta-bar {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: #5ec8d8;
-  background: #1e1f22;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  border: 1px solid #393b40;
+  color: var(--accent-amber);
+  background: rgba(232, 163, 61, 0.1);
+  border-left: 3px solid var(--accent-amber);
+  padding: 6px 12px;
+  margin-bottom: 12px;
 }
 
 .table-scroll-container {
-  max-height: 280px;
+  max-height: 200px;
   overflow: auto;
-  border: 1px solid #393b40;
+  border: 1px solid var(--panel-border);
   border-radius: 4px;
 }
 
-#dataset-table {
+table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
-#dataset-table th {
-  background-color: #2b2d30;
-  color: #dfe1e5;
+th, td {
   padding: 6px 10px;
-  text-align: left;
-  border-bottom: 1px solid #393b40;
+  text-align: right;
+  border-bottom: 1px solid var(--panel-border);
+  white-space: nowrap;
+}
+
+th {
+  background: #111824;
+  color: var(--accent-cyan);
   position: sticky;
   top: 0;
 }
 
-#dataset-table td {
-  padding: 5px 10px;
-  border-bottom: 1px solid #282a2e;
-  color: #bcbec4;
+td.is-null {
+  color: var(--accent-red);
+  font-weight: bold;
 }
 
-#dataset-table tr:hover {
-  background-color: #2b2d30;
-}
-
-/* Bottom Tool Window */
-.pycharm-bottom-dock {
-  height: 160px;
-  background-color: #1e1f22;
-  border-top: 1px solid #323438;
+/* Terminal Window -- Modern Dark-Vibrant Monaco Code Editor */
+.ide-window {
+  width: min(1240px, 96vw);
+  height: 88vh;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(56, 189, 248, 0.15);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  backdrop-filter: blur(12px);
 }
 
-.dock-tabs {
-  height: 28px;
-  background-color: #2b2d30;
+.ide-titlebar {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #393b40;
+  gap: 14px;
+  padding: 10px 18px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
 }
-
-.dock-tab {
-  background: none;
-  border: none;
-  height: 28px;
-  padding: 0 12px;
-  font-size: 11px;
+.ide-dots { display: flex; gap: 7px; }
+.ide-dots .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.ide-dots .red { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.6); }
+.ide-dots .yellow { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.6); }
+.ide-dots .green { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
+.ide-tab {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 6px 16px;
+  border-radius: 6px 6px 0 0;
+  font-size: 13px;
   font-weight: 600;
-  color: #8c8f96;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-right: 1px solid #393b40;
-}
-.dock-tab.active {
-  background-color: #1e1f22;
-  color: #dfe1e5;
-  border-top: 2px solid #3574f0;
-}
-
-.red-badge {
-  background: #e53935;
-  color: #fff;
-  font-size: 9px;
-  padding: 1px 4px;
-  border-radius: 8px;
-}
-
-.dock-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 12px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-
-.run-console {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.console-line.sys { color: #6e7278; }
-.console-line.info { color: #5ec8d8; }
-.console-line.success { color: #4caf50; font-weight: 700; }
-.console-line.error { color: #ff5252; font-weight: 700; }
-
-.problems-view {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.problem-item.red-error {
-  background: rgba(229, 57, 53, 0.1);
-  border: 1px solid #e53935;
-  padding: 6px 10px;
-  border-radius: 4px;
-  color: #ff5252;
+  border: 1px solid #334155;
+  border-bottom: none;
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.prob-file {
-  color: #3574f0;
-  text-decoration: underline;
+.ide-meta { margin-left: auto; display: flex; align-items: center; gap: 18px; color: #94a3b8; font-size: 13px; }
+.ide-meta #terminal-timer {
+  color: #fbbf24;
+  font-weight: 700;
+  background: rgba(251, 191, 36, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(251, 191, 36, 0.25);
 }
+.ide-meta #terminal-attempts {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+#terminal-close {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+#terminal-close:hover { color: #f87171; background: rgba(248, 113, 113, 0.15); }
+
+.ide-body { flex: 1; display: flex; overflow: hidden; }
+
+.ide-left {
+  width: 36%; min-width: 320px; background: #0f172a; border-right: 1px solid #334155;
+  overflow-y: auto; padding: 18px;
+}
+.problem-statement {
+  color: #f8fafc; font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+  background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.2);
+}
+.ide-left .terminal-hint {
+  background: rgba(251, 191, 36, 0.1); border-left: 4px solid #fbbf24;
+  color: #fef08a; padding: 8px 12px; margin-bottom: 14px; font-size: 12px;
+  border-radius: 0 6px 6px 0;
+}
+.ide-left .dataset-stats { color: #94a3b8; font-size: 11px; margin-bottom: 8px; font-weight: 500; }
+
+.dataset-panel-title {
+  color: #38bdf8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  margin: 12px 0 8px; display: flex; align-items: center; gap: 6px;
+}
+.ide-left .table-scroll-container {
+  max-height: 260px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.ide-left table { color: #cbd5e1; font-size: 11px; }
+.ide-left th { background: #1e293b; color: #38bdf8; font-weight: 700; }
+.ide-left tr:nth-child(even) { background: rgba(30, 41, 59, 0.4); }
+.ide-left tr:hover { background: rgba(56, 189, 248, 0.1); }
+.ide-left td.is-null { color: #f87171; font-weight: bold; }
+
+.ide-right { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #0f172a; }
+#code-editor-container { flex: 1 1 auto; min-height: 220px; }
+
+.ide-console {
+  height: 150px; flex-shrink: 0; background: #090d16; border-top: 1px solid #334155;
+  overflow-y: auto; padding: 10px 16px;
+}
+.ide-console-title { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+#terminal-result { font-size: 13px; white-space: pre-wrap; font-family: var(--font-mono); line-height: 1.5; }
+#terminal-result.pass { color: #4ade80; font-weight: 700; }
+#terminal-result.fail { color: #f87171; }
+
+.ide-right .primary-btn {
+  flex-shrink: 0; margin: 0; border-radius: 0;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: none; color: #ffffff; padding: 14px 20px; font-size: 13.5px; font-weight: 700;
+  letter-spacing: 0.03em; cursor: pointer; transition: all 0.2s ease;
+  box-shadow: 0 -2px 10px rgba(2, 132, 199, 0.3);
+}
+.ide-right .primary-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  color: #ffffff; box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+}
+.ide-right .primary-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+

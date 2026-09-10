@@ -20,11 +20,19 @@ class DoorPuzzleResponse(BaseModel):
     max_attempts: int
     max_attempts_remaining: int
     hints_enabled: bool
+    problem_statement: str
+    starter_code: str
 
 
 class SubmitAttemptRequest(BaseModel):
     puzzle_id: str
     pipeline_choice: Dict[str, Any]
+    time_remaining_seconds: int
+
+
+class SubmitCodeRequest(BaseModel):
+    puzzle_id: str
+    code: str
     time_remaining_seconds: int
 
 
@@ -37,6 +45,7 @@ class SubmitAttemptResponse(BaseModel):
     attempts_remaining: int
     door_type: str
     stars: Optional[int] = None
+    error_message: Optional[str] = None
 
 
 class LevelProgressResponse(BaseModel):
