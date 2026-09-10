@@ -1,11 +1,10 @@
-// High-detail 3D Studio Lab environment strictly matching reference photo.
-// Features foreground workstations with curved ultrawide monitors facing camera,
-// PC towers with RGB glass panels, mechanical keyboards, gaming chairs,
-// glass conference room with illuminated whiteboards, night city skyline,
-// industrial ceiling ducts, and glowing accent signage.
+// BlackVault 3D Facility Architecture & World Design
+// 5 Separate Sequential Rooms: Classification, Regression, Clustering, Anomaly, Mystery Core Vault
+// Architectural system: Soft white (#F2F4F7) walls, warm light grey (#E8ECF1) floor, off-white (#FAFBFC) ceiling.
+// 4 Accents: Electric Blue (#2F80ED), Violet (#8B5CF6), Amber (#FF9F43), Solved Green (#22C55E), Locked Red (#EF476F).
 
 import * as THREE from "three";
-import { DOOR_TYPES, BOSS_DOOR_TYPE, DOOR_LABELS } from "./config.js";
+import { DOOR_TYPES, BOSS_DOOR_TYPE, DOOR_LABELS, STATUS_COLORS } from "./config.js";
 import {
   createFloorTexture,
   createCitySkylineTexture,
@@ -16,924 +15,738 @@ import {
   createLogoTexture,
   createNeonSignTexture,
   createCeilingScreenTexture,
-  createHubRugTexture,
 } from "./textures.js";
+import { setMaxZBound } from "./player.js";
+import { registerFlickerLight } from "./sceneSetup.js";
 
 const doorRegistry = {};
 let exitDoor = null;
+let mysteryCoreMesh = null;
+let mysteryOuterRing = null; // animated outer ring
 
 const doorColors = {
-  classification: 0x4caf50, // Neon Green
-  regression: 0x2196f3,     // Neon Cyan / Blue
-  clustering: 0x9c27b0,     // Neon Purple
-  anomaly: 0xff9800,        // Neon Amber / Orange
-  mystery: 0xe91e63,        // Neon Magenta
+  classification: 0x2f80ed, // Electric Blue
+  regression: 0x8b5cf6,     // Violet
+  clustering: 0xff9f43,     // Amber
+  anomaly: 0x2f80ed,        // Electric Blue & Violet
+  mystery: 0x8b5cf6,        // Climax Multi-accent
 };
 
 export function initWorld(scene) {
-  const roomW = 28;
-  const roomL = 32;
+  const roomW = 22.0;
   const roomH = 5.4;
 
-  // ── 1. ARCHITECTURAL SHELL ──
+  // Materials for Base Architecture
   const floorMat = new THREE.MeshStandardMaterial({
     map: createFloorTexture(),
-    roughness: 0.18,
-    metalness: 0.08,
-    color: 0xf4f7fa,
+    roughness: 0.25,
+    metalness: 0.1,
+    color: 0xe8ecf1,
   });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomL), floorMat);
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0xf2f4f7,
+    roughness: 0.45,
+    metalness: 0.05,
+  });
+
+  const ceilMat = new THREE.MeshStandardMaterial({
+    color: 0xfafbfc,
+    roughness: 0.6,
+  });
+
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0xcbd5e1,
+    roughness: 0.3,
+    metalness: 0.4,
+  });
+
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xeaf3fb,
+    transparent: true,
+    opacity: 0.18,
+    roughness: 0.05,
+    metalness: 0.1,
+    transmission: 0.9,
+    ior: 1.5,
+  });
+
+  // ── Global Floor & Ceiling System (Extending through all 5 rooms: Z = -4 to 122) ──
+  const totalLength = 126.0;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW, totalLength), floorMat);
   floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0, 59.0);
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Colorful hub rug -- ties the 5 door colors into the floor so the room
-  // doesn't read as flat white, centered under the hub's open area.
-  const rugMat = new THREE.MeshStandardMaterial({
-    map: createHubRugTexture(), roughness: 0.7, transparent: false,
-  });
-  const rug = new THREE.Mesh(new THREE.CircleGeometry(6.2, 48), rugMat);
-  rug.rotation.x = -Math.PI / 2;
-  rug.position.set(0, 0.01, 2);
-  rug.receiveShadow = true;
-  scene.add(rug);
-
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0xd8e2ec, roughness: 0.8 });
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomL), ceilMat);
-  ceiling.position.y = roomH;
+  // Main ceiling (rooms 1-4, Z = -4 to 88)
+  const mainCeilLength = 92.0;
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, mainCeilLength), ceilMat);
   ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.set(0, roomH, 44.0);
   scene.add(ceiling);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xe4eaf0, roughness: 0.65 });
+  // Room 5 elevated ceiling at Y = 7.0 (dramatic vault height)
+  const vaultCeilMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55 });
+  const vaultCeil = new THREE.Mesh(new THREE.PlaneGeometry(roomW, 34.0), vaultCeilMat);
+  vaultCeil.rotation.x = Math.PI / 2;
+  vaultCeil.position.set(0, 7.0, 103.0);
+  scene.add(vaultCeil);
 
-  // Left Wall
-  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomL, roomH), wallMat);
-  leftWall.position.set(-roomW / 2, roomH / 2, 0);
+  // Transition step wall at Z=88 to cover the height gap (roomH → vaultH)
+  const transWall = new THREE.Mesh(
+    new THREE.PlaneGeometry(roomW, 7.0 - roomH),
+    wallMat
+  );
+  transWall.position.set(0, roomH + (7.0 - roomH) / 2, 88.2);
+  scene.add(transWall);
+
+  // Outer Side Walls (Left & Right)
+  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(totalLength, roomH), wallMat);
+  leftWall.position.set(-roomW / 2, roomH / 2, 59.0);
   leftWall.rotation.y = Math.PI / 2;
   leftWall.receiveShadow = true;
   scene.add(leftWall);
 
-  // Right Wall
-  const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomL, roomH), wallMat);
-  rightWall.position.set(roomW / 2, roomH / 2, 0);
+  const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(totalLength, roomH), wallMat);
+  rightWall.position.set(roomW / 2, roomH / 2, 59.0);
   rightWall.rotation.y = -Math.PI / 2;
   rightWall.receiveShadow = true;
   scene.add(rightWall);
 
-  // South Wall
+  // Vault side walls at greater height
+  const leftVaultWall = new THREE.Mesh(new THREE.PlaneGeometry(34.0, 7.0), wallMat);
+  leftVaultWall.position.set(-roomW / 2, 3.5, 103.0);
+  leftVaultWall.rotation.y = Math.PI / 2;
+  scene.add(leftVaultWall);
+  const rightVaultWall = new THREE.Mesh(new THREE.PlaneGeometry(34.0, 7.0), wallMat);
+  rightVaultWall.position.set(roomW / 2, 3.5, 103.0);
+  rightVaultWall.rotation.y = -Math.PI / 2;
+  scene.add(rightVaultWall);
+
+  // South Entrance Wall (Z = -4)
   const southWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
-  southWall.position.set(0, roomH / 2, roomL / 2);
+  southWall.position.set(0, roomH / 2, -4.0);
   southWall.rotation.y = Math.PI;
-  southWall.receiveShadow = true;
   scene.add(southWall);
 
-  // ── Potted plants -- cheap, colorful, and a classic bright-office touch ──
-  function makePlant(x, z) {
-    const group = new THREE.Group();
-    const pot = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.22, 0.4, 16),
-      new THREE.MeshStandardMaterial({ color: 0xb5651d, roughness: 0.8 })
-    );
-    pot.position.y = 0.2;
-    pot.castShadow = true;
-    group.add(pot);
-
-    const foliageColors = [0x3d8b40, 0x4caf50, 0x2e7d32];
-    for (let i = 0; i < 6; i++) {
-      const leaf = new THREE.Mesh(
-        new THREE.ConeGeometry(0.16, 0.65, 6),
-        new THREE.MeshStandardMaterial({ color: foliageColors[i % foliageColors.length], roughness: 0.7 })
-      );
-      const a = (i / 6) * Math.PI * 2;
-      leaf.position.set(Math.cos(a) * 0.12, 0.75 + Math.random() * 0.15, Math.sin(a) * 0.12);
-      leaf.rotation.z = Math.cos(a) * 0.35;
-      leaf.rotation.x = Math.sin(a) * 0.35;
-      leaf.castShadow = true;
-      group.add(leaf);
-    }
-    group.position.set(x, 0, z);
-    scene.add(group);
-  }
-  makePlant(-roomW / 2 + 1.3, -roomL / 2 + 2.5);
-  makePlant(roomW / 2 - 1.3, -roomL / 2 + 2.5);
-  makePlant(-roomW / 2 + 1.3, roomL / 2 - 2.5);
-  makePlant(roomW / 2 - 1.3, roomL / 2 - 2.5);
-
-  // ── 2. PANORAMIC DAYTIME CITY SKYLINE (North Wall) ──
+  // North Window Wall on Room 1 (Skyline backdrop)
   const skylineMat = new THREE.MeshBasicMaterial({ map: createCitySkylineTexture() });
-  const skyline = new THREE.Mesh(new THREE.PlaneGeometry(roomW + 10, roomH + 4), skylineMat);
-  skyline.position.set(0, (roomH + 4) / 2 - 1, -roomL / 2 - 0.5);
+  const skyline = new THREE.Mesh(new THREE.PlaneGeometry(roomW + 8, roomH + 2), skylineMat);
+  skyline.position.set(0, roomH / 2, -4.2);
   scene.add(skyline);
 
-  // Glass Window Wall with light metal mullions
-  const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0xeaf3fb,
-    transparent: true,
-    opacity: 0.14,
-    roughness: 0.04,
-    metalness: 0.05,
-    transmission: 0.92,
-    ior: 1.52,
+  // Wall Baseboard Trims
+  [-roomW / 2 + 0.05, roomW / 2 - 0.05].forEach((tx) => {
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, totalLength), trimMat);
+    trim.position.set(tx, 0.1, 59.0);
+    scene.add(trim);
   });
-  const glassWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), glassMat);
-  glassWall.position.set(0, roomH / 2, -roomL / 2 + 0.1);
-  scene.add(glassWall);
 
-  const mullionMat = new THREE.MeshStandardMaterial({ color: 0xc7d0da, metalness: 0.6, roughness: 0.35 });
-  for (let x = -roomW / 2 + 3.2; x < roomW / 2; x += 3.5) {
-    const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.14, roomH, 0.22), mullionMat);
-    mullion.position.set(x, roomH / 2, -roomL / 2 + 0.12);
-    scene.add(mullion);
-  }
+  // ── 5 SEQUENTIAL ROOM DEFINITIONS ──
 
-  // Soft blue accent strip above window
-  const cyanStrip = new THREE.Mesh(
-    new THREE.BoxGeometry(roomW, 0.08, 0.08),
-    new THREE.MeshBasicMaterial({ color: 0x6fb8e8 })
+  // ── ROOM 1: CLASSIFICATION LAB (Z = -4 to 22) ───────────────────────
+  buildRoom1Classification(scene, roomW, roomH, wallMat, trimMat, glassMat);
+
+  // ── ROOM 2: REGRESSION LAB (Z = 22 to 44) ───────────────────────────
+  buildRoom2Regression(scene, roomW, roomH, wallMat, trimMat, glassMat);
+
+  // ── ROOM 3: CLUSTERING HUB (Z = 44 to 66) ───────────────────────────
+  buildRoom3Clustering(scene, roomW, roomH, wallMat, trimMat, glassMat);
+
+  // ── ROOM 4: ANOMALY WING (Z = 66 to 88) ─────────────────────────────
+  buildRoom4Anomaly(scene, roomW, roomH, wallMat, trimMat, glassMat);
+
+  // ── ROOM 5: MYSTERY CORE VAULT (Z = 88 to 120, High Climax Ceiling) ──
+  buildRoom5MysteryVault(scene, roomW, roomH, wallMat, trimMat, glassMat);
+
+  // ── 5 DIVIDER WALLS WITH BI-PARTING SLIDING SECURITY DOORS ──────────
+  createSequentialDoorStation(scene, "classification", 0, 22.0, 0);
+  createSequentialDoorStation(scene, "regression", 0, 44.0, 0);
+  createSequentialDoorStation(scene, "clustering", 0, 66.0, 0);
+  createSequentialDoorStation(scene, "anomaly", 0, 88.0, 0);
+  createSequentialDoorStation(scene, "mystery", 0, 116.0, 0);
+
+  // Initial Player Movement Z Bound (Room 1 only until Door 1 solved)
+  setMaxZBound(20.8);
+}
+
+// ── ROOM 1: CLASSIFICATION LAB ───────────────────────────────────────
+function buildRoom1Classification(scene, roomW, roomH, wallMat, trimMat, glassMat) {
+  // Electric Blue Accent System (#2F80ED)
+  const blueAccentMat = new THREE.MeshBasicMaterial({ color: 0x2f80ed });
+
+  // Neon sign above entry: "CLASSIFICATION LAB"
+  const sign1 = new THREE.Mesh(
+    new THREE.PlaneGeometry(5.2, 0.85),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("CLASSIFICATION LAB", "#2F80ED", "#2F80ED") })
   );
-  cyanStrip.position.set(0, roomH - 0.6, -roomL / 2 + 0.2);
-  scene.add(cyanStrip);
+  sign1.position.set(0, roomH - 0.65, 1.5);
+  scene.add(sign1);
 
-  const cyanLight = new THREE.PointLight(0x9cd2f5, 1.2, 22);
-  cyanLight.position.set(0, roomH - 0.7, -roomL / 2 + 1.5);
-  scene.add(cyanLight);
-
-  // ── 3. INDUSTRIAL CEILING: DUCTS & SUSPENDED LIGHT FIXTURES ──
-  const ductMat = new THREE.MeshStandardMaterial({
-    color: 0x222a38,
-    metalness: 0.78,
-    roughness: 0.3,
+  // Light Strips along ceiling edge
+  [-roomW / 2 + 0.2, roomW / 2 - 0.2].forEach((sx) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 24.0), blueAccentMat);
+    strip.position.set(sx, roomH - 0.1, 9.0);
+    scene.add(strip);
   });
 
-  [-6.5, 6.5].forEach((xPos) => {
-    const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, roomL, 24), ductMat);
-    duct.rotation.x = Math.PI / 2;
-    duct.position.set(xPos, roomH - 0.75, 0);
-    scene.add(duct);
-
-    for (let z = -roomL / 2 + 3; z < roomL / 2; z += 3.8) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.04, 12, 24), ductMat);
-      ring.position.set(xPos, roomH - 0.75, z);
-      scene.add(ring);
-    }
+  // Floor-level blue accent strip
+  [-roomW / 2 + 0.05, roomW / 2 - 0.05].forEach((sx) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 24.0), blueAccentMat);
+    strip.position.set(sx, 0.03, 9.0);
+    scene.add(strip);
   });
 
-  // Suspended Linear LED Fixtures
-  const lightFixtures = [
-    { x: -4.5, z: -8.0 }, { x: 4.5, z: -8.0 },
-    { x: -4.5, z: -1.5 }, { x: 4.5, z: -1.5 },
-    { x: -2.6, z: 2.2 },  { x: 2.6, z: 2.2 },
-  ];
+  const blueLight = new THREE.PointLight(0x2f80ed, 1.4, 18);
+  blueLight.position.set(0, roomH - 0.8, 9.0);
+  scene.add(blueLight);
+  registerFlickerLight(blueLight, 1.4);
 
-  lightFixtures.forEach((pos) => {
-    const fixGeo = new THREE.BoxGeometry(0.32, 0.14, 3.4);
-    const fixture = new THREE.Mesh(fixGeo, mullionMat);
-    fixture.position.set(pos.x, roomH - 0.95, pos.z);
-    scene.add(fixture);
+  // CCTV camera prop on ceiling corner
+  buildCCTVProp(scene, roomW / 2 - 0.5, roomH - 0.15, 2.5, Math.PI * 1.1);
+  buildCCTVProp(scene, -roomW / 2 + 0.5, roomH - 0.15, 18.0, Math.PI * 0.1);
 
-    const diffGeo = new THREE.BoxGeometry(0.26, 0.04, 3.3);
-    const diffuser = new THREE.Mesh(diffGeo, new THREE.MeshBasicMaterial({ color: 0xf4faff }));
-    diffuser.position.set(pos.x, roomH - 1.03, pos.z);
-    scene.add(diffuser);
-
-    const spot = new THREE.SpotLight(0xf4faff, 1.15, 18, Math.PI / 3.5, 0.35, 1.0);
-    spot.position.set(pos.x, roomH - 1.05, pos.z);
-    spot.target.position.set(pos.x, 0, pos.z);
-    scene.add(spot);
-    scene.add(spot.target);
-
-    [-1.5, 1.5].forEach((wz) => {
-      const wire = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.008, 0.008, 0.95, 8),
-        new THREE.MeshBasicMaterial({ color: 0x444444 })
-      );
-      wire.position.set(pos.x, roomH - 0.48, pos.z + wz);
-      scene.add(wire);
-    });
-  });
-
-  // ── 4. CEILING 4-MONITOR RIG ──
-  const rigCenter = new THREE.Vector3(0, roomH - 1.45, -2.5);
-
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.45, 16), mullionMat);
-  pole.position.set(rigCenter.x, roomH - 0.72, rigCenter.z);
-  scene.add(pole);
-
-  const monConfigs = [
-    { label: "CAM-01 HUB AISLE", x: -0.92, y: 0.42, rotY: 0.28, rotX: 0.38 },
-    { label: "CAM-02 VAULT CORE", x: 0.92,  y: 0.42, rotY: -0.28, rotX: 0.38 },
-    { label: "CAM-03 PIPELINE MON", x: -0.92, y: -0.38, rotY: 0.28, rotX: 0.38 },
-    { label: "CAM-04 THREAT RADAR", x: 0.92,  y: -0.38, rotY: -0.28, rotX: 0.38 },
-  ];
-
-  monConfigs.forEach((cfg) => {
-    const sMat = new THREE.MeshBasicMaterial({ map: createCeilingScreenTexture(cfg.label) });
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.45, 0.8), sMat);
-    screen.position.set(rigCenter.x + cfg.x, rigCenter.y + cfg.y, rigCenter.z);
-    screen.rotation.set(cfg.rotX, cfg.rotY, 0);
-    scene.add(screen);
-
-    const back = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.84, 0.06), mullionMat);
-    back.position.copy(screen.position);
-    back.rotation.copy(screen.rotation);
-    back.translateZ(-0.035);
-    scene.add(back);
-  });
-
-  // ── 5. GLASS CONFERENCE ROOM & WHITEBOARDS ──
-  const confWall = new THREE.Mesh(new THREE.PlaneGeometry(18, 4.0), glassMat);
-  confWall.position.set(0, 2.0, -9.5);
-  scene.add(confWall);
-
-  const confBeam = new THREE.Mesh(new THREE.BoxGeometry(18.2, 0.14, 0.2), mullionMat);
-  confBeam.position.set(0, 4.0, -9.5);
-  scene.add(confBeam);
-
-  const confCyan = new THREE.Mesh(
-    new THREE.BoxGeometry(18.0, 0.05, 0.05),
-    new THREE.MeshBasicMaterial({ color: 0x40d8f0 })
-  );
-  confCyan.position.set(0, 3.94, -9.38);
-  scene.add(confCyan);
-
-  // Left Whiteboard
-  const board1 = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.8, 2.6),
+  // Classification Decision Tree Whiteboard Panel
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.8, 2.5),
     new THREE.MeshBasicMaterial({ map: createWhiteboardTexture() })
   );
-  board1.position.set(-3.2, 2.1, -12.5);
-  scene.add(board1);
+  board.position.set(-roomW / 2 + 0.1, 2.3, 8.0);
+  board.rotation.y = Math.PI / 2;
+  scene.add(board);
 
-  // Center vertical display: "PROJECT COSMOS"
-  const cosmosCanvas = document.createElement("canvas");
-  cosmosCanvas.width = 512; cosmosCanvas.height = 360;
-  const cctx = cosmosCanvas.getContext("2d");
+  // Workstation Desk facing camera (+Z)
+  const monLight1 = new THREE.PointLight(0x2f80ed, 1.8, 4.0);
+  buildWorkstationDesk(scene, {
+    x: 0,
+    z: 6.0,
+    rotY: 0,
+    accentColor: 0x2f80ed,
+    screenTexture: createLeftUltrawideScreenTexture(),
+    monitorLight: monLight1,
+  });
+  registerFlickerLight(monLight1, 1.8);
+
+  // Server rack array on left wall
+  buildServerRackGroup(scene, -roomW / 2 + 0.8, 14.0, 0x2f80ed);
+
+  // Plant accent
+  makeOfficePlant(scene, roomW / 2 - 1.5, 3.0);
+}
+
+// ── ROOM 2: REGRESSION LAB ───────────────────────────────────────────
+function buildRoom2Regression(scene, roomW, roomH, wallMat, trimMat, glassMat) {
+  // Violet Accent System (#8B5CF6)
+  const violetAccentMat = new THREE.MeshBasicMaterial({ color: 0x8b5cf6 });
+
+  // Neon sign
+  const sign2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.6, 0.85),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("REGRESSION LAB", "#8B5CF6", "#8B5CF6") })
+  );
+  sign2.position.set(0, roomH - 0.65, 23.5);
+  scene.add(sign2);
+
+  // Glass partition divider
+  const partition = new THREE.Mesh(new THREE.PlaneGeometry(12.0, 3.6), glassMat);
+  partition.position.set(-3.5, 1.8, 33.0);
+  scene.add(partition);
+
+  const partitionBeam = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.12, 0.15), trimMat);
+  partitionBeam.position.set(-3.5, 3.6, 33.0);
+  scene.add(partitionBeam);
+
+  // Violet Ceiling Light Fixtures
+  [-roomW / 2 + 0.2, roomW / 2 - 0.2].forEach((sx) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 20.0), violetAccentMat);
+    strip.position.set(sx, roomH - 0.1, 33.0);
+    scene.add(strip);
+  });
+
+  // Floor-level violet strip
+  [-roomW / 2 + 0.05, roomW / 2 - 0.05].forEach((sx) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 20.0), violetAccentMat);
+    strip.position.set(sx, 0.03, 33.0);
+    scene.add(strip);
+  });
+
+  const violetLight = new THREE.PointLight(0x8b5cf6, 1.5, 20);
+  violetLight.position.set(0, roomH - 0.8, 33.0);
+  scene.add(violetLight);
+  registerFlickerLight(violetLight, 1.5);
+
+  // Angled violet spotlight from ceiling (gives the room drama)
+  const vSpot = new THREE.SpotLight(0x8b5cf6, 2.8, 14, Math.PI / 7, 0.4);
+  vSpot.position.set(-5.0, roomH - 0.3, 28.0);
+  vSpot.target.position.set(-5.0, 0, 30.0);
+  scene.add(vSpot);
+  scene.add(vSpot.target);
+
+  // Right-wall regression chart panel
+  const chartCanvas = createRegressionChartTexture();
+  const chartPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.2, 2.6),
+    new THREE.MeshBasicMaterial({ map: chartCanvas })
+  );
+  chartPanel.position.set(roomW / 2 - 0.12, 2.4, 36.0);
+  chartPanel.rotation.y = -Math.PI / 2;
+  scene.add(chartPanel);
+
+  // Dual Regression Telemetry Workstation
+  const monLight2a = new THREE.PointLight(0x8b5cf6, 1.8, 4.0);
+  const monLight2b = new THREE.PointLight(0x8b5cf6, 1.8, 4.0);
+  buildWorkstationDesk(scene, {
+    x: -3.0,
+    z: 30.0,
+    rotY: 0.15,
+    accentColor: 0x8b5cf6,
+    screenTexture: createRightUltrawideScreenTexture(),
+    monitorLight: monLight2a,
+  });
+  buildWorkstationDesk(scene, {
+    x: 3.0,
+    z: 30.0,
+    rotY: -0.15,
+    accentColor: 0x8b5cf6,
+    screenTexture: createLeftUltrawideScreenTexture(),
+    monitorLight: monLight2b,
+  });
+  registerFlickerLight(monLight2a, 1.8);
+  registerFlickerLight(monLight2b, 1.8);
+
+  // Server Column Array
+  buildServerRackGroup(scene, roomW / 2 - 0.8, 36.0, 0x8b5cf6);
+}
+
+// ── ROOM 3: CLUSTERING HUB ───────────────────────────────────────────
+function buildRoom3Clustering(scene, roomW, roomH, wallMat, trimMat, glassMat) {
+  // Amber Accent System (#FF9F43)
+  const amberAccentMat = new THREE.MeshBasicMaterial({ color: 0xff9f43 });
+
+  // Neon sign
+  const sign3 = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.2, 0.85),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("CLUSTERING HUB", "#FF9F43", "#FF9F43") })
+  );
+  sign3.position.set(0, roomH - 0.65, 45.5);
+  scene.add(sign3);
+
+  // Amber Ceiling Light Strip
+  [-roomW / 2 + 0.2, roomW / 2 - 0.2].forEach((sx) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 20.0), amberAccentMat);
+    strip.position.set(sx, roomH - 0.1, 55.0);
+    scene.add(strip);
+  });
+
+  const amberLight = new THREE.PointLight(0xff9f43, 1.5, 20);
+  amberLight.position.set(0, roomH - 0.8, 55.0);
+  scene.add(amberLight);
+  registerFlickerLight(amberLight, 1.5);
+
+  // Amber Pendant Light Fixtures (hanging from ceiling)
+  [{ x: -5.5, z: 52.0 }, { x: 5.5, z: 52.0 }, { x: 0, z: 58.5 }].forEach((p) => {
+    // Pendant rod
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025, 0.025, 1.2, 8),
+      new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8 })
+    );
+    rod.position.set(p.x, roomH - 0.6, p.z);
+    scene.add(rod);
+    // Shade
+    const shade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.28, 0.3, 16, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, side: THREE.DoubleSide })
+    );
+    shade.position.set(p.x, roomH - 1.4, p.z);
+    scene.add(shade);
+    // Warm amber glow inside pendant
+    const pendLight = new THREE.PointLight(0xff9f43, 1.2, 5.5);
+    pendLight.position.set(p.x, roomH - 1.6, p.z);
+    scene.add(pendLight);
+    registerFlickerLight(pendLight, 1.2);
+  });
+
+  // Circular Collaboration Hub Desk in Center
+  const hubTable = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.4, 2.4, 0.1, 32),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35, metalness: 0.4 })
+  );
+  hubTable.position.set(0, 0.75, 54.0);
+  scene.add(hubTable);
+
+  const hubRing = new THREE.Mesh(
+    new THREE.TorusGeometry(2.42, 0.03, 16, 32),
+    amberAccentMat
+  );
+  hubRing.rotation.x = Math.PI / 2;
+  hubRing.position.set(0, 0.75, 54.0);
+  scene.add(hubRing);
+
+  // 3 Satellite chairs around hub
+  [0, 1, 2].forEach((i) => {
+    const angle = (i / 3) * Math.PI * 2 + Math.PI / 6;
+    const cx = Math.cos(angle) * 3.2;
+    const cz = 54.0 + Math.sin(angle) * 3.2;
+    buildSimpleChair(scene, cx, cz, -angle + Math.PI, 0xff9f43);
+  });
+
+  // Clustering Holographic Scatter Plot Display
+  const clusterCanvas = document.createElement("canvas");
+  clusterCanvas.width = 512; clusterCanvas.height = 360;
+  const cctx = clusterCanvas.getContext("2d");
   cctx.fillStyle = "#0c1320"; cctx.fillRect(0, 0, 512, 360);
-  cctx.strokeStyle = "#40d8f0"; cctx.lineWidth = 4; cctx.strokeRect(10, 10, 492, 340);
-  cctx.font = "bold 20px 'Inter', sans-serif"; cctx.fillStyle = "#5ec8d8";
-  cctx.textAlign = "center";
-  cctx.fillText("GAME BUILD IN PROGRESS", 256, 120);
-  cctx.font = "bold 32px 'Inter', sans-serif"; cctx.fillStyle = "#ffffff";
-  cctx.fillText("PROJECT COSMOS", 256, 175);
-  cctx.font = "16px 'Courier New', monospace"; cctx.fillStyle = "#70a0d0";
-  cctx.fillText("VERSION 2.4.0 — PRODUCTION", 256, 230);
-  const cosmosTex = new THREE.CanvasTexture(cosmosCanvas);
+  cctx.strokeStyle = "#ff9f43"; cctx.lineWidth = 3; cctx.strokeRect(8, 8, 496, 344);
+  cctx.font = "bold 18px 'Inter', sans-serif"; cctx.fillStyle = "#ff9f43";
+  cctx.fillText("K-MEANS CLUSTER RADAR", 24, 40);
 
-  const cosmosBoard = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.8, 2.0),
-    new THREE.MeshBasicMaterial({ map: cosmosTex })
-  );
-  cosmosBoard.position.set(1.4, 2.1, -11.0);
-  scene.add(cosmosBoard);
-
-  const cosmosStand = new THREE.Mesh(new THREE.BoxGeometry(2.9, 2.1, 0.08), mullionMat);
-  cosmosStand.position.set(1.4, 2.1, -11.05);
-  scene.add(cosmosStand);
-
-  // Right Whiteboard
-  const board2 = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.4, 2.6),
-    new THREE.MeshBasicMaterial({ map: createWhiteboardTexture() })
-  );
-  board2.position.set(6.2, 2.1, -12.5);
-  scene.add(board2);
-
-  // Conference Table
-  const confTable = new THREE.Mesh(
-    new THREE.BoxGeometry(7.5, 0.1, 2.2),
-    new THREE.MeshStandardMaterial({ color: 0x18202d, roughness: 0.35, metalness: 0.5 })
-  );
-  confTable.position.set(0, 0.88, -13.5);
-  scene.add(confTable);
-
-  [-3.0, 3.0].forEach((lx) => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.88, 1.8), mullionMat);
-    leg.position.set(lx, 0.44, -13.5);
-    scene.add(leg);
-  });
-
-  // ── 6. PRIMARY FOREGROUND WORKSTATIONS (EXACT MATCH TO REFERENCE PHOTO) ──
-  buildForegroundDesk(scene, {
-    x: -2.6,
-    z: 2.0,
-    rotY: -0.08,
-    screenTexture: createLeftUltrawideScreenTexture(),
-    towerRGB: 0x5ec8d8,
-  });
-
-  buildForegroundDesk(scene, {
-    x: 2.6,
-    z: 2.0,
-    rotY: 0.08,
-    screenTexture: createRightUltrawideScreenTexture(),
-    towerRGB: 0xff9800,
-  });
-
-  // Midground Workstations
-  buildMidgroundDesk(scene, {
-    x: -4.5,
-    z: -4.2,
-    rotY: 0.05,
-    screenTexture: createLeftUltrawideScreenTexture(),
-    towerRGB: 0x9c27b0,
-  });
-
-  buildMidgroundDesk(scene, {
-    x: 4.5,
-    z: -4.2,
-    rotY: -0.05,
-    screenTexture: createRightUltrawideScreenTexture(),
-    towerRGB: 0x00e676,
-  });
-
-  // ── 7. RIGHT WALL: NEBULA STUDIOS, NEON SIGNS & LOUNGE ──
-  const logoMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(6.6, 1.9),
-    new THREE.MeshBasicMaterial({ map: createLogoTexture() })
-  );
-  logoMesh.position.set(roomW / 2 - 0.06, 3.4, -1.0);
-  logoMesh.rotation.y = -Math.PI / 2;
-  scene.add(logoMesh);
-
-  const logoSpot = new THREE.SpotLight(0x8bc3dd, 2.6, 12, Math.PI / 3, 0.5);
-  logoSpot.position.set(roomW / 2 - 2.2, 4.8, -1.0);
-  logoSpot.target.position.set(roomW / 2 - 0.06, 3.4, -1.0);
-  scene.add(logoSpot);
-  scene.add(logoSpot.target);
-
-  const neon1 = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.8, 0.95),
-    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("GAME ON", "#00e5ff", "#0088ff") })
-  );
-  neon1.position.set(roomW / 2 - 0.06, 3.4, 5.2);
-  neon1.rotation.y = -Math.PI / 2;
-  scene.add(neon1);
-
-  const neon1Light = new THREE.PointLight(0x00e5ff, 2.0, 8);
-  neon1Light.position.set(roomW / 2 - 0.8, 3.4, 5.2);
-  scene.add(neon1Light);
-
-  const neon2 = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.8, 0.95),
-    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("LOAD GAME", "#ff4081", "#e040fb") })
-  );
-  neon2.position.set(roomW / 2 - 0.06, 3.4, 8.8);
-  neon2.rotation.y = -Math.PI / 2;
-  scene.add(neon2);
-
-  const neon2Light = new THREE.PointLight(0xff4081, 2.0, 8);
-  neon2Light.position.set(roomW / 2 - 0.8, 3.4, 8.8);
-  scene.add(neon2Light);
-
-  // Pantry Kitchenette
-  const pantry = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, 1.05, 6.8),
-    new THREE.MeshStandardMaterial({ color: 0x161d28, metalness: 0.65 })
-  );
-  pantry.position.set(roomW / 2 - 0.7, 0.52, 7.2);
-  scene.add(pantry);
-
-  for (let zDisp = 5.2; zDisp <= 8.8; zDisp += 1.2) {
-    const disp = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7, 0.85, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x222a38, metalness: 0.8 })
-    );
-    disp.position.set(roomW / 2 - 0.7, 1.48, zDisp);
-    scene.add(disp);
-
-    const dispGlow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.2, 0.02),
-      new THREE.MeshBasicMaterial({ color: 0x5ec8d8 })
-    );
-    dispGlow.position.set(roomW / 2 - 1.06, 1.6, zDisp);
-    dispGlow.rotation.y = -Math.PI / 2;
-    scene.add(dispGlow);
-  }
-
-  // ── 8. LEFT WALL: TECH SHELVING & SERVER RACKS ──
-  for (let zShelf = 3.0; zShelf <= 10.5; zShelf += 3.8) {
-    const shelf = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 4.0, 3.2),
-      new THREE.MeshStandardMaterial({ color: 0x111722, metalness: 0.85, roughness: 0.25 })
-    );
-    shelf.position.set(-roomW / 2 + 0.6, 2.0, zShelf);
-    scene.add(shelf);
-
-    for (let r = 0; r < 5; r++) {
-      const led = new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, 0.04, 2.8),
-        new THREE.MeshBasicMaterial({ color: r % 2 === 0 ? 0x00e5ff : 0x76ff03 })
-      );
-      led.position.set(-roomW / 2 + 1.12, 0.65 + r * 0.7, zShelf);
-      scene.add(led);
-    }
-  }
-
-  // Vertical Orange Accent Strips on Concrete Columns
-  [-roomW / 2 + 0.1, roomW / 2 - 0.1].forEach((colX) => {
-    [-6.5, 2.0].forEach((colZ) => {
-      const col = new THREE.Mesh(
-        new THREE.BoxGeometry(0.55, roomH, 0.55),
-        new THREE.MeshStandardMaterial({ color: 0x18202d, roughness: 0.7 })
-      );
-      col.position.set(colX, roomH / 2, colZ);
-      scene.add(col);
-
-      const strip = new THREE.Mesh(
-        new THREE.BoxGeometry(0.06, roomH - 0.4, 0.06),
-        new THREE.MeshBasicMaterial({ color: 0xff9100 })
-      );
-      strip.position.set(colX + (colX > 0 ? -0.29 : 0.29), roomH / 2, colZ);
-      scene.add(strip);
-
-      const colLight = new THREE.PointLight(0xff9100, 1.4, 8);
-      colLight.position.set(colX + (colX > 0 ? -0.6 : 0.6), 2.7, colZ);
-      scene.add(colLight);
-    });
-  });
-
-  // ── 9. THE 5 SECURITY DOORS & TERMINAL STATIONS ──
-  createDoorStation(scene, "classification", -roomW / 2 + 0.1, -2.5, Math.PI / 2);
-  createDoorStation(scene, "clustering", -roomW / 2 + 0.1, -7.5, Math.PI / 2);
-  createDoorStation(scene, "regression", roomW / 2 - 0.1, -4.5, -Math.PI / 2);
-  createDoorStation(scene, "anomaly", roomW / 2 - 0.1, -9.5, -Math.PI / 2);
-  createDoorStation(scene, "mystery", -5.5, roomL / 2 - 0.1, Math.PI);
-
-  // Floor rugs under door stations
-  const doorFloorSpots = [
-    { color: doorColors.classification, x: -roomW / 2 + 2.2, z: -2.5 },
-    { color: doorColors.clustering, x: -roomW / 2 + 2.2, z: -7.5 },
-    { color: doorColors.regression, x: roomW / 2 - 2.2, z: -4.5 },
-    { color: doorColors.anomaly, x: roomW / 2 - 2.2, z: -9.5 },
-    { color: doorColors.mystery, x: -5.5, z: roomL / 2 - 2.2 },
+  // Draw scatter clusters
+  const clusters = [
+    { cx: 140, cy: 150, color: "#2f80ed" },
+    { cx: 340, cy: 120, color: "#8b5cf6" },
+    { cx: 240, cy: 260, color: "#ff9f43" }
   ];
-  doorFloorSpots.forEach((spot) => {
-    const rug = new THREE.Mesh(
-      new THREE.CircleGeometry(1.6, 32),
-      new THREE.MeshStandardMaterial({ color: spot.color, roughness: 0.6, transparent: true, opacity: 0.22 })
-    );
-    rug.rotation.x = -Math.PI / 2;
-    rug.position.set(spot.x, 0.01, spot.z);
-    scene.add(rug);
+  clusters.forEach((c) => {
+    cctx.fillStyle = c.color;
+    for (let p = 0; p < 24; p++) {
+      const rx = c.cx + (Math.random() - 0.5) * 80;
+      const ry = c.cy + (Math.random() - 0.5) * 60;
+      cctx.beginPath(); cctx.arc(rx, ry, 4, 0, Math.PI * 2); cctx.fill();
+    }
   });
 
-  // Colorful vertical accent panels along the side walls, one per door
-  // theme color, so the architecture itself carries color rather than
-  // relying only on the doors and floor rugs.
-  const accentColors = [0x4caf50, 0x2196f3, 0x9c27b0, 0xff9800, 0xe91e63, 0x00bcd4];
-  for (let i = 0; i < 8; i++) {
-    const accentColor = accentColors[i % accentColors.length];
-    const panel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 2.6, 1.4),
-      new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, metalness: 0.1 })
-    );
-    const side = i % 2 === 0 ? -1 : 1;
-    panel.position.set(side * (roomW / 2 - 0.03), 1.4, -3 + Math.floor(i / 2) * 4.5);
-    scene.add(panel);
-  }
-
-  // ── 10. REINFORCED EXIT VAULT DOOR ──
-  const exitX = 2.0;
-  const exitZ = roomL / 2 - 0.1;
-  const exitGroup = new THREE.Group();
-  exitGroup.position.set(exitX, 0, exitZ);
-  exitGroup.rotation.y = Math.PI;
-
-  const vf = new THREE.Mesh(
-    new THREE.BoxGeometry(4.4, 4.4, 0.4),
-    new THREE.MeshStandardMaterial({ color: 0x1a2330, metalness: 0.92, roughness: 0.2 })
+  const clusterBoard = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2, 2.2),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(clusterCanvas) })
   );
-  vf.position.y = 2.2;
-  exitGroup.add(vf);
+  clusterBoard.position.set(0, 2.4, 54.0);
+  scene.add(clusterBoard);
 
-  const vpGeo = new THREE.CylinderGeometry(1.65, 1.65, 0.35, 32);
-  vpGeo.rotateX(Math.PI / 2);
-  const vp = new THREE.Mesh(
-    vpGeo,
-    new THREE.MeshStandardMaterial({ color: 0x101520, metalness: 0.95, roughness: 0.15 })
-  );
-  vp.position.y = 2.2;
-  exitGroup.add(vp);
-
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.45, 0.08, 16, 32),
-    new THREE.MeshBasicMaterial({ color: 0xff3333 })
-  );
-  ring.position.set(0, 2.2, 0.22);
-  exitGroup.add(ring);
-
-  const vLight = new THREE.PointLight(0xff3333, 1.4, 9);
-  vLight.position.set(0, 3.8, 0.8);
-  exitGroup.add(vLight);
-
-  scene.add(exitGroup);
-
-  exitDoor = {
-    position: new THREE.Vector3(exitX, 1.5, exitZ - 2.0),
-    group: exitGroup,
-    glow: ring,
-    light: vLight,
-    plate: vp,
-  };
+  makeOfficePlant(scene, -roomW / 2 + 1.8, 50.0);
+  makeOfficePlant(scene, roomW / 2 - 1.8, 58.0);
 }
 
-// Builds the primary foreground workstation facing TOWARDS camera
-function buildForegroundDesk(scene, config) {
-  const ws = new THREE.Group();
-  ws.position.set(config.x, 0, config.z);
-  ws.rotation.y = config.rotY;
-
-  const deskMat = new THREE.MeshStandardMaterial({ color: 0x18202c, roughness: 0.28, metalness: 0.4 });
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x090d14, metalness: 0.9 });
-
-  // 1. Desk Surface (2.6m wide x 1.15m deep)
-  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.15), deskMat);
-  desk.position.y = 0.74;
-  desk.castShadow = true;
-  desk.receiveShadow = true;
-  ws.add(desk);
-
-  // Metal legs
-  [-1.15, 1.15].forEach((lx) => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.74, 0.95), legMat);
-    leg.position.set(lx, 0.37, 0);
-    ws.add(leg);
-  });
-
-  // 2. Curved Ultrawide Monitor (Concave face towards camera +Z)
-  const monW = 1.9;
-  const monH = 0.65;
-  const monGeo = new THREE.PlaneGeometry(monW, monH, 32, 1);
-  const posAttr = monGeo.attributes.position;
-  for (let i = 0; i < posAttr.count; i++) {
-    const x = posAttr.getX(i);
-    // Smooth curvature: edges wrap forward towards camera (+Z)
-    posAttr.setZ(i, (x * x) * 0.18);
-  }
-  monGeo.computeVertexNormals();
-
-  const monScreen = new THREE.Mesh(
-    monGeo,
-    new THREE.MeshBasicMaterial({ map: config.screenTexture, side: THREE.DoubleSide })
+// ── ROOM 4: ANOMALY WING ─────────────────────────────────────────────
+function buildRoom4Anomaly(scene, roomW, roomH, wallMat, trimMat, glassMat) {
+  // Dual Electric Blue (#2F80ED) & Violet (#8B5CF6) Cyber Defense Corridor
+  // Neon sign
+  const sign4 = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.0, 0.85),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("ANOMALY WING", "#EF476F", "#EF476F") })
   );
-  monScreen.position.set(-0.25, 1.18, -0.15);
-  ws.add(monScreen);
+  sign4.position.set(0, roomH - 0.65, 67.5);
+  scene.add(sign4);
 
-  // Monitor casing backing
-  const casingGeo = monGeo.clone();
-  casingGeo.translate(0, 0, -0.015);
-  const casing = new THREE.Mesh(
-    casingGeo,
-    new THREE.MeshStandardMaterial({ color: 0x05080e, metalness: 0.95, roughness: 0.3, side: THREE.DoubleSide })
+  const blueStrip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.08, 20.0),
+    new THREE.MeshBasicMaterial({ color: 0x2f80ed })
   );
-  casing.position.set(-0.25, 1.18, -0.15);
-  ws.add(casing);
+  blueStrip.position.set(-roomW / 2 + 0.2, roomH - 0.1, 77.0);
+  scene.add(blueStrip);
 
-  // Monitor stand
-  const standPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 12), legMat);
-  standPole.position.set(-0.25, 0.94, -0.26);
-  ws.add(standPole);
-
-  const standBase = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.02, 0.24), legMat);
-  standBase.position.set(-0.25, 0.785, -0.22);
-  ws.add(standBase);
-
-  // Screen glow on desk
-  const monGlow = new THREE.PointLight(0x70b8ff, 2.0, 4.0);
-  monGlow.position.set(-0.25, 1.18, 0.2);
-  ws.add(monGlow);
-
-  // 3. Desktop PC Tower on right side of desk
-  const pc = new THREE.Group();
-  pc.position.set(0.98, 1.08, 0.02);
-  pc.rotation.y = config.rotY > 0 ? -0.25 : 0.25;
-
-  const pcBody = new THREE.Mesh(
-    new THREE.BoxGeometry(0.26, 0.60, 0.54),
-    new THREE.MeshStandardMaterial({ color: 0x090c12, metalness: 0.92, roughness: 0.2 })
+  const violetStrip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.08, 20.0),
+    new THREE.MeshBasicMaterial({ color: 0x8b5cf6 })
   );
-  pc.add(pcBody);
+  violetStrip.position.set(roomW / 2 - 0.2, roomH - 0.1, 77.0);
+  scene.add(violetStrip);
 
-  // Tempered glass panel
-  const pcGlass = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.5, 0.56),
-    new THREE.MeshPhysicalMaterial({ color: 0x060606, transparent: true, opacity: 0.45, roughness: 0.08 })
-  );
-  pcGlass.position.set(-0.135, 0, 0);
-  pcGlass.rotation.y = -Math.PI / 2;
-  pc.add(pcGlass);
+  const dualLight1 = new THREE.PointLight(0x2f80ed, 1.4, 16);
+  dualLight1.position.set(-4.0, roomH - 0.8, 77.0);
+  scene.add(dualLight1);
+  registerFlickerLight(dualLight1, 1.4);
 
-  // Internal RGB glow and fans
-  const pcLight = new THREE.PointLight(config.towerRGB, 2.4, 3.5);
-  pcLight.position.set(-0.06, 0, 0);
-  pc.add(pcLight);
+  const dualLight2 = new THREE.PointLight(0x8b5cf6, 1.4, 16);
+  dualLight2.position.set(4.0, roomH - 0.8, 77.0);
+  scene.add(dualLight2);
+  registerFlickerLight(dualLight2, 1.4);
 
-  for (let f = -0.18; f <= 0.18; f += 0.18) {
-    const fan = new THREE.Mesh(
-      new THREE.RingGeometry(0.045, 0.08, 16),
-      new THREE.MeshBasicMaterial({ color: config.towerRGB, side: THREE.DoubleSide })
+  // Caution striping decal on floor near server banks
+  const cautionCanvas = createCautionStripeTexture();
+  [-roomW / 2 + 2.0, roomW / 2 - 2.0].forEach((cx) => {
+    const decal = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 8.0),
+      new THREE.MeshBasicMaterial({ map: cautionCanvas, transparent: true, opacity: 0.75 })
     );
-    fan.position.set(-0.07, f, 0.27);
-    pc.add(fan);
-  }
-
-  // Front RGB stripes
-  const stripeGeo = new THREE.BoxGeometry(0.02, 0.52, 0.01);
-  const stripeMat = new THREE.MeshBasicMaterial({ color: config.towerRGB });
-  const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-  stripe.position.set(0.08, 0, 0.275);
-  pc.add(stripe);
-
-  ws.add(pc);
-
-  // 4. RGB Mechanical Keyboard & Desk Mat
-  const pad = new THREE.Mesh(
-    new THREE.BoxGeometry(0.96, 0.005, 0.42),
-    new THREE.MeshStandardMaterial({ color: 0x090c12, roughness: 0.7 })
-  );
-  pad.position.set(-0.15, 0.784, 0.22);
-  ws.add(pad);
-
-  const kbGeo = new THREE.BoxGeometry(0.58, 0.02, 0.22);
-  const kbMat = new THREE.MeshStandardMaterial({
-    map: createKeyboardTexture(),
-    roughness: 0.35,
-  });
-  const kb = new THREE.Mesh(kbGeo, kbMat);
-  kb.position.set(-0.25, 0.795, 0.22);
-  ws.add(kb);
-
-  const mouse = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.03, 0.13),
-    new THREE.MeshStandardMaterial({ color: 0x161d28, metalness: 0.5 })
-  );
-  mouse.position.set(0.18, 0.796, 0.22);
-  ws.add(mouse);
-
-  // Headset on stand
-  const hStand = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.04, 0.28, 12), legMat);
-  hStand.position.set(-1.0, 0.92, 0.2);
-  ws.add(hStand);
-
-  const hBand = new THREE.Mesh(
-    new THREE.TorusGeometry(0.085, 0.022, 12, 16, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0x1a2230, roughness: 0.5 })
-  );
-  hBand.position.set(-1.0, 1.06, 0.2);
-  ws.add(hBand);
-
-  // 5. Gaming Chair
-  const chair = new THREE.Group();
-  chair.position.set(-0.25, 0, 0.92);
-
-  const seat = new THREE.Mesh(
-    new THREE.BoxGeometry(0.58, 0.09, 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x101520, roughness: 0.55 })
-  );
-  seat.position.y = 0.5;
-  chair.add(seat);
-
-  const back = new THREE.Mesh(
-    new THREE.BoxGeometry(0.54, 0.82, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x101520, roughness: 0.55 })
-  );
-  back.position.set(0, 0.9, 0.25);
-  back.rotation.x = -0.12;
-  chair.add(back);
-
-  const pillow = new THREE.Mesh(
-    new THREE.BoxGeometry(0.28, 0.14, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x1e2738 })
-  );
-  pillow.position.set(0, 1.22, 0.26);
-  chair.add(pillow);
-
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.04, 16), legMat);
-  base.position.y = 0.12;
-  chair.add(base);
-
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.38, 12), legMat);
-  stem.position.y = 0.31;
-  chair.add(stem);
-
-  ws.add(chair);
-
-  // 6. Direct Desk Task Light
-  const taskLight = new THREE.PointLight(0xe8f4ff, 2.5, 5.0);
-  taskLight.position.set(-0.25, 2.2, 0.1);
-  ws.add(taskLight);
-
-  scene.add(ws);
-}
-
-// Builds the midground workstations facing towards -Z
-function buildMidgroundDesk(scene, config) {
-  const ws = new THREE.Group();
-  ws.position.set(config.x, 0, config.z);
-  ws.rotation.y = config.rotY;
-
-  const deskMat = new THREE.MeshStandardMaterial({ color: 0x141a24, roughness: 0.3, metalness: 0.5 });
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x0a0e16, metalness: 0.9 });
-
-  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.1), deskMat);
-  desk.position.y = 0.74;
-  ws.add(desk);
-
-  [-1.1, 1.1].forEach((lx) => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.74, 0.9), legMat);
-    leg.position.set(lx, 0.37, 0);
-    ws.add(leg);
+    decal.rotation.x = -Math.PI / 2;
+    decal.position.set(cx, 0.002, 77.0);
+    scene.add(decal);
   });
 
-  const monW = 1.7;
-  const monH = 0.58;
-  const monGeo = new THREE.PlaneGeometry(monW, monH, 32, 1);
-  const posAttr = monGeo.attributes.position;
-  for (let i = 0; i < posAttr.count; i++) {
-    const x = posAttr.getX(i);
-    posAttr.setZ(i, -(x * x) * 0.16);
-  }
-  monGeo.computeVertexNormals();
-
-  const mon = new THREE.Mesh(
-    monGeo,
-    new THREE.MeshBasicMaterial({ map: config.screenTexture, side: THREE.DoubleSide })
+  // Threat-level alert panel on right wall
+  const alertPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8, 2.2),
+    new THREE.MeshBasicMaterial({ map: createThreatLevelTexture() })
   );
-  mon.position.set(0, 1.18, 0.15);
-  ws.add(mon);
+  alertPanel.position.set(roomW / 2 - 0.12, 2.5, 72.0);
+  alertPanel.rotation.y = -Math.PI / 2;
+  scene.add(alertPanel);
 
-  const casingGeo = monGeo.clone();
-  casingGeo.translate(0, 0, 0.015);
-  const casing = new THREE.Mesh(casingGeo, new THREE.MeshStandardMaterial({ color: 0x05070a, metalness: 0.9, side: THREE.DoubleSide }));
-  casing.position.set(0, 1.18, 0.15);
-  ws.add(casing);
+  // High-Density Cyber Server Banks lining both sides
+  buildServerRackGroup(scene, -roomW / 2 + 0.8, 73.0, 0x2f80ed);
+  buildServerRackGroup(scene, -roomW / 2 + 0.8, 81.0, 0x8b5cf6);
+  buildServerRackGroup(scene, roomW / 2 - 0.8, 73.0, 0x8b5cf6);
+  buildServerRackGroup(scene, roomW / 2 - 0.8, 81.0, 0x2f80ed);
 
-  const glow = new THREE.PointLight(0x70b8ff, 1.4, 4.5);
-  glow.position.set(0, 1.18, -0.3);
-  ws.add(glow);
-
-  const pc = new THREE.Group();
-  pc.position.set(0.95, 1.05, 0.05);
-  const pcBody = new THREE.Mesh(
-    new THREE.BoxGeometry(0.24, 0.54, 0.5),
-    new THREE.MeshStandardMaterial({ color: 0x090c12, metalness: 0.9 })
-  );
-  pc.add(pcBody);
-
-  const rgb = new THREE.PointLight(config.towerRGB, 1.6, 3.0);
-  rgb.position.set(-0.06, 0, 0);
-  pc.add(rgb);
-  ws.add(pc);
-
-  const chair = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.5), legMat);
-  chair.position.set(0, 0.75, -0.75);
-  ws.add(chair);
-
-  scene.add(ws);
+  // Security Workstation Desk
+  const monLight4 = new THREE.PointLight(0x2f80ed, 1.8, 4.0);
+  buildWorkstationDesk(scene, {
+    x: 0,
+    z: 76.0,
+    rotY: 0,
+    accentColor: 0x2f80ed,
+    screenTexture: createLeftUltrawideScreenTexture(),
+    monitorLight: monLight4,
+  });
+  registerFlickerLight(monLight4, 1.8);
 }
 
-// Builds high-tech Security Door + Interactive Pedestal Terminal
-function createDoorStation(scene, doorType, x, z, rotY) {
-  const color = doorColors[doorType] || 0x5ec8d8;
+// ── ROOM 5: MYSTERY CORE SECURITY VAULT (GRAND CLIMAX) ───────────────
+function buildRoom5MysteryVault(scene, roomW, roomH, wallMat, trimMat, glassMat) {
+  // Climax Room: Elevated ceiling (7.0m tall) & dramatic multi-accent lighting
+  const vaultH = 7.0;
+
+  // Neon sign on entry
+  const sign5 = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.8, 0.85),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture("CORE VAULT", "#8B5CF6", "#2F80ED") })
+  );
+  sign5.position.set(0, vaultH - 0.85, 90.0);
+  scene.add(sign5);
+
+  // Multi-accent ceiling dome ring
+  const domeRing = new THREE.Mesh(
+    new THREE.TorusGeometry(5.5, 0.12, 16, 48),
+    new THREE.MeshBasicMaterial({ color: 0x8b5cf6 })
+  );
+  domeRing.rotation.x = Math.PI / 2;
+  domeRing.position.set(0, vaultH - 0.5, 102.0);
+  scene.add(domeRing);
+
+  // Outer spinning ring (animated in updateWorldAnimations)
+  mysteryOuterRing = new THREE.Mesh(
+    new THREE.TorusGeometry(7.2, 0.06, 12, 64),
+    new THREE.MeshBasicMaterial({ color: 0x2f80ed })
+  );
+  mysteryOuterRing.rotation.x = Math.PI / 3;
+  mysteryOuterRing.position.set(0, vaultH - 1.2, 102.0);
+  scene.add(mysteryOuterRing);
+
+  // Pulse lights for climax atmosphere
+  const p1 = new THREE.PointLight(0x2f80ed, 2.2, 22);
+  p1.position.set(-6.0, 4.5, 98.0);
+  scene.add(p1);
+  registerFlickerLight(p1, 2.2);
+
+  const p2 = new THREE.PointLight(0x8b5cf6, 2.2, 22);
+  p2.position.set(6.0, 4.5, 98.0);
+  scene.add(p2);
+  registerFlickerLight(p2, 2.2);
+
+  const p3 = new THREE.PointLight(0xff9f43, 2.2, 22);
+  p3.position.set(0, 5.0, 108.0);
+  scene.add(p3);
+  registerFlickerLight(p3, 2.2);
+
+  // Central Octagonal Elevated Pedestal Platform
+  const pedGeo = new THREE.CylinderGeometry(3.5, 3.8, 0.35, 8);
+  const pedMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    metalness: 0.85,
+    roughness: 0.2,
+  });
+  const pedestal = new THREE.Mesh(pedGeo, pedMat);
+  pedestal.position.set(0, 0.175, 102.0);
+  scene.add(pedestal);
+
+  const pedGlow = new THREE.Mesh(
+    new THREE.TorusGeometry(3.55, 0.05, 16, 32),
+    new THREE.MeshBasicMaterial({ color: 0x8b5cf6 })
+  );
+  pedGlow.rotation.x = Math.PI / 2;
+  pedGlow.position.set(0, 0.35, 102.0);
+  scene.add(pedGlow);
+
+  // Pillar base uplights — dramatic floor-to-ceiling illumination
+  const pillarPos = [
+    { x: -3.2, z: 98.8 }, { x: 3.2, z: 98.8 },
+    { x: -3.2, z: 105.2 }, { x: 3.2, z: 105.2 },
+  ];
+  pillarPos.forEach((pos, idx) => {
+    const colColor = idx % 2 === 0 ? 0x2f80ed : 0xff9f43;
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.22, 6.5, 16),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.2 })
+    );
+    col.position.set(pos.x, 3.25, pos.z);
+    scene.add(col);
+
+    // Base uplight ring
+    const baseRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28, 0.04, 8, 16),
+      new THREE.MeshBasicMaterial({ color: colColor })
+    );
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.set(pos.x, 0.05, pos.z);
+    scene.add(baseRing);
+
+    const baseLight = new THREE.PointLight(colColor, 1.6, 5.5);
+    baseLight.position.set(pos.x, 0.3, pos.z);
+    scene.add(baseLight);
+    registerFlickerLight(baseLight, 1.6);
+
+    // Top ring
+    const strip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.23, 0.23, 0.1, 16),
+      new THREE.MeshBasicMaterial({ color: colColor })
+    );
+    strip.position.set(pos.x, 6.45, pos.z);
+    scene.add(strip);
+  });
+
+  // Floating Rotating Holographic Mystery Core
+  const coreGeo = new THREE.IcosahedronGeometry(0.85, 2);
+  const coreMat = new THREE.MeshStandardMaterial({
+    color: 0x8b5cf6,
+    emissive: 0x8b5cf6,
+    emissiveIntensity: 1.2,
+    wireframe: true,
+  });
+  mysteryCoreMesh = new THREE.Mesh(coreGeo, coreMat);
+  mysteryCoreMesh.position.set(0, 2.8, 102.0);
+  scene.add(mysteryCoreMesh);
+
+  const innerCore = new THREE.Mesh(
+    new THREE.SphereGeometry(0.45, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0x2f80ed })
+  );
+  mysteryCoreMesh.add(innerCore);
+}
+
+// ── SEQUENTIAL DOOR & TERMINAL PEDESTAL STATION BUILDER ───────────────
+function createSequentialDoorStation(scene, doorType, x, z, rotY) {
+  const color = doorColors[doorType] || 0x2f80ed;
   const group = new THREE.Group();
   group.position.set(x, 0, z);
   group.rotation.y = rotY;
 
-  // Colored floor accent strip leading up to the door
-  const floorAccent = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, 2.2),
-    new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.16, roughness: 0.4 })
-  );
-  floorAccent.rotation.x = -Math.PI / 2;
-  floorAccent.position.set(0, 0.01, 1.1);
-  group.add(floorAccent);
-
-  const accentLine = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.4, 0.06),
-    new THREE.MeshBasicMaterial({ color })
-  );
-  accentLine.rotation.x = -Math.PI / 2;
-  accentLine.position.set(0, 0.015, 2.15);
-  group.add(accentLine);
-
   // Outer Door Frame
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a2230, metalness: 0.88, roughness: 0.2 });
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.0, 0.3), frameMat);
-  frame.position.y = 2.0;
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.88, roughness: 0.2 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4.4, 0.4), frameMat);
+  frame.position.y = 2.2;
   group.add(frame);
 
   // Flanking Accent Pillars
-  const pillarMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.5 });
-  const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 4.0, 0.32), pillarMat);
-  leftPillar.position.set(-1.75, 2.0, 0.02);
+  const pillarMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, roughness: 0.4 });
+  const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.4, 0.44), pillarMat);
+  leftPillar.position.set(-2.2, 2.2, 0.02);
   group.add(leftPillar);
 
-  const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 4.0, 0.32), pillarMat);
-  rightPillar.position.set(1.75, 2.0, 0.02);
+  const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.4, 0.44), pillarMat);
+  rightPillar.position.set(2.2, 2.2, 0.02);
   group.add(rightPillar);
 
-  // ── Dual Bi-Parting Security Door Leaves ────────────────
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x0f1522, metalness: 0.85, roughness: 0.25 });
-  const seamGlowMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+  // Bi-parting Security Door Panels (Locked state initially = Red #EF476F glow)
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.25 });
+  const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
 
-  const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(1.22, 3.6, 0.16), doorMat);
-  leftLeaf.position.set(-0.61, 1.95, 0);
+  const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(1.95, 4.0, 0.2), doorMat);
+  leftLeaf.position.set(-0.98, 2.1, 0);
   group.add(leftLeaf);
 
-  const leftEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 3.4, 0.18), seamGlowMat);
-  leftEdgeGlow.position.set(0.60, 0, 0);
+  const leftEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.8, 0.22), seamGlowMat);
+  leftEdgeGlow.position.set(0.96, 0, 0);
   leftLeaf.add(leftEdgeGlow);
 
-  const rightLeaf = new THREE.Mesh(new THREE.BoxGeometry(1.22, 3.6, 0.16), doorMat);
-  rightLeaf.position.set(0.61, 1.95, 0);
+  const rightLeaf = new THREE.Mesh(new THREE.BoxGeometry(1.95, 4.0, 0.2), doorMat);
+  rightLeaf.position.set(0.98, 2.1, 0);
   group.add(rightLeaf);
 
-  const rightEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 3.4, 0.18), seamGlowMat);
-  rightEdgeGlow.position.set(-0.60, 0, 0);
+  const rightEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.8, 0.22), seamGlowMat);
+  rightEdgeGlow.position.set(-0.96, 0, 0);
   rightLeaf.add(rightEdgeGlow);
 
-  // Frame Top Glow Strip
+  // Frame Top Status Light Strip
   const glow = new THREE.Mesh(
-    new THREE.BoxGeometry(2.3, 0.12, 0.22),
-    new THREE.MeshBasicMaterial({ color })
+    new THREE.BoxGeometry(3.6, 0.14, 0.26),
+    new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked })
   );
-  glow.position.y = 3.82;
+  glow.position.y = 4.25;
   group.add(glow);
 
-  const doorLight = new THREE.PointLight(color, 1.8, 8);
-  doorLight.position.set(0, 3.7, 0.7);
+  const doorLight = new THREE.PointLight(STATUS_COLORS.locked, 1.8, 10);
+  doorLight.position.set(0, 4.1, 0.8);
   group.add(doorLight);
 
   // ── Interactive Pedestal Terminal ───────────────────────
   const pedestal = new THREE.Mesh(
-    new THREE.BoxGeometry(0.75, 1.15, 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x161e2b, metalness: 0.85 })
+    new THREE.BoxGeometry(0.85, 1.15, 0.58),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.85 })
   );
-  pedestal.position.set(1.9, 0.58, 0.65);
+  pedestal.position.set(2.2, 0.58, -1.2);
   group.add(pedestal);
 
   const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.6, 0.42),
-    new THREE.MeshBasicMaterial({ color })
+    new THREE.PlaneGeometry(0.68, 0.46),
+    new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked })
   );
-  screen.position.set(1.9, 1.1, 0.94);
+  screen.position.set(2.2, 1.1, -0.92);
   screen.rotation.x = -0.35;
   group.add(screen);
 
-  const termLight = new THREE.PointLight(color, 1.2, 3.5);
-  termLight.position.set(1.9, 1.15, 1.1);
+  const termLight = new THREE.PointLight(color, 1.2, 4.0);
+  termLight.position.set(2.2, 1.15, -0.8);
   group.add(termLight);
 
   // ── High-Tech Terminal Chair Prop ───────────────────────
   const chairGroup = new THREE.Group();
-  chairGroup.position.set(1.9, 0, 1.55);
+  chairGroup.position.set(2.2, 0, -0.35);
 
   const chairSeat = new THREE.Mesh(
-    new THREE.BoxGeometry(0.52, 0.08, 0.52),
-    new THREE.MeshStandardMaterial({ color: 0x121824, roughness: 0.5 })
+    new THREE.BoxGeometry(0.55, 0.08, 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 })
   );
   chairSeat.position.y = 0.48;
   chairGroup.add(chairSeat);
 
   const chairAccent = new THREE.Mesh(
-    new THREE.BoxGeometry(0.44, 0.02, 0.44),
+    new THREE.BoxGeometry(0.46, 0.02, 0.46),
     new THREE.MeshBasicMaterial({ color })
   );
   chairAccent.position.set(0, 0.525, 0);
   chairGroup.add(chairAccent);
 
   const chairBack = new THREE.Mesh(
-    new THREE.BoxGeometry(0.48, 0.62, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x161e2c, roughness: 0.5 })
+    new THREE.BoxGeometry(0.50, 0.65, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 })
   );
-  chairBack.position.set(0, 0.82, 0.23);
+  chairBack.position.set(0, 0.82, 0.24);
   chairBack.rotation.x = -0.12;
   chairGroup.add(chairBack);
 
   const chairBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.30, 0.30, 0.04, 12),
-    new THREE.MeshStandardMaterial({ color: 0x0a0e16, metalness: 0.9 })
+    new THREE.CylinderGeometry(0.32, 0.32, 0.04, 12),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 })
   );
   chairBase.position.y = 0.08;
   chairGroup.add(chairBase);
 
   const chairStem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 0.36, 12),
-    new THREE.MeshStandardMaterial({ color: 0x0a0e16, metalness: 0.9 })
+    new THREE.CylinderGeometry(0.035, 0.035, 0.36, 12),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 })
   );
   chairStem.position.y = 0.26;
   chairGroup.add(chairStem);
 
   group.add(chairGroup);
-
   scene.add(group);
 
-  const fwd = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
-  const interactPos = new THREE.Vector3(x, 1.5, z).addScaledVector(fwd, 1.6);
+  // Calculate World Positions for Raycasting and Sit Camera Targets
+  const interactPos = new THREE.Vector3(x + 2.2, 1.5, z - 1.2);
 
   group.updateMatrixWorld(true);
-  const seatPosition = new THREE.Vector3(1.9, 1.15, 1.55).applyMatrix4(group.matrixWorld);
-  const seatLookAt = new THREE.Vector3(1.9, 1.1, 0.94).applyMatrix4(group.matrixWorld);
+  const seatPosition = new THREE.Vector3(2.2, 1.15, -0.35).applyMatrix4(group.matrixWorld);
+  const seatLookAt = new THREE.Vector3(2.2, 1.1, -0.92).applyMatrix4(group.matrixWorld);
 
   doorRegistry[doorType] = {
     position: interactPos,
@@ -950,9 +763,298 @@ function createDoorStation(scene, doorType, x, z, rotY) {
     doorType,
     seatPosition,
     seatLookAt,
+    zDoor: z,
     isUnlocked: false,
     isActive: false,
   };
+
+  if (doorType === BOSS_DOOR_TYPE) {
+    exitDoor = doorRegistry[doorType];
+  }
+}
+
+// Helper to build high-detail workstation desk
+function buildWorkstationDesk(scene, config) {
+  const ws = new THREE.Group();
+  ws.position.set(config.x, 0, config.z);
+  ws.rotation.y = config.rotY;
+
+  const deskMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.28, metalness: 0.4 });
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 });
+
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.15), deskMat);
+  desk.position.y = 0.74;
+  desk.castShadow = true;
+  desk.receiveShadow = true;
+  ws.add(desk);
+
+  [-1.15, 1.15].forEach((lx) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.74, 0.95), legMat);
+    leg.position.set(lx, 0.37, 0);
+    ws.add(leg);
+  });
+
+  // Curved Ultrawide Monitor
+  const monW = 1.9;
+  const monH = 0.65;
+  const monGeo = new THREE.PlaneGeometry(monW, monH, 32, 1);
+  const posAttr = monGeo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const x = posAttr.getX(i);
+    posAttr.setZ(i, (x * x) * 0.18);
+  }
+  monGeo.computeVertexNormals();
+
+  const monScreen = new THREE.Mesh(
+    monGeo,
+    new THREE.MeshBasicMaterial({ map: config.screenTexture, side: THREE.DoubleSide })
+  );
+  monScreen.position.set(-0.25, 1.18, -0.15);
+  ws.add(monScreen);
+
+  const casingGeo = monGeo.clone();
+  casingGeo.translate(0, 0, -0.015);
+  const casing = new THREE.Mesh(
+    casingGeo,
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.95, roughness: 0.3, side: THREE.DoubleSide })
+  );
+  casing.position.set(-0.25, 1.18, -0.15);
+  ws.add(casing);
+
+  // Use caller-supplied monitorLight if provided (so caller can register for flicker),
+  // otherwise create one internally for backwards compatibility.
+  const monGlow = config.monitorLight || new THREE.PointLight(config.accentColor, 1.8, 4.0);
+  monGlow.color.setHex(config.accentColor);
+  monGlow.position.set(-0.25, 1.18, 0.2);
+  ws.add(monGlow);
+
+  // RGB Keyboard & Desk mat
+  const pad = new THREE.Mesh(
+    new THREE.BoxGeometry(0.96, 0.005, 0.42),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.7 })
+  );
+  pad.position.set(-0.15, 0.784, 0.22);
+  ws.add(pad);
+
+  const kbMat = new THREE.MeshStandardMaterial({ map: createKeyboardTexture(), roughness: 0.35 });
+  const kb = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.02, 0.22), kbMat);
+  kb.position.set(-0.25, 0.795, 0.22);
+  ws.add(kb);
+
+  scene.add(ws);
+}
+
+// Helper to build server rack column group
+function buildServerRackGroup(scene, x, z, accentColor) {
+  const shelf = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 4.2, 3.2),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.25 })
+  );
+  shelf.position.set(x, 2.1, z);
+  scene.add(shelf);
+
+  for (let r = 0; r < 6; r++) {
+    const led = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.04, 2.8),
+      new THREE.MeshBasicMaterial({ color: accentColor })
+    );
+    led.position.set(x + (x > 0 ? -0.52 : 0.52), 0.6 + r * 0.65, z);
+    scene.add(led);
+  }
+}
+
+// Helper for office potted greenery
+function makeOfficePlant(scene, x, z) {
+  const group = new THREE.Group();
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.24, 0.45, 16),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 })
+  );
+  pot.position.y = 0.225;
+  pot.castShadow = true;
+  group.add(pot);
+
+  const foliageColors = [0x22c55e, 0x16a34a, 0x15803d];
+  for (let i = 0; i < 7; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.ConeGeometry(0.18, 0.7, 6),
+      new THREE.MeshStandardMaterial({ color: foliageColors[i % foliageColors.length], roughness: 0.6 })
+    );
+    const a = (i / 7) * Math.PI * 2;
+    leaf.position.set(Math.cos(a) * 0.14, 0.8 + Math.random() * 0.15, Math.sin(a) * 0.14);
+    leaf.rotation.z = Math.cos(a) * 0.35;
+    leaf.rotation.x = Math.sin(a) * 0.35;
+    leaf.castShadow = true;
+    group.add(leaf);
+  }
+  group.position.set(x, 0, z);
+  scene.add(group);
+}
+
+// Helper: wall-mounted CCTV camera prop
+function buildCCTVProp(scene, x, y, z, rotY) {
+  const g = new THREE.Group();
+  // Bracket
+  const bracket = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.18, 0.18),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 })
+  );
+  g.add(bracket);
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.065, 0.055, 0.22, 12),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 })
+  );
+  body.rotation.z = Math.PI / 2;
+  body.position.set(0.12, -0.05, 0);
+  g.add(body);
+  // Lens
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.04, 10),
+    new THREE.MeshBasicMaterial({ color: 0x2f80ed })
+  );
+  lens.rotation.z = Math.PI / 2;
+  lens.position.set(0.24, -0.05, 0);
+  g.add(lens);
+  // Status LED
+  const led = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xef476f })
+  );
+  led.position.set(0.05, 0.08, 0.06);
+  g.add(led);
+
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+  scene.add(g);
+}
+
+// Helper: simple chair for satellite seating
+function buildSimpleChair(scene, x, z, rotY, accentColor) {
+  const g = new THREE.Group();
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(0.48, 0.07, 0.46),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 })
+  );
+  seat.position.y = 0.46;
+  g.add(seat);
+  // Accent trim on seat
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.40, 0.018, 0.40),
+    new THREE.MeshBasicMaterial({ color: accentColor })
+  );
+  trim.position.y = 0.51;
+  g.add(trim);
+  // Back
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(0.44, 0.55, 0.055),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 })
+  );
+  back.position.set(0, 0.75, 0.22);
+  back.rotation.x = -0.1;
+  g.add(back);
+  // Leg
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.028, 0.028, 0.36, 10),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 })
+  );
+  stem.position.y = 0.26;
+  g.add(stem);
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.28, 0.035, 12),
+    new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9 })
+  );
+  base.position.y = 0.07;
+  g.add(base);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  scene.add(g);
+}
+
+// Regression chart panel texture (right wall of room 2)
+function createRegressionChartTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 640; canvas.height = 400;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#0d1220"; ctx.fillRect(0, 0, 640, 400);
+  ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2; ctx.strokeRect(10, 10, 620, 380);
+  ctx.font = "bold 16px 'Inter', sans-serif";
+  ctx.fillStyle = "#8b5cf6"; ctx.fillText("REGRESSION ANALYSIS — RESIDUALS", 24, 38);
+
+  // Draw scatter with regression line
+  const pts = [];
+  ctx.fillStyle = "rgba(139,92,246,0.7)";
+  for (let i = 0; i < 55; i++) {
+    const px = 60 + (i / 55) * 530 + (Math.random() - 0.5) * 22;
+    const py = 340 - (i / 55) * 260 + (Math.random() - 0.5) * 40;
+    pts.push([px, py]);
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  // Regression line
+  ctx.strokeStyle = "#ff9f43"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(60, 340); ctx.lineTo(590, 80); ctx.stroke();
+  // Axes
+  ctx.strokeStyle = "rgba(139,92,246,0.4)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(55, 50); ctx.lineTo(55, 360); ctx.lineTo(605, 360); ctx.stroke();
+  ctx.fillStyle = "#64748b";
+  ctx.font = "12px 'JetBrains Mono', monospace";
+  ctx.fillText("PREDICTED", 250, 390); ctx.fillText("R² = 0.924", 500, 60);
+  return new THREE.CanvasTexture(canvas);
+}
+
+// Caution stripe texture for room 4 floor decals
+function createCautionStripeTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, 256, 256);
+  const stripeW = 32;
+  for (let i = -2; i < 12; i++) {
+    ctx.fillStyle = i % 2 === 0 ? "rgba(255,159,67,0.85)" : "rgba(15,23,42,0.85)";
+    ctx.save();
+    ctx.translate(i * stripeW - 128, 0);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(0, -512, stripeW, 1024);
+    ctx.restore();
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+// Threat-level display texture for room 4
+function createThreatLevelTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512; canvas.height = 300;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#080c14"; ctx.fillRect(0, 0, 512, 300);
+  ctx.strokeStyle = "#ef476f"; ctx.lineWidth = 3; ctx.strokeRect(8, 8, 496, 284);
+  ctx.font = "bold 20px 'Inter', sans-serif";
+  ctx.fillStyle = "#ef476f";
+  ctx.shadowColor = "#ef476f"; ctx.shadowBlur = 14;
+  ctx.fillText("⚠ THREAT LEVEL: HIGH", 24, 52);
+  ctx.shadowBlur = 0;
+  ctx.font = "13px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#f87171";
+  const lines = [
+    "ANOMALY DETECTED — SECTOR 4",
+    "Confidence: 97.4%  |  Class: OUTLIER",
+    "Isolation Forest: TRIGGERED",
+    "One-Class SVM:    TRIGGERED",
+    "──────────────────────────────────",
+    "ACTION: Engage containment protocol",
+    "AUTH REQUIRED to unlock next sector",
+  ];
+  lines.forEach((l, i) => {
+    ctx.fillStyle = i < 4 ? "#f87171" : (i === 4 ? "#334155" : "#ff9f43");
+    ctx.fillText(l, 24, 90 + i * 26);
+  });
+  // Blinking alert bar
+  ctx.fillStyle = "rgba(239,71,111,0.2)";
+  ctx.fillRect(8, 260, 496, 24);
+  ctx.fillStyle = "#ef476f";
+  ctx.font = "bold 12px 'JetBrains Mono', monospace";
+  ctx.fillText("● LIVE MONITORING   FPS: 60   SECTOR 4 LOCKED", 18, 277);
+  return new THREE.CanvasTexture(canvas);
 }
 
 export function getDoorRegistry() {
@@ -963,54 +1065,101 @@ export function getExitDoor() {
   return exitDoor;
 }
 
-// Set active vs locked styling on door stations
+// Animate the mystery core and outer ring each frame
+export function updateWorldAnimations(delta) {
+  const t = performance.now() * 0.001;
+  if (mysteryCoreMesh) {
+    mysteryCoreMesh.rotation.y += delta * 0.55;
+    mysteryCoreMesh.rotation.x += delta * 0.22;
+    // Gentle hover bob
+    mysteryCoreMesh.position.y = 2.8 + Math.sin(t * 1.4) * 0.12;
+  }
+  if (mysteryOuterRing) {
+    mysteryOuterRing.rotation.z += delta * 0.28;
+  }
+}
+
+// Update door state (Locked = Red #EF476F, Solved/Unlocked = Green #22C55E)
 export function setDoorActiveState(doorType, isActive, isUnlocked = false) {
   const entry = doorRegistry[doorType];
   if (!entry) return;
 
   entry.isActive = isActive;
   entry.isUnlocked = isUnlocked;
-  const themeColor = doorColors[doorType] || 0x5ec8d8;
+  const themeColor = doorColors[doorType] || 0x2f80ed;
 
   if (isUnlocked) {
-    entry.glow.material.color.setHex(0x4caf50);
-    entry.leftEdgeGlow.material.color.setHex(0x4caf50);
-    entry.rightEdgeGlow.material.color.setHex(0x4caf50);
-    if (entry.doorLight) entry.doorLight.color.setHex(0x4caf50);
-    if (entry.screen) entry.screen.material.color.setHex(0x4caf50);
+    entry.glow.material.color.setHex(STATUS_COLORS.unlocked);
+    entry.leftEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
+    entry.rightEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
+    if (entry.doorLight) entry.doorLight.color.setHex(STATUS_COLORS.unlocked);
+    if (entry.screen) entry.screen.material.color.setHex(STATUS_COLORS.unlocked);
   } else if (isActive) {
     entry.glow.material.color.setHex(themeColor);
     entry.leftEdgeGlow.material.color.setHex(themeColor);
     entry.rightEdgeGlow.material.color.setHex(themeColor);
     if (entry.doorLight) {
       entry.doorLight.color.setHex(themeColor);
-      entry.doorLight.intensity = 1.8;
+      entry.doorLight.intensity = 2.0;
     }
     if (entry.screen) entry.screen.material.color.setHex(themeColor);
   } else {
-    // Locked / Inactive door state
-    entry.glow.material.color.setHex(0xff3333);
-    entry.leftEdgeGlow.material.color.setHex(0xff3333);
-    entry.rightEdgeGlow.material.color.setHex(0xff3333);
+    // Locked State (Red #EF476F)
+    entry.glow.material.color.setHex(STATUS_COLORS.locked);
+    entry.leftEdgeGlow.material.color.setHex(STATUS_COLORS.locked);
+    entry.rightEdgeGlow.material.color.setHex(STATUS_COLORS.locked);
     if (entry.doorLight) {
-      entry.doorLight.color.setHex(0xff3333);
-      entry.doorLight.intensity = 0.8;
+      entry.doorLight.color.setHex(STATUS_COLORS.locked);
+      entry.doorLight.intensity = 1.0;
     }
-    if (entry.screen) entry.screen.material.color.setHex(0x551111);
+    if (entry.screen) entry.screen.material.color.setHex(STATUS_COLORS.locked);
   }
 }
 
-// Bi-parting door opening animation
+// Audio SFX for security door release
+function playDoorUnlockSFX() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") ctx.resume();
+
+    const bufferSize = ctx.sampleRate * 0.45;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(2200, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.45);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.45);
+
+    whiteNoise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    whiteNoise.start();
+  } catch (err) {}
+}
+
+// Bi-parting sliding door opening animation
 function animateDoorLeaves(entry, duration = 900, onDone) {
   const start = performance.now();
   const leftStart = entry.leftLeaf.position.x;
   const rightStart = entry.rightLeaf.position.x;
-  const leftTarget = -1.75;
-  const rightTarget = 1.75;
+  const leftTarget = -2.85;
+  const rightTarget = 2.85;
 
   function step(now) {
     const t = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const eased = 1 - Math.pow(1 - t, 3);
     entry.leftLeaf.position.x = leftStart + (leftTarget - leftStart) * eased;
     entry.rightLeaf.position.x = rightStart + (rightTarget - rightStart) * eased;
 
@@ -1023,73 +1172,39 @@ function animateDoorLeaves(entry, duration = 900, onDone) {
   requestAnimationFrame(step);
 }
 
+// Unlock door and open physical passage into next room
 export function setDoorUnlocked(doorType) {
   const entry = doorRegistry[doorType];
   if (!entry || !entry.leftLeaf) return;
   setDoorActiveState(doorType, true, true);
   animateDoorLeaves(entry, 900);
+  playDoorUnlockSFX();
 
-  if (entry.doorLight) {
-    const base = entry.doorLight.intensity;
-    entry.doorLight.color.setHex(0x4caf50);
-    entry.doorLight.intensity = base * 3.2;
-    const start = performance.now();
-    function fade(now) {
-      const t = Math.min(1, (now - start) / 600);
-      entry.doorLight.intensity = base * 3.2 - (base * 2.2) * t;
-      if (t < 1) requestAnimationFrame(fade);
-    }
-    requestAnimationFrame(fade);
-  }
+  // Expand player physical Z-bound so player can walk into next room
+  const nextZBound = entry.zDoor + 20.8;
+  setMaxZBound(nextZBound);
 }
 
 export function setExitUnlocked() {
   if (exitDoor && exitDoor.glow) {
-    exitDoor.glow.material.color.setHex(0x4caf50);
-    if (exitDoor.light) exitDoor.light.color.setHex(0x4caf50);
+    exitDoor.glow.material.color.setHex(STATUS_COLORS.unlocked);
+    if (exitDoor.doorLight) exitDoor.doorLight.color.setHex(STATUS_COLORS.unlocked);
   }
-  if (exitDoor && exitDoor.plate) {
-    const plate = exitDoor.plate;
-    const startX = plate.position.x;
-    const start = performance.now();
-    const spinMs = 900;
-    const slideMs = 700;
-    function spin(now) {
-      const t = Math.min(1, (now - start) / spinMs);
-      plate.rotation.z = t * Math.PI * 3;
-      if (t < 1) {
-        requestAnimationFrame(spin);
-      } else {
-        const slideStart = performance.now();
-        function slide(now2) {
-          const t2 = Math.min(1, (now2 - slideStart) / slideMs);
-          const eased = 1 - Math.pow(1 - t2, 3);
-          plate.position.x = startX + eased * 2.2;
-          if (t2 < 1) requestAnimationFrame(slide);
-        }
-        requestAnimationFrame(slide);
-      }
-    }
-    requestAnimationFrame(spin);
+  if (exitDoor) {
+    setDoorUnlocked(BOSS_DOOR_TYPE);
   }
 }
 
 export function resetHubForNewLevel() {
   Object.values(doorRegistry).forEach((entry) => {
     if (!entry.leftLeaf) return;
-    entry.leftLeaf.position.x = -0.61;
-    entry.rightLeaf.position.x = 0.61;
+    entry.leftLeaf.position.x = -0.98;
+    entry.rightLeaf.position.x = 0.98;
     entry.isUnlocked = false;
     entry.isActive = false;
     setDoorActiveState(entry.doorType, false, false);
   });
-
-  if (exitDoor) {
-    if (exitDoor.glow) exitDoor.glow.material.color.setHex(0xff3333);
-    if (exitDoor.light) exitDoor.light.color.setHex(0xff3333);
-    if (exitDoor.plate) {
-      exitDoor.plate.position.x = 0;
-      exitDoor.plate.rotation.z = 0;
-    }
-  }
+  setMaxZBound(20.8);
 }
+
+// End of world module

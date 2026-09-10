@@ -12,8 +12,8 @@ let idleTime = 0;
 // ── Materials ──────────────────────────────────────────────────────────
 const suitMat = new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.5, metalness: 0.3 });
 const armorMat = new THREE.MeshStandardMaterial({ color: 0x252e3e, roughness: 0.35, metalness: 0.5 });
-const glowMat = new THREE.MeshStandardMaterial({ color: 0x40d8f0, emissive: 0x40d8f0, emissiveIntensity: 0.8, roughness: 0.2 });
-const visorMat = new THREE.MeshStandardMaterial({ color: 0x20c0e0, emissive: 0x20c0e0, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.9 });
+const glowMat = new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 0.8, roughness: 0.2 });
+const visorMat = new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.9 });
 const skinMat = new THREE.MeshStandardMaterial({ color: 0xc68642, roughness: 0.75 });
 const bootMat = new THREE.MeshStandardMaterial({ color: 0x0e1420, roughness: 0.4, metalness: 0.6 });
 
@@ -235,6 +235,22 @@ function buildBody() {
   bodyMesh.add(bodyGlow);
 }
 
+// ── Seating & Typing Animation State ────────────────────────────────
+let isSittingState = false;
+let sittingProgress = 0; // 0 (standing) to 1 (fully seated)
+let typingTime = 0;
+
+export function setPlayerSittingState(sitting) {
+  isSittingState = sitting;
+  if (sitting) {
+    typingTime = 0;
+  }
+}
+
+export function getPlayerSittingState() {
+  return isSittingState;
+}
+
 // ── Update (called every frame from main.js) ──────────────────────────
 export function updatePlayerCharacter(delta) {
   if (!bodyMesh || !bodyMesh.visible) return;
@@ -245,8 +261,64 @@ export function updatePlayerCharacter(delta) {
 
   idleTime += delta * 1.6;
 
+  // ── 1. Sitting / Typing Animation ────────────────────────────────
+  if (isSittingState || sittingProgress > 0.001) {
+    if (isSittingState) {
+      sittingProgress = Math.min(1, sittingProgress + delta * 3.5);
+    } else {
+      sittingProgress = Math.max(0, sittingProgress - delta * 4.0);
+    }
+
+    const t = sittingProgress; // smooth progress factor (0..1)
+    const easedT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+    // Lower torso & hips to seat level
+    if (bodyParts.torso) bodyParts.torso.position.y = 1.30 - 0.40 * easedT;
+    if (bodyParts.hips) bodyParts.hips.position.y = 1.02 - 0.42 * easedT;
+
+    // Thighs bend 90 degrees forward
+    const thighRot = -Math.PI * 0.48 * easedT;
+    if (bodyParts.leftLegGrp) bodyParts.leftLegGrp.rotation.x = thighRot;
+    if (bodyParts.rightLegGrp) bodyParts.rightLegGrp.rotation.x = thighRot;
+
+    // Shins bend 90 degrees downward
+    const shinRot = Math.PI * 0.48 * easedT;
+    if (bodyParts.lShinGrp) bodyParts.lShinGrp.rotation.x = shinRot;
+    if (bodyParts.rShinGrp) bodyParts.rShinGrp.rotation.x = shinRot;
+
+    // Arms reach forward towards terminal screen/keyboard
+    let lArmRot = -0.55 * easedT;
+    let rArmRot = -0.55 * easedT;
+    let lForeRot = -0.45 * easedT;
+    let rForeRot = -0.45 * easedT;
+
+    // Active Typing Loop while fully seated
+    if (easedT >= 0.95 && isSittingState) {
+      typingTime += delta * 12.0;
+      lArmRot += Math.sin(typingTime * 1.5) * 0.05;
+      rArmRot += Math.cos(typingTime * 1.8) * 0.05;
+      lForeRot += Math.sin(typingTime * 2.2) * 0.07;
+      rForeRot += Math.cos(typingTime * 2.5) * 0.07;
+
+      if (bodyParts.torso) bodyParts.torso.rotation.y = Math.sin(typingTime * 0.5) * 0.02;
+      if (bodyParts.headGrp) bodyParts.headGrp.rotation.x = 0.12 + Math.sin(typingTime * 0.8) * 0.02;
+    } else {
+      if (bodyParts.headGrp) bodyParts.headGrp.rotation.x = 0.12 * easedT;
+    }
+
+    if (bodyParts.leftArmGrp) bodyParts.leftArmGrp.rotation.x = lArmRot;
+    if (bodyParts.rightArmGrp) bodyParts.rightArmGrp.rotation.x = rArmRot;
+    if (bodyParts.lForearmGrp) bodyParts.lForearmGrp.rotation.x = lForeRot;
+    if (bodyParts.rForearmGrp) bodyParts.rForearmGrp.rotation.x = rForeRot;
+
+    return;
+  }
+
+  // Restore head tilt when completely standing
+  if (bodyParts.headGrp) bodyParts.headGrp.rotation.x = 0;
+
+  // ── 2. Airborne Jump Pose ──────────────────────────────────────────
   if (!isGrounded) {
-    // Air jump pose (tuck knees)
     if (bodyParts.leftLegGrp) bodyParts.leftLegGrp.rotation.x = -0.6;
     if (bodyParts.rightLegGrp) bodyParts.rightLegGrp.rotation.x = 0.4;
     if (bodyParts.lShinGrp) bodyParts.lShinGrp.rotation.x = 0.8;
@@ -254,6 +326,7 @@ export function updatePlayerCharacter(delta) {
     if (bodyParts.leftArmGrp) bodyParts.leftArmGrp.rotation.x = 0.4;
     if (bodyParts.rightArmGrp) bodyParts.rightArmGrp.rotation.x = -0.4;
   } else if (isMoving) {
+    // ── 3. Locomotion (Walk / Run) ───────────────────────────────────
     const cycleSpeed = isRunning ? 14.5 : 8.5;
     const swingAmp = isRunning ? 0.85 : 0.55;
     walkCycle += delta * cycleSpeed;
@@ -273,7 +346,7 @@ export function updatePlayerCharacter(delta) {
     const bobOffset = Math.abs(Math.sin(walkCycle)) * (isRunning ? 0.07 : 0.04);
     if (bodyMesh) bodyMesh.position.y = (bodyMesh.position.y || 0) + bobOffset;
   } else {
-    // Idle breathing
+    // ── 4. Idle Breathing ────────────────────────────────────────────
     const breath = Math.sin(idleTime) * 0.008;
 
     if (bodyParts.torso) bodyParts.torso.position.y = 1.30 + breath;

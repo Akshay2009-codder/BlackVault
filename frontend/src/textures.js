@@ -8,23 +8,23 @@ export function createFloorTexture() {
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Dark polished concrete base
-  ctx.fillStyle = "#1a1e28";
+  // Light warm grey epoxy tile base (#E8ECF1)
+  ctx.fillStyle = "#e8ecf1";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Subtle grain noise
+  // Subtle marble / epoxy grain noise
   const imgData = ctx.getImageData(0, 0, 1024, 1024);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 10;
+    const noise = (Math.random() - 0.5) * 5;
     data[i] = Math.max(0, Math.min(255, data[i] + noise));
     data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
     data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Floor slab seams
-  ctx.strokeStyle = "#252a36";
+  // Precision floor tile seams
+  ctx.strokeStyle = "#cbd5e1";
   ctx.lineWidth = 3;
   ctx.beginPath();
   for (let x = 0; x <= 1024; x += 256) {
@@ -35,8 +35,8 @@ export function createFloorTexture() {
   }
   ctx.stroke();
 
-  // Subtle tile bevel highlight
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+  // Subtle electric blue accent seam highlight
+  ctx.strokeStyle = "rgba(47, 128, 237, 0.15)";
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (let x = 2; x <= 1024; x += 256) {
@@ -47,7 +47,7 @@ export function createFloorTexture() {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 6);
+  texture.repeat.set(8, 30);
   return texture;
 }
 
@@ -57,31 +57,31 @@ export function createCitySkylineTexture() {
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Night sky gradient
+  // Bright daytime sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, 1024);
-  grad.addColorStop(0, "#05080e");
-  grad.addColorStop(0.3, "#0a1020");
-  grad.addColorStop(0.7, "#101828");
-  grad.addColorStop(1, "#182030");
+  grad.addColorStop(0, "#7dd3fc");
+  grad.addColorStop(0.4, "#bae6fd");
+  grad.addColorStop(0.8, "#e0f2fe");
+  grad.addColorStop(1, "#f0f9ff");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 2048, 1024);
 
-  // Stars
-  for (let i = 0; i < 120; i++) {
-    const sx = Math.random() * 2048;
-    const sy = Math.random() * 400;
-    const sr = 0.5 + Math.random() * 1.5;
-    ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.7})`;
+  // Soft clouds
+  for (let i = 0; i < 20; i++) {
+    const cx = Math.random() * 2048;
+    const cy = 50 + Math.random() * 250;
+    const cr = 60 + Math.random() * 100;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
     ctx.beginPath();
-    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Draw night skyscrapers, dark silhouettes with lit windows
+  // Draw modern daytime skyscrapers with glass reflections
   const layers = [
-    { color: "#0c1018", minH: 320, maxH: 640, windowAlpha: 0.5, widthRange: [60, 120] },
-    { color: "#080c14", minH: 420, maxH: 840, windowAlpha: 0.65, widthRange: [70, 150] },
-    { color: "#060a10", minH: 520, maxH: 920, windowAlpha: 0.8, widthRange: [80, 170] },
+    { color: "#94a3b8", minH: 320, maxH: 640, windowAlpha: 0.8, widthRange: [60, 120] },
+    { color: "#64748b", minH: 420, maxH: 840, windowAlpha: 0.85, widthRange: [70, 150] },
+    { color: "#334155", minH: 520, maxH: 920, windowAlpha: 0.9, widthRange: [80, 170] },
   ];
 
   layers.forEach((layer) => {
@@ -553,19 +553,18 @@ export function createHubRugTexture() {
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#0e131d";
+  ctx.fillStyle = "#212d3d";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  const colors = ["#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+  const colors = ["#10b981", "#0284c7", "#8b5cf6", "#f59e0b", "#0284c7"];
   const cx = 512, cy = 512;
 
-  // Concentric colorful rings, like a stylized compass/circuit hub --
-  // ties the 5 door colors together on the floor beneath the player.
+  // Concentric colorful rings pop against bright base floor
   for (let i = 0; i < colors.length; i++) {
     const r = 480 - i * 80;
     ctx.strokeStyle = colors[i];
-    ctx.globalAlpha = 0.85;
-    ctx.lineWidth = 14;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 16;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
@@ -576,7 +575,7 @@ export function createHubRugTexture() {
   for (let i = 0; i < 5; i++) {
     const angle = (i / 5) * Math.PI * 2;
     ctx.strokeStyle = colors[i];
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
     ctx.lineWidth = 8;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -586,9 +585,9 @@ export function createHubRugTexture() {
   ctx.globalAlpha = 1;
 
   // Center hex badge
-  ctx.fillStyle = "#20304a";
+  ctx.fillStyle = "#1e293b";
   ctx.beginPath();
-  const hexR = 70;
+  const hexR = 75;
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     const px = cx + Math.cos(a) * hexR;
@@ -598,7 +597,7 @@ export function createHubRugTexture() {
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = "#5ec8d8";
+  ctx.fillStyle = "#38bdf8";
   ctx.font = "bold 22px 'Consolas', monospace";
   ctx.textAlign = "center";
   ctx.fillText("BLACKVAULT", cx, cy + 8);

@@ -11,6 +11,7 @@
 
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
+import { setPlayerSittingState } from "./character.js";
 
 let camera = null;
 let domElement = null;
@@ -33,11 +34,15 @@ const GRAVITY = -24.0;
 const JUMP_IMPULSE = 8.5;
 let isGrounded = true;
 
-// Studio room & facility boundaries
-const BOUND_MIN_X = -12.0;
-const BOUND_MAX_X = 12.0;
-const BOUND_MIN_Z = -14.0;
-const BOUND_MAX_Z = 13.5;
+// Studio room & facility boundaries (5 sequential rooms along Z-axis)
+const BOUND_MIN_X = -10.0;
+const BOUND_MAX_X = 10.0;
+const BOUND_MIN_Z = -5.0;
+let BOUND_MAX_Z = 20.8; // Expands dynamically as security doors are unlocked
+
+export function setMaxZBound(maxZ) {
+  BOUND_MAX_Z = maxZ;
+}
 
 // --- Camera mode system ---
 let cameraMode = "first-person"; // "first-person" | "third-person"
@@ -100,7 +105,7 @@ function buildProceduralArms() {
 
     const wristGlow = new THREE.Mesh(
       new THREE.CylinderGeometry(0.048, 0.048, 0.015, 8),
-      new THREE.MeshStandardMaterial({ color: 0x40d8f0, emissive: 0x40d8f0, emissiveIntensity: 0.6 })
+      new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 0.6 })
     );
     wristGlow.position.set(sign * 0.19, -0.30, -0.38);
     wristGlow.rotation.x = 0.5;
@@ -367,6 +372,15 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
+  if (movementLocked) {
+    moveState.forward = false;
+    moveState.backward = false;
+    moveState.left = false;
+    moveState.right = false;
+    moveState.shift = false;
+    return;
+  }
+
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
     moveState.shift = false;
     return;
@@ -421,7 +435,10 @@ export function getIsGrounded() {
 const _playerWorldPos = new THREE.Vector3();
 
 export function updatePlayer(delta) {
-  if (!camera || movementLocked) return;
+  if (!camera || movementLocked) {
+    velocity.set(0, 0, 0);
+    return;
+  }
 
   // Vertical Jump & Gravity Physics
   if (!isGrounded) {
@@ -590,29 +607,82 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
     cb = onSeatedOrLookAt;
   }
 
-  // Force first-person for sitting
+  // ── Lock movement FIRST, before any other logic ────────────────────
+  // Zeroing velocity and moveState here prevents any in-flight WASD
+  // input from moving the character during the sit-down transition.
+  movementLocked = true;
+  velocity.set(0, 0, 0);
+  velocityY = 0;
+  moveState.forward = false;
+  moveState.backward = false;
+  moveState.left = false;
+  moveState.right = false;
+  moveState.shift = false;
+
+  // Cancel any in-progress camera tween
+  if (tweenHandle) {
+    cancelAnimationFrame(tweenHandle);
+    tweenHandle = null;
+  }
+
+  // Save current standing position so standUp() can return here
+  if (camera) {
+    standPosition.copy(camera.position);
+    standPosition.y = EYE_HEIGHT;
+  }
+
+  // Align third-person player body mesh onto the chair prop
+  if (playerBodyMesh) {
+    playerBodyMesh.position.set(pos.x, 0, pos.z);
+    const lookDir = lookAt.clone().sub(pos);
+    playerBodyMesh.rotation.y = Math.atan2(lookDir.x, lookDir.z);
+  }
+
+  // Force first-person view for terminal coding
   if (cameraMode === "third-person") {
     cameraMode = "first-person";
     if (armsGroup) armsGroup.visible = true;
     if (playerBodyMesh) playerBodyMesh.visible = false;
   }
 
-  movementLocked = true;
-  standPosition.copy(camera ? camera.position : standPosition);
-  standPosition.y = EYE_HEIGHT;
-  tweenCamera(pos, lookAt, 500, cb);
+  // Trigger sitting-down animation on the character rig
+  setPlayerSittingState(true);
+
+  // Animate camera from current world position → seat position + look at screen.
+  // Do NOT snap camera.position before tweenCamera — the tween animates FROM
+  // the current position, giving the player the "sitting down" feel.
+  tweenCamera(pos, lookAt, 480, cb);
 }
 
 export function standUp(onStood) {
+  // Trigger standing-up animation
+  setPlayerSittingState(false);
+  velocity.set(0, 0, 0);
+  moveState.forward = false;
+  moveState.backward = false;
+  moveState.left = false;
+  moveState.right = false;
+  moveState.shift = false;
+
   const backTo = standPosition.clone();
   const lookAt = backTo.clone().add(new THREE.Vector3(0, 0, -1));
   tweenCamera(backTo, lookAt, 350, () => {
-    if (camera) camera.position.copy(backTo);
+    if (camera) {
+      camera.position.copy(backTo);
+      // Sync euler from the camera's current quaternion so mouse-look
+      // doesn't snap when the player moves after standing up.
+      euler.setFromQuaternion(camera.quaternion, "YXZ");
+    }
     if (armsGroup) {
       const baseZ = viewModelLoaded ? -0.15 : 0;
       armsGroup.position.z = baseZ;
     }
     movementLocked = false;
+    // Re-acquire pointer lock automatically so the player doesn't have to
+    // click the canvas again to restore mouse-look.
+    if (domElement) {
+      domElement.requestPointerLock();
+    }
     if (onStood) onStood();
   });
 }

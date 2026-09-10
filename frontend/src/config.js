@@ -6,19 +6,24 @@ export const DOOR_TYPES = ["classification", "regression", "clustering", "anomal
 export const BOSS_DOOR_TYPE = "mystery";
 
 export const DOOR_LABELS = {
-  classification: "Classification",
-  regression: "Regression",
-  clustering: "Clustering",
-  anomaly: "Anomaly Detection",
+  classification: "Classification Lab",
+  regression: "Regression Lab",
+  clustering: "Clustering Hub",
+  anomaly: "Anomaly Wing",
   mystery: "Core Security Vault",
 };
 
 export const DOOR_COLORS = {
-  classification: 0x2ad4ff,
-  regression: 0x7cff6d,
-  clustering: 0xffb84d,
-  anomaly: 0xff5b5b,
-  mystery: 0xe91e63,
+  classification: 0x2f80ed, // Electric Blue
+  regression: 0x8b5cf6,     // Violet
+  clustering: 0xff9f43,     // Amber
+  anomaly: 0x2f80ed,        // Electric Blue & Violet
+  mystery: 0x8b5cf6,        // Violet / Climax multi-accent
+};
+
+export const STATUS_COLORS = {
+  locked: 0xef476f,   // Locked / Danger Red-Pink
+  unlocked: 0x22c55e, // Success Green
 };
 
 export const ALGORITHMS = {

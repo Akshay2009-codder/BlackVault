@@ -3,8 +3,8 @@
 // ML puzzle terminals with real code editor.
 
 import * as THREE from "three";
-import { initScene } from "./src/sceneSetup.js";
-import { initWorld } from "./src/world.js";
+import { initScene, updateSceneEffects, updateAnimatables, getComposer } from "./src/sceneSetup.js";
+import { initWorld, updateWorldAnimations } from "./src/world.js";
 import { initPlayer, updatePlayer, getPlayerPosition } from "./src/player.js";
 import { initInteractions, updateInteractions } from "./src/interactions.js";
 import { initTerminalUI, openTerminal } from "./src/puzzleTerminal.js";
@@ -12,10 +12,10 @@ import { initLevelManager } from "./src/levelManager.js";
 import { initGuardVoice } from "./src/guardVoice.js";
 import { createPlayerCharacter, updatePlayerCharacter } from "./src/character.js";
 
-const BUILD_TAG = "blackvault-dark-v5";
+const BUILD_TAG = "blackvault-overhaul-v7";
 const tagEl = document.getElementById("build-tag");
 if (tagEl) tagEl.textContent = BUILD_TAG;
-console.log("[BlackVault] Initializing dark tech facility:", BUILD_TAG);
+console.log("[BlackVault] Initializing overhauled facility:", BUILD_TAG);
 
 // Async init wrapper — initPlayer now loads the GLB view-model
 (async () => {
@@ -43,6 +43,7 @@ console.log("[BlackVault] Initializing dark tech facility:", BUILD_TAG);
 
   // 7. Animation Loop
   const clock = new THREE.Clock();
+  const composer = getComposer();
 
   function animate() {
     requestAnimationFrame(animate);
@@ -55,9 +56,23 @@ console.log("[BlackVault] Initializing dark tech facility:", BUILD_TAG);
     // Animate player body (walk cycle, idle)
     updatePlayerCharacter(delta);
 
+    // Animate atmospheric effects (dust motes)
+    updateSceneEffects(delta);
+
+    // Idle monitor flicker & emissive pulse
+    updateAnimatables(delta);
+
+    // Mystery core spin + hover animation
+    updateWorldAnimations(delta);
+
     updateInteractions();
 
-    renderer.render(scene, camera);
+    // Render via EffectComposer (bloom pass) instead of renderer directly
+    if (composer) {
+      composer.render();
+    } else {
+      renderer.render(scene, camera);
+    }
   }
 
   animate();

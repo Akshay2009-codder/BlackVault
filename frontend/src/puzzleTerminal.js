@@ -32,27 +32,27 @@ function initMonaco() {
     });
 
     window.require(["vs/editor/editor.main"], () => {
-      // Define a high-contrast, vibrant IDE theme
+      // Define high-contrast IDE theme strictly adhering to BlackVault 4-accent system
       window.monaco.editor.defineTheme("blackvault-vibrant", {
         base: "vs-dark",
         inherit: true,
         rules: [
           { token: "comment", foreground: "64748b", fontStyle: "italic" },
-          { token: "keyword", foreground: "38bdf8", fontStyle: "bold" },
-          { token: "string", foreground: "4ade80" },
-          { token: "number", foreground: "fbbf24" },
-          { token: "type", foreground: "f472b6" },
+          { token: "keyword", foreground: "2f80ed", fontStyle: "bold" },
+          { token: "string", foreground: "22c55e" },
+          { token: "number", foreground: "ff9f43" },
+          { token: "type", foreground: "8b5cf6" },
           { token: "identifier", foreground: "f8fafc" },
-          { token: "delimiter", foreground: "a855f7" },
+          { token: "delimiter", foreground: "8b5cf6" },
         ],
         colors: {
           "editor.background": "#0f172a",
           "editor.foreground": "#f8fafc",
           "editor.lineHighlightBackground": "#1e293b",
-          "editorCursor.foreground": "#38bdf8",
-          "editor.selectionBackground": "#0284c744",
+          "editorCursor.foreground": "#2f80ed",
+          "editor.selectionBackground": "#2f80ed44",
           "editorLineNumber.foreground": "#475569",
-          "editorLineNumber.activeForeground": "#38bdf8",
+          "editorLineNumber.activeForeground": "#2f80ed",
           "editor.inactiveSelectionBackground": "#1e293b",
         },
       });
