@@ -32,27 +32,27 @@ function initMonaco() {
     });
 
     window.require(["vs/editor/editor.main"], () => {
-      // Define high-contrast IDE theme strictly adhering to BlackVault 4-accent system
+      // Define high-contrast Cyber Studio IDE theme
       window.monaco.editor.defineTheme("blackvault-vibrant", {
         base: "vs-dark",
         inherit: true,
         rules: [
           { token: "comment", foreground: "64748b", fontStyle: "italic" },
-          { token: "keyword", foreground: "2f80ed", fontStyle: "bold" },
-          { token: "string", foreground: "22c55e" },
-          { token: "number", foreground: "ff9f43" },
-          { token: "type", foreground: "8b5cf6" },
+          { token: "keyword", foreground: "38bdf8", fontStyle: "bold" },
+          { token: "string", foreground: "10b981" },
+          { token: "number", foreground: "f59e0b" },
+          { token: "type", foreground: "a855f7" },
           { token: "identifier", foreground: "f8fafc" },
-          { token: "delimiter", foreground: "8b5cf6" },
+          { token: "delimiter", foreground: "38bdf8" },
         ],
         colors: {
-          "editor.background": "#0f172a",
+          "editor.background": "#090d16",
           "editor.foreground": "#f8fafc",
           "editor.lineHighlightBackground": "#1e293b",
-          "editorCursor.foreground": "#2f80ed",
-          "editor.selectionBackground": "#2f80ed44",
+          "editorCursor.foreground": "#38bdf8",
+          "editor.selectionBackground": "#38bdf833",
           "editorLineNumber.foreground": "#475569",
-          "editorLineNumber.activeForeground": "#2f80ed",
+          "editorLineNumber.activeForeground": "#38bdf8",
           "editor.inactiveSelectionBackground": "#1e293b",
         },
       });
@@ -100,7 +100,7 @@ function createEditor(initialCode) {
       },
     });
 
-    // Ctrl+Enter / Shift+F10 to submit
+    // Ctrl+Enter to submit
     monacoEditor.addCommand(
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter,
       () => submitCode()
@@ -167,7 +167,7 @@ export async function openTerminal(doorType, roomIndex = 1) {
   if (consoleOut) {
     consoleOut.innerHTML = `
       <div class="console-line sys">Connecting to BlackVault ML Engine...</div>
-      <div class="console-line info">Loading ${doorType.toUpperCase()} challenge data...</div>
+      <div class="console-line info">Loading ${doorType.toUpperCase()} challenge...</div>
     `;
   }
 
@@ -198,8 +198,8 @@ export async function openTerminal(doorType, roomIndex = 1) {
     const tabLabel = document.getElementById("ide-tab-label");
     if (tabLabel) tabLabel.textContent = `solve_${doorType}.py`;
 
-    // Create Monaco Editor with starter code
-    createEditor(data.starter_code || `# Write your ${doorType} solution here\n`);
+    // Create Monaco Editor with easy starter code
+    createEditor(data.starter_code || getDefaultStarterCode(doorType));
 
     // Render dataset preview
     renderDatasetPreview(data.dataset_preview);
@@ -211,16 +211,16 @@ export async function openTerminal(doorType, roomIndex = 1) {
     if (consoleOut) {
       consoleOut.innerHTML += `
         <div class="console-line success">Dataset loaded: ${data.dataset_preview?.total_rows || 200} samples, ${data.dataset_preview?.columns?.length || 5} features</div>
-        <div class="console-line warning">Write your Python code and press Run ▶ (Ctrl+Enter)</div>
+        <div class="console-line warning">💡 Starter template pre-configured! Press ▶ Run (Ctrl+Enter) to evaluate.</div>
       `;
     }
   } catch (err) {
-    console.error("[Terminal] Failed to open door puzzle:", err);
+    console.warn("[Terminal] Using offline easy mode:", err.message);
     if (consoleOut) {
-      consoleOut.innerHTML += `<div class="console-line error">[ERROR] ${err.message}. Using offline mode.</div>`;
+      consoleOut.innerHTML += `<div class="console-line success">Connected in Offline Mode. Starter code ready!</div>`;
     }
 
-    // Offline fallback
+    // Offline easy fallback
     activePuzzle = {
       puzzle_id: `offline-${doorType}-${Date.now()}`,
       door_type: doorType,
@@ -229,8 +229,9 @@ export async function openTerminal(doorType, roomIndex = 1) {
         columns: ["feature_1", "feature_2", "feature_3", "target"],
         head_rows: [
           [0.82, 1.45, -0.22, 1],
-          [0.15, null, 0.65, 0],
+          [0.15, 0.95, 0.65, 0],
           [-1.20, 0.44, 0.88, 1],
+          [0.45, -0.62, 0.12, 0],
         ],
         total_rows: 300,
       },
@@ -241,11 +242,11 @@ export async function openTerminal(doorType, roomIndex = 1) {
 
     const problemEl = document.getElementById("problem-statement");
     if (problemEl) {
-      problemEl.textContent = `OFFLINE MODE: ${doorType.toUpperCase()} Challenge\nWrite a Python function to solve this ${doorType} problem.\nSee the dataset preview below for the data format.`;
+      problemEl.textContent = `SECTOR ${doorType.toUpperCase()} TERMINAL\nGoal: Build a high-accuracy ML model to unlock the bulkhead.\n\n💡 Quick Tip: A complete working pipeline is prepared below. Press 'Run & Submit' (or Ctrl+Enter) to execute!`;
     }
 
-    timeRemaining = 300;
-    attemptsRemaining = 5;
+    timeRemaining = 450;
+    attemptsRemaining = 10;
     updateTimerDisplay();
     startTimer();
     renderDatasetPreview(activePuzzle.dataset_preview);
@@ -257,58 +258,99 @@ function getDefaultStarterCode(doorType) {
     classification: `import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 
 def predict(train_df, test_df, target_col):
+    """Classify security status with high accuracy."""
+    # 1. Separate features and target
     y_train = train_df[target_col]
     X_train = train_df.drop(columns=[target_col])
+    X_test = test_df.copy()
     
-    # TODO: Clean data, handle missing values
-    # TODO: Train a classifier
-    # TODO: Return predictions for test_df
-    pass
+    # 2. Impute any missing values
+    imputer = SimpleImputer(strategy="mean")
+    X_train_clean = imputer.fit_transform(X_train)
+    X_test_clean = imputer.transform(X_test)
+    
+    # 3. Train Random Forest Classifier
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf.fit(X_train_clean, y_train)
+    
+    # 4. Return predictions for test set
+    return clf.predict(X_test_clean)
 `,
     regression: `import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 
 def predict(train_df, test_df, target_col):
+    """Predict thermal calibration sensors."""
+    # 1. Separate features and target
     y_train = train_df[target_col]
     X_train = train_df.drop(columns=[target_col])
+    X_test = test_df.copy()
     
-    # TODO: Clean and scale features
-    # TODO: Train a regressor
-    # TODO: Return predictions for test_df
-    pass
+    # 2. Impute and scale features
+    imputer = SimpleImputer(strategy="median")
+    scaler = StandardScaler()
+    
+    X_train_proc = scaler.fit_transform(imputer.fit_transform(X_train))
+    X_test_proc = scaler.transform(imputer.transform(X_test))
+    
+    # 3. Train Ridge Regressor
+    model = Ridge(alpha=1.0)
+    model.fit(X_train_proc, y_train)
+    
+    return model.predict(X_test_proc)
 `,
     clustering: `import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 def cluster(feature_df):
-    # TODO: Clean and scale features
-    # TODO: Fit a clustering model
-    # TODO: Return cluster labels
-    pass
+    """Group sensor signals into 3 distinct clusters."""
+    # 1. Standardize features
+    scaler = StandardScaler()
+    X = scaler.fit_transform(feature_df.fillna(feature_df.mean()))
+    
+    # 2. Fit K-Means
+    kmeans = KMeans(n_clusters=3, n_init=10, random_state=42)
+    return kmeans.fit_predict(X)
 `,
     anomaly: `import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
 def detect(feature_df):
-    # TODO: Clean and scale features
-    # TODO: Fit anomaly detector
-    # TODO: Return 0 (normal) / 1 (anomaly) labels
-    pass
+    """Identify anomaly intrusions in telemetry stream."""
+    X = feature_df.fillna(feature_df.median())
+    
+    detector = IsolationForest(contamination=0.08, random_state=42)
+    preds = detector.fit_predict(X)
+    # Convert -1 (anomaly) to 1, and 1 (normal) to 0
+    return np.where(preds == -1, 1, 0)
 `,
     mystery: `import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 
-# MYSTERY: Inspect the data and determine the problem type!
-# Then define the correct function:
-#   predict(train_df, test_df, target_col) - classification/regression
-#   cluster(feature_df) - clustering
-#   detect(feature_df) - anomaly detection
-pass
+def predict(train_df, test_df, target_col):
+    """Master Core Vault Override."""
+    y_train = train_df[target_col]
+    X_train = train_df.drop(columns=[target_col])
+    X_test = test_df.copy()
+    
+    imputer = SimpleImputer(strategy="mean")
+    X_train_clean = imputer.fit_transform(X_train)
+    X_test_clean = imputer.transform(X_test)
+    
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf.fit(X_train_clean, y_train)
+    return clf.predict(X_test_clean)
 `,
   };
   return starters[doorType] || starters.classification;

@@ -35,8 +35,8 @@ const JUMP_IMPULSE = 8.5;
 let isGrounded = true;
 
 // Studio room & facility boundaries (5 sequential rooms along Z-axis)
-const BOUND_MIN_X = -10.0;
-const BOUND_MAX_X = 10.0;
+const BOUND_MIN_X = -14.0;
+const BOUND_MAX_X = 14.0;
 const BOUND_MIN_Z = -5.0;
 let BOUND_MAX_Z = 20.8; // Expands dynamically as security doors are unlocked
 
@@ -86,7 +86,7 @@ let restPoses = {};
 function buildProceduralArms() {
   const group = new THREE.Group();
   const skinMat = new THREE.MeshStandardMaterial({ color: 0xd9a679, roughness: 0.65 });
-  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.5 });
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x221c18, roughness: 0.5 });
 
   function makeArm(sign) {
     const arm = new THREE.Group();
@@ -105,7 +105,7 @@ function buildProceduralArms() {
 
     const wristGlow = new THREE.Mesh(
       new THREE.CylinderGeometry(0.048, 0.048, 0.015, 8),
-      new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 0.6 })
+      new THREE.MeshStandardMaterial({ color: 0xb8912f, emissive: 0xb8912f, emissiveIntensity: 0.6 })
     );
     wristGlow.position.set(sign * 0.19, -0.30, -0.38);
     wristGlow.rotation.x = 0.5;
@@ -323,6 +323,10 @@ export async function initPlayer(cam, element = document.body, sceneRef = null) 
   }
   camera.add(armsGroup);
 
+  camera.position.set(0, EYE_HEIGHT, 0);
+  euler.set(0, Math.PI, 0, "YXZ");
+  camera.quaternion.setFromEuler(euler);
+
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
   document.addEventListener("mousemove", onMouseMove);
@@ -343,7 +347,17 @@ export async function initPlayer(cam, element = document.body, sceneRef = null) 
 }
 
 function onKeyDown(e) {
-  if (movementLocked) return;
+  // CRITICAL: fully ignore all input while movement is locked (sit transition / terminal open)
+  // Without this guard, holding a key at the moment of interaction leaves moveState dirty.
+  if (movementLocked) {
+    // Extra safety: clear any stale move state just in case
+    moveState.forward = false;
+    moveState.backward = false;
+    moveState.left = false;
+    moveState.right = false;
+    moveState.shift = false;
+    return;
+  }
 
   if (e.code === "KeyV") {
     toggleCameraMode();
@@ -607,17 +621,24 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
     cb = onSeatedOrLookAt;
   }
 
-  // ── Lock movement FIRST, before any other logic ────────────────────
-  // Zeroing velocity and moveState here prevents any in-flight WASD
-  // input from moving the character during the sit-down transition.
+  // ── Lock movement FIRST, before any other logic ───────────────────────────────
+  // Zero ALL motion state immediately. This is belt-and-suspenders:
+  // onKeyDown now guards against movementLocked, but we also zero here
+  // to catch any residual velocity from physics accumulation.
   movementLocked = true;
   velocity.set(0, 0, 0);
   velocityY = 0;
+  posY = 0;  // Prevent jump state carrying into seated animation
+  isGrounded = true;
   moveState.forward = false;
   moveState.backward = false;
   moveState.left = false;
   moveState.right = false;
   moveState.shift = false;
+
+  // Release pointer lock so mouse-look stops during the tween.
+  // This prevents camera drift if the mouse moves during the animation.
+  if (document.exitPointerLock) document.exitPointerLock();
 
   // Cancel any in-progress camera tween
   if (tweenHandle) {
@@ -631,27 +652,27 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
     standPosition.y = EYE_HEIGHT;
   }
 
-  // Align third-person player body mesh onto the chair prop
+  // Snap (not tween) the player body mesh onto the chair prop immediately.
+  // Tweening the body during the camera transition caused visual fighting.
   if (playerBodyMesh) {
     playerBodyMesh.position.set(pos.x, 0, pos.z);
     const lookDir = lookAt.clone().sub(pos);
     playerBodyMesh.rotation.y = Math.atan2(lookDir.x, lookDir.z);
   }
 
-  // Force first-person view for terminal coding
-  if (cameraMode === "third-person") {
-    cameraMode = "first-person";
-    if (armsGroup) armsGroup.visible = true;
-    if (playerBodyMesh) playerBodyMesh.visible = false;
-  }
-
   // Trigger sitting-down animation on the character rig
   setPlayerSittingState(true);
 
-  // Animate camera from current world position → seat position + look at screen.
-  // Do NOT snap camera.position before tweenCamera — the tween animates FROM
-  // the current position, giving the player the "sitting down" feel.
-  tweenCamera(pos, lookAt, 480, cb);
+  if (cameraMode === "third-person") {
+    // In third-person, smoothly frame the character sitting at the workstation
+    const seatFacing = lookAt.clone().sub(pos).normalize();
+    const tpSeatCamPos = pos.clone().add(new THREE.Vector3(-seatFacing.z * 1.2 - seatFacing.x * 1.8, 1.4, seatFacing.x * 1.2 - seatFacing.z * 1.8));
+    const tpSeatLookAt = pos.clone().add(new THREE.Vector3(0, 0.85, 0));
+    tweenCamera(tpSeatCamPos, tpSeatLookAt, 550, cb);
+  } else {
+    // In first-person, animate directly into the chair screen view
+    tweenCamera(pos, lookAt, 480, cb);
+  }
 }
 
 export function standUp(onStood) {
@@ -666,7 +687,7 @@ export function standUp(onStood) {
 
   const backTo = standPosition.clone();
   const lookAt = backTo.clone().add(new THREE.Vector3(0, 0, -1));
-  tweenCamera(backTo, lookAt, 350, () => {
+  tweenCamera(backTo, lookAt, 400, () => {
     if (camera) {
       camera.position.copy(backTo);
       // Sync euler from the camera's current quaternion so mouse-look
@@ -678,8 +699,7 @@ export function standUp(onStood) {
       armsGroup.position.z = baseZ;
     }
     movementLocked = false;
-    // Re-acquire pointer lock automatically so the player doesn't have to
-    // click the canvas again to restore mouse-look.
+    // Re-acquire pointer lock automatically
     if (domElement) {
       domElement.requestPointerLock();
     }

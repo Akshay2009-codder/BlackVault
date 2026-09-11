@@ -24,16 +24,18 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
+  // Light neutral architecture: off-white background instead of dark cyberpunk void
   scene.background = new THREE.Color(0xf2f4f7);
-  scene.fog = new THREE.FogExp2(0xe8ecf1, 0.0025);
+  // Airy, sparse fog — gives depth without the dark smothering look
+  scene.fog = new THREE.FogExp2(0xf2f4f7, 0.006);
 
   camera = new THREE.PerspectiveCamera(
-    62,
+    64,
     window.innerWidth / window.innerHeight,
     0.1,
     1000
   );
-  camera.position.set(0, 1.92, 2.5);
+  camera.position.set(0, 1.95, 2.5);
   camera.lookAt(0, 1.45, 12.0);
 
   renderer = new THREE.WebGLRenderer({
@@ -45,35 +47,46 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.05; // Slightly reduced — light walls don't need as much push
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Clean bright ambient fill for soft white walls & warm light grey floor
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
+  // Bright clean ambient fill for the neutral facility
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
   scene.add(ambientLight);
 
-  // Soft sky directional fill
-  const skyDirLight = new THREE.DirectionalLight(0xf0f4f8, 1.1);
-  skyDirLight.position.set(5, 18.0, 10);
+  // Warm white overhead directional light (simulates ceiling panels / recessed lighting)
+  const skyDirLight = new THREE.DirectionalLight(0xfff8f0, 1.0);
+  skyDirLight.position.set(5, 22.0, 10);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
   skyDirLight.shadow.mapSize.height = 2048;
   skyDirLight.shadow.bias = -0.0001;
+  skyDirLight.shadow.camera.near = 0.5;
+  skyDirLight.shadow.camera.far = 200;
+  skyDirLight.shadow.camera.left = -30;
+  skyDirLight.shadow.camera.right = 30;
+  skyDirLight.shadow.camera.top = 30;
+  skyDirLight.shadow.camera.bottom = -30;
   scene.add(skyDirLight);
 
+  // Secondary soft fill from below (bounce light off the light-coloured floor)
+  const fillLight = new THREE.DirectionalLight(0xfafbfc, 0.4);
+  fillLight.position.set(-8, 2, -5);
+  scene.add(fillLight);
+
   // ── Post-Processing: Bloom ─────────────────────────────────────────
-  // Genuine glow on all emissive materials (door glows, light strips, core).
+  // Higher threshold so white walls don't bloom, only vivid accent surfaces do.
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.55,   // strength — noticeable but not blown-out on light walls
-    0.40,   // radius
-    0.72    // threshold — only truly emissive surfaces bloom
+    0.55,   // strength — visible but not overwhelming on light BG
+    0.5,    // radius
+    0.75    // threshold — higher: only truly bright emissives bloom (door strips, neon signs)
   );
   composer.addPass(bloomPass);
 
@@ -90,24 +103,26 @@ export function initScene() {
 }
 
 function createDustMotes() {
-  const particleCount = 450;
+  const particleCount = 800;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
 
   for (let i = 0; i < particleCount; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 24;
-    positions[i * 3 + 1] = Math.random() * 5.0 + 0.2;
-    positions[i * 3 + 2] = Math.random() * 120 - 5;
+    positions[i * 3]     = (Math.random() - 0.5) * 30;
+    positions[i * 3 + 1] = Math.random() * 6.5 + 0.3;
+    positions[i * 3 + 2] = Math.random() * 140 - 5;
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
+  // Soft blue-white dust — visible against the light architecture, not garish
   const material = new THREE.PointsMaterial({
-    color: 0x2f80ed,
-    size: 0.08,
+    color: 0xc8d8ff,
+    size: 0.07,
     transparent: true,
-    opacity: 0.45,
+    opacity: 0.28,
     blending: THREE.AdditiveBlending,
+    depthWrite: false,
   });
 
   dustParticles = new THREE.Points(geometry, material);
@@ -121,8 +136,11 @@ export function updateSceneEffects(delta) {
   const time = performance.now() * 0.0005;
 
   for (let i = 0; i < count; i++) {
-    positions[i * 3 + 1] += Math.sin(time + i) * 0.0015;
-    positions[i * 3] += Math.cos(time + i * 0.5) * 0.0008;
+    // Gentle upward drift + lateral sway
+    positions[i * 3 + 1] += 0.0004 + Math.sin(time + i) * 0.0012;
+    positions[i * 3]     += Math.cos(time + i * 0.5) * 0.0006;
+    // Wrap vertically so motes recycle
+    if (positions[i * 3 + 1] > 7.5) positions[i * 3 + 1] = 0.1;
   }
   dustParticles.geometry.attributes.position.needsUpdate = true;
 }

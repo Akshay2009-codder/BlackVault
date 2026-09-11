@@ -10,12 +10,12 @@ let walkCycle = 0;
 let idleTime = 0;
 
 // ── Materials ──────────────────────────────────────────────────────────
-const suitMat = new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.5, metalness: 0.3 });
-const armorMat = new THREE.MeshStandardMaterial({ color: 0x252e3e, roughness: 0.35, metalness: 0.5 });
-const glowMat = new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 0.8, roughness: 0.2 });
-const visorMat = new THREE.MeshStandardMaterial({ color: 0x2f80ed, emissive: 0x2f80ed, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.9 });
-const skinMat = new THREE.MeshStandardMaterial({ color: 0xc68642, roughness: 0.75 });
-const bootMat = new THREE.MeshStandardMaterial({ color: 0x0e1420, roughness: 0.4, metalness: 0.6 });
+const suitMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.45, metalness: 0.35 });
+const armorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.6 });
+const glowMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.0, roughness: 0.2 });
+const visorMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.4, roughness: 0.1, metalness: 0.95 });
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.7 });
+const bootMat = new THREE.MeshStandardMaterial({ color: 0x0b0f19, roughness: 0.35, metalness: 0.7 });
 
 export function createPlayerCharacter(scene) {
   bodyMesh = new THREE.Group();

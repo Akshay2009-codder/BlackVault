@@ -15,15 +15,15 @@ export const DOOR_LABELS = {
 
 export const DOOR_COLORS = {
   classification: 0x2f80ed, // Electric Blue
-  regression: 0x8b5cf6,     // Violet
-  clustering: 0xff9f43,     // Amber
-  anomaly: 0x2f80ed,        // Electric Blue & Violet
-  mystery: 0x8b5cf6,        // Violet / Climax multi-accent
+  regression:     0x8b5cf6, // Violet
+  clustering:     0xff9f43, // Amber
+  anomaly:        0xef476f, // Locked/danger red (anomaly uses status red as its identity)
+  mystery:        0x8b5cf6, // Violet (climax room)
 };
 
 export const STATUS_COLORS = {
-  locked: 0xef476f,   // Locked / Danger Red-Pink
-  unlocked: 0x22c55e, // Success Green
+  locked:   0xef476f, // Locked / danger red
+  unlocked: 0x22c55e, // Success green — only for solved states
 };
 
 export const ALGORITHMS = {

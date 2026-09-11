@@ -33,12 +33,14 @@ class RunResult:
 def _safe_globals() -> dict:
     import numpy as np
     import pandas as pd
-    from sklearn.linear_model import LogisticRegression, LinearRegression
+    from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge
     from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest
     from sklearn.svm import SVC, OneClassSVM
+    from sklearn.neighbors import KNeighborsClassifier
     from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
     from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
+    from sklearn.impute import SimpleImputer
 
     safe_builtins = {
         "range": range, "len": len, "print": print, "min": min, "max": max,
@@ -51,6 +53,7 @@ def _safe_globals() -> dict:
         "any": any, "AttributeError": AttributeError, "IndexError": IndexError,
         "StopIteration": StopIteration, "getattr": getattr, "hasattr": hasattr,
         "RuntimeError": RuntimeError, "ZeroDivisionError": ZeroDivisionError,
+        "__import__": __import__,
     }
 
     return {
@@ -59,11 +62,13 @@ def _safe_globals() -> dict:
         "pd": pd, "pandas": pd,
         "LogisticRegression": LogisticRegression,
         "LinearRegression": LinearRegression,
+        "Ridge": Ridge,
         "DecisionTreeClassifier": DecisionTreeClassifier,
         "DecisionTreeRegressor": DecisionTreeRegressor,
         "RandomForestClassifier": RandomForestClassifier,
         "RandomForestRegressor": RandomForestRegressor,
         "IsolationForest": IsolationForest,
+        "KNeighborsClassifier": KNeighborsClassifier,
         "SVC": SVC,
         "OneClassSVM": OneClassSVM,
         "KMeans": KMeans,
@@ -72,6 +77,7 @@ def _safe_globals() -> dict:
         "StandardScaler": StandardScaler,
         "MinMaxScaler": MinMaxScaler,
         "LabelEncoder": LabelEncoder,
+        "SimpleImputer": SimpleImputer,
     }
 
 
