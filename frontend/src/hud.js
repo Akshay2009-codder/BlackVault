@@ -1,24 +1,36 @@
-// Renders the top-left HUD (level, total stars, doors remaining) and the
-// interact prompt. Pure DOM -- no Three.js here.
+// HUD — renders floor label, stars, and door count. Pure DOM, no Three.js.
 
-import { DOOR_TYPES } from "./config.js";
+import { DOOR_TYPES, FLOOR_LABELS } from "./config.js";
+
+const FLOOR_LABEL_BY_INDEX = ["G", "1F", "2F", "3F", "4F", "5F"];
+const FLOOR_DISPLAY = {
+  "G":  "G — Reception & Lobby",
+  "1F": "1F — Classification Lab",
+  "2F": "2F — Regression Lab",
+  "3F": "3F — Clustering Hub",
+  "4F": "4F — Anomaly Wing",
+  "5F": "5F — The Vault",
+};
 
 export function renderHud(state) {
   const starsMap = state.starsByDoor || {};
   const totalStars = Object.values(starsMap).reduce((a, b) => a + b, 0);
 
+  const floor = state.currentFloor || "G";
   const lvlEl = document.getElementById("level-label");
-  if (lvlEl) lvlEl.textContent = `Level ${state.level || state.currentSector || 1}`;
+  if (lvlEl) lvlEl.textContent = FLOOR_DISPLAY[floor] || `Floor ${floor}`;
 
   const starsEl = document.getElementById("stars-total");
-  if (starsEl) starsEl.textContent = `Stars: ${totalStars} / ${DOOR_TYPES.length * 3}`;
+  if (starsEl) starsEl.textContent = `★ ${totalStars} / ${DOOR_TYPES.length * 3}`;
 
   const cleared = state.doorsCleared || [];
   const remaining = DOOR_TYPES.filter(d => !cleared.includes(d));
   const doorsEl = document.getElementById("doors-remaining");
   if (doorsEl) {
     doorsEl.textContent =
-      remaining.length === 0 ? "All doors cleared -- vault exit open" : `Doors remaining: ${remaining.length}`;
+      remaining.length === 0
+        ? "All floors cleared — vault exit open"
+        : `Floors remaining: ${remaining.length}`;
   }
 }
 
@@ -38,7 +50,7 @@ export function hideInteractPrompt() {
 export function showLevelComplete(level, totalStars, maxStars) {
   const summaryEl = document.getElementById("level-complete-summary");
   if (summaryEl) {
-    summaryEl.textContent = `Level ${level} cleared with ${totalStars} / ${maxStars} stars.`;
+    summaryEl.textContent = `All ${level} floors cleared — ${totalStars} / ${maxStars} stars earned.`;
   }
   const lc = document.getElementById("level-complete");
   if (lc) lc.classList.remove("hidden");

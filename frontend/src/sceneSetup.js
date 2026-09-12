@@ -1,13 +1,12 @@
-// Three.js renderer, camera, and lighting setup for BlackVault facility.
-// Bright clean neutral architecture with soft warm ambient fill & atmospheric dust motes.
-// Post-processing: EffectComposer + UnrealBloomPass for emissive bloom.
+// Three.js renderer, camera, and lighting setup for BlackVault.
+// Dusty Pink + Burgundy + Cream corporate tower aesthetic.
+// Warm ambient fill, cream-tinted directional light, golden dust motes.
 
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-
 
 let scene, camera, renderer;
 let dustParticles = null;
@@ -24,10 +23,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Light neutral architecture: off-white background instead of dark cyberpunk void
-  scene.background = new THREE.Color(0xf2f4f7);
-  // Airy, sparse fog — gives depth without the dark smothering look
-  scene.fog = new THREE.FogExp2(0xf2f4f7, 0.006);
+  // Cream architecture: warm off-white background
+  scene.background = new THREE.Color(0xf2e8dc);
+  // Airy warm fog — gives depth while staying in the cream palette
+  scene.fog = new THREE.FogExp2(0xf2e8dc, 0.005);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -47,18 +46,18 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05; // Slightly reduced — light walls don't need as much push
+  renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Bright clean ambient fill for the neutral facility
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+  // Warm cream ambient fill — bright enough to read the cream walls clearly
+  const ambientLight = new THREE.AmbientLight(0xfff5ee, 1.5);
   scene.add(ambientLight);
 
-  // Warm white overhead directional light (simulates ceiling panels / recessed lighting)
-  const skyDirLight = new THREE.DirectionalLight(0xfff8f0, 1.0);
+  // Warm golden-white overhead directional light (simulates recessed ceiling panels)
+  const skyDirLight = new THREE.DirectionalLight(0xfff3e0, 0.95);
   skyDirLight.position.set(5, 22.0, 10);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
@@ -66,34 +65,32 @@ export function initScene() {
   skyDirLight.shadow.bias = -0.0001;
   skyDirLight.shadow.camera.near = 0.5;
   skyDirLight.shadow.camera.far = 200;
-  skyDirLight.shadow.camera.left = -30;
-  skyDirLight.shadow.camera.right = 30;
-  skyDirLight.shadow.camera.top = 30;
+  skyDirLight.shadow.camera.left  = -30;
+  skyDirLight.shadow.camera.right  = 30;
+  skyDirLight.shadow.camera.top    = 30;
   skyDirLight.shadow.camera.bottom = -30;
   scene.add(skyDirLight);
 
-  // Secondary soft fill from below (bounce light off the light-coloured floor)
-  const fillLight = new THREE.DirectionalLight(0xfafbfc, 0.4);
+  // Soft warm fill from below (bounce off the cream floor)
+  const fillLight = new THREE.DirectionalLight(0xfaf0e6, 0.35);
   fillLight.position.set(-8, 2, -5);
   scene.add(fillLight);
 
   // ── Post-Processing: Bloom ─────────────────────────────────────────
-  // Higher threshold so white walls don't bloom, only vivid accent surfaces do.
+  // Higher threshold so cream walls stay clean; only emissive strips bloom.
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.55,   // strength — visible but not overwhelming on light BG
-    0.5,    // radius
-    0.75    // threshold — higher: only truly bright emissives bloom (door strips, neon signs)
+    0.5,    // strength
+    0.45,   // radius
+    0.78    // threshold — only truly bright emissives bloom
   );
   composer.addPass(bloomPass);
-
-  // OutputPass converts from linear to sRGB + applies tone mapping
   composer.addPass(new OutputPass());
 
-  // ── Atmospheric Dust Motes ───────────────────────────────────────
+  // ── Atmospheric Dust Motes — warm golden ─────────────────────────
   createDustMotes();
 
   window.addEventListener("resize", onWindowResize);
@@ -103,24 +100,24 @@ export function initScene() {
 }
 
 function createDustMotes() {
-  const particleCount = 800;
+  const particleCount = 700;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
 
   for (let i = 0; i < particleCount; i++) {
     positions[i * 3]     = (Math.random() - 0.5) * 30;
-    positions[i * 3 + 1] = Math.random() * 6.5 + 0.3;
-    positions[i * 3 + 2] = Math.random() * 140 - 5;
+    positions[i * 3 + 1] = Math.random() * 7.0 + 0.3;
+    positions[i * 3 + 2] = Math.random() * 150 - 5;
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-  // Soft blue-white dust — visible against the light architecture, not garish
+  // Warm golden dust — floats gently in the warm cream interior
   const material = new THREE.PointsMaterial({
-    color: 0xc8d8ff,
-    size: 0.07,
+    color: 0xe8c88a,
+    size: 0.06,
     transparent: true,
-    opacity: 0.28,
+    opacity: 0.25,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
@@ -136,23 +133,20 @@ export function updateSceneEffects(delta) {
   const time = performance.now() * 0.0005;
 
   for (let i = 0; i < count; i++) {
-    // Gentle upward drift + lateral sway
-    positions[i * 3 + 1] += 0.0004 + Math.sin(time + i) * 0.0012;
-    positions[i * 3]     += Math.cos(time + i * 0.5) * 0.0006;
-    // Wrap vertically so motes recycle
-    if (positions[i * 3 + 1] > 7.5) positions[i * 3 + 1] = 0.1;
+    positions[i * 3 + 1] += 0.0003 + Math.sin(time + i) * 0.001;
+    positions[i * 3]     += Math.cos(time + i * 0.5) * 0.0005;
+    if (positions[i * 3 + 1] > 8.0) positions[i * 3 + 1] = 0.1;
   }
   dustParticles.geometry.attributes.position.needsUpdate = true;
 }
 
-// Idle monitor/light flicker animation — call every frame
+// Idle monitor / light flicker animation — call every frame
 export function updateAnimatables(delta) {
   const t = performance.now() * 0.001;
   for (const { light, baseIntensity } of flickerLights) {
-    // Subtle irregular flicker: combine two sine waves at different frequencies
     const flicker = 1.0
-      + Math.sin(t * 7.3 + light.id) * 0.06
-      + Math.sin(t * 17.1 + light.id * 0.7) * 0.025;
+      + Math.sin(t * 7.3 + light.id) * 0.055
+      + Math.sin(t * 17.1 + light.id * 0.7) * 0.022;
     light.intensity = baseIntensity * flicker;
   }
 }
@@ -165,7 +159,7 @@ function onWindowResize() {
   if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
-export function getScene() { return scene; }
-export function getCamera() { return camera; }
+export function getScene()    { return scene; }
+export function getCamera()   { return camera; }
 export function getRenderer() { return renderer; }
 export function getComposer() { return composer; }

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="BlackVault — 3D ML Escape Lab. Write real Python code to unlock security doors." />
-  <title>BlackVault — 3D ML Code Lab</title>
+  <meta name="description" content="BlackVault — Corporate Research Tower. Ascend 5 floors by writing real Python ML code to unlock each level." />
+  <title>BlackVault — Corporate Research Tower</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -18,9 +18,9 @@
 
   <!-- HUD overlay -->
   <div id="hud">
-    <div class="hud-item hud-sector" id="level-label">Level 1</div>
-    <div class="hud-item" id="stars-total">Stars: ★ 0 / 12</div>
-    <div class="hud-item" id="doors-remaining">Doors remaining: 4</div>
+    <div class="hud-item hud-sector" id="level-label">G — Reception & Lobby</div>
+    <div class="hud-item" id="stars-total">★ 0 / 12</div>
+    <div class="hud-item" id="doors-remaining">Floors remaining: 5</div>
     <div id="build-tag"></div>
   </div>
 
@@ -33,12 +33,43 @@
   <!-- Voice mute toggle -->
   <div id="voice-toggle-btn">🔊 VOICE</div>
 
-  <!-- Sector Cleared Notification -->
+  <!-- Floor/Sector Cleared Notification -->
   <div id="sector-cleared-banner" class="hidden">
     <div class="cleared-content">
-      <span class="cleared-badge">SECURITY DOOR UNLOCKED</span>
-      <h2 id="cleared-title">Door Cleared!</h2>
-      <p id="cleared-desc">Security bulkhead opened. Proceed through the doorway.</p>
+      <span class="cleared-badge">FLOOR TERMINAL UNLOCKED</span>
+      <h2 id="cleared-title">Floor Cleared!</h2>
+      <p id="cleared-desc">Elevator is calling. Proceed to the next floor.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       ELEVATOR OVERLAY — Full-screen cinematic transition between floors
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div id="elevator-overlay">
+    <!-- Bi-parting elevator doors -->
+    <div class="elevator-door-left"></div>
+    <div class="elevator-door-right"></div>
+
+    <!-- Central display (visible between doors) -->
+    <div class="elevator-content">
+      <div class="elevator-label">BLACKVAULT CORP · FLOOR</div>
+      <div class="elevator-floor-display">G</div>
+      <div class="elevator-bar"><div class="elevator-bar-fill"></div></div>
+      <div class="elevator-floor-name">Reception &amp; Lobby</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       FINALE / ROOFTOP REVEAL OVERLAY
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div id="finale-overlay">
+    <canvas id="finale-canvas"></canvas>
+
+    <div id="finale-text-panel">
+      <div id="finale-tagline">— BLACKVAULT CORP —</div>
+      <h1 id="finale-headline">You Made It Through.</h1>
+      <p id="finale-sub">Five floors. Five puzzles. The whole tower — yours.</p>
+      <button id="finale-back-btn">↓ RIDE BACK DOWN</button>
     </div>
   </div>
 
@@ -61,6 +92,24 @@
       <div class="ide-body">
         <!-- Left Panel: Problem statement + dataset preview -->
         <div class="ide-left">
+          <!-- Tiered Steps Indicator -->
+          <div class="tiered-steps-bar" id="tiered-steps-bar">
+            <div class="step-chip active" id="chip-step-1">
+              <span class="chip-num">1</span>
+              <span class="chip-label">Data Cleaning</span>
+            </div>
+            <span class="step-divider">➔</span>
+            <div class="step-chip locked" id="chip-step-2">
+              <span class="chip-num">2</span>
+              <span class="chip-label">Feature Work</span>
+            </div>
+            <span class="step-divider">➔</span>
+            <div class="step-chip locked" id="chip-step-3">
+              <span class="chip-num">3</span>
+              <span class="chip-label">Model Training</span>
+            </div>
+          </div>
+
           <div id="problem-statement" class="problem-statement">Loading challenge...</div>
           <div id="terminal-hint" class="terminal-hint hidden"></div>
 
@@ -86,12 +135,15 @@
     </div>
   </div>
 
+  <!-- Fullscreen Cinematic Flash Overlay -->
+  <div id="cinematic-flash" class="cinematic-flash hidden"></div>
+
   <!-- Level Complete Overlay -->
   <div id="level-complete" class="overlay hidden">
     <div class="modal-card">
-      <h2>Level Complete</h2>
+      <h2>Tower Cleared</h2>
       <p id="level-complete-summary"></p>
-      <p class="sub-text">All required doors cleared. The vault exit is open!</p>
+      <p class="sub-text">All floors cleared. The vault is open. You made it out.</p>
     </div>
   </div>
 

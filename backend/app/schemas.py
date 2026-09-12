@@ -22,6 +22,9 @@ class DoorPuzzleResponse(BaseModel):
     hints_enabled: bool
     problem_statement: str
     starter_code: str
+    current_step: int = 1
+    total_steps: int = 3
+    step_instructions: Optional[str] = None
 
 
 class SubmitAttemptRequest(BaseModel):
@@ -34,6 +37,7 @@ class SubmitCodeRequest(BaseModel):
     puzzle_id: str
     code: str
     time_remaining_seconds: int
+    step: Optional[int] = 1
 
 
 class SubmitAttemptResponse(BaseModel):
@@ -46,6 +50,11 @@ class SubmitAttemptResponse(BaseModel):
     door_type: str
     stars: Optional[int] = None
     error_message: Optional[str] = None
+    step: Optional[int] = 1
+    next_step: Optional[int] = None
+    step_passed: Optional[bool] = None
+    next_starter_code: Optional[str] = None
+    next_instructions: Optional[str] = None
 
 
 class LevelProgressResponse(BaseModel):

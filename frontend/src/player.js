@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
 import { setPlayerSittingState } from "./character.js";
+import { getCollisionBoxes } from "./world.js";
 
 let camera = null;
 let domElement = null;
@@ -39,6 +40,68 @@ const BOUND_MIN_X = -14.0;
 const BOUND_MAX_X = 14.0;
 const BOUND_MIN_Z = -5.0;
 let BOUND_MAX_Z = 20.8; // Expands dynamically as security doors are unlocked
+
+const PLAYER_RADIUS = 0.42;
+
+function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
+  let nextX = currentX + deltaX;
+  let nextZ = currentZ + deltaZ;
+
+  const boxes = typeof getCollisionBoxes === "function" ? getCollisionBoxes() : [];
+  if (!boxes || boxes.length === 0) {
+    nextX = Math.max(BOUND_MIN_X, Math.min(BOUND_MAX_X, nextX));
+    nextZ = Math.max(BOUND_MIN_Z, Math.min(BOUND_MAX_Z, nextZ));
+    return { x: nextX, z: nextZ };
+  }
+
+  // 1. Resolve X movement against active collision boxes
+  for (let i = 0; i < boxes.length; i++) {
+    const b = boxes[i];
+    if (!b.active) continue;
+    if (
+      nextX + PLAYER_RADIUS > b.minX &&
+      nextX - PLAYER_RADIUS < b.maxX &&
+      currentZ + PLAYER_RADIUS > b.minZ &&
+      currentZ - PLAYER_RADIUS < b.maxZ
+    ) {
+      if (currentX <= b.minX) {
+        nextX = Math.min(nextX, b.minX - PLAYER_RADIUS);
+      } else if (currentX >= b.maxX) {
+        nextX = Math.max(nextX, b.maxX + PLAYER_RADIUS);
+      } else {
+        nextX = currentX;
+      }
+      velocity.x = 0;
+    }
+  }
+
+  // 2. Resolve Z movement against active collision boxes
+  for (let i = 0; i < boxes.length; i++) {
+    const b = boxes[i];
+    if (!b.active) continue;
+    if (
+      nextX + PLAYER_RADIUS > b.minX &&
+      nextX - PLAYER_RADIUS < b.maxX &&
+      nextZ + PLAYER_RADIUS > b.minZ &&
+      nextZ - PLAYER_RADIUS < b.maxZ
+    ) {
+      if (currentZ <= b.minZ) {
+        nextZ = Math.min(nextZ, b.minZ - PLAYER_RADIUS);
+      } else if (currentZ >= b.maxZ) {
+        nextZ = Math.max(nextZ, b.maxZ + PLAYER_RADIUS);
+      } else {
+        nextZ = currentZ;
+      }
+      velocity.z = 0;
+    }
+  }
+
+  // 3. Room boundary clamps
+  nextX = Math.max(BOUND_MIN_X, Math.min(BOUND_MAX_X, nextX));
+  nextZ = Math.max(BOUND_MIN_Z, Math.min(BOUND_MAX_Z, nextZ));
+
+  return { x: nextX, z: nextZ };
+}
 
 export function setMaxZBound(maxZ) {
   BOUND_MAX_Z = maxZ;
@@ -484,12 +547,13 @@ export function updatePlayer(delta) {
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
   const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
 
-  if (cameraMode === "first-person") {
-    camera.position.addScaledVector(forward, -velocity.z * delta);
-    camera.position.addScaledVector(right, velocity.x * delta);
+  const dx = forward.x * (-velocity.z * delta) + right.x * (velocity.x * delta);
+  const dz = forward.z * (-velocity.z * delta) + right.z * (velocity.x * delta);
 
-    camera.position.x = Math.max(BOUND_MIN_X, Math.min(BOUND_MAX_X, camera.position.x));
-    camera.position.z = Math.max(BOUND_MIN_Z, Math.min(BOUND_MAX_Z, camera.position.z));
+  if (cameraMode === "first-person") {
+    const resolved = resolveCollisions(camera.position.x, camera.position.z, dx, dz);
+    camera.position.x = resolved.x;
+    camera.position.z = resolved.z;
 
     const moving = moveState.forward || moveState.backward || moveState.left || moveState.right;
     const bobMult = moveState.shift ? 14 : 9;
@@ -527,11 +591,9 @@ export function updatePlayer(delta) {
   } else {
     // Third-person mode
     if (playerBodyMesh) {
-      playerBodyMesh.position.addScaledVector(forward, -velocity.z * delta);
-      playerBodyMesh.position.addScaledVector(right, velocity.x * delta);
-
-      playerBodyMesh.position.x = Math.max(BOUND_MIN_X, Math.min(BOUND_MAX_X, playerBodyMesh.position.x));
-      playerBodyMesh.position.z = Math.max(BOUND_MIN_Z, Math.min(BOUND_MAX_Z, playerBodyMesh.position.z));
+      const resolved = resolveCollisions(playerBodyMesh.position.x, playerBodyMesh.position.z, dx, dz);
+      playerBodyMesh.position.x = resolved.x;
+      playerBodyMesh.position.z = resolved.z;
       playerBodyMesh.position.y = posY;
 
       playerBodyMesh.rotation.y = euler.y;
@@ -621,14 +683,11 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
     cb = onSeatedOrLookAt;
   }
 
-  // ── Lock movement FIRST, before any other logic ───────────────────────────────
-  // Zero ALL motion state immediately. This is belt-and-suspenders:
-  // onKeyDown now guards against movementLocked, but we also zero here
-  // to catch any residual velocity from physics accumulation.
+  // Lock movement FIRST, zero motion immediately
   movementLocked = true;
   velocity.set(0, 0, 0);
   velocityY = 0;
-  posY = 0;  // Prevent jump state carrying into seated animation
+  posY = 0;
   isGrounded = true;
   moveState.forward = false;
   moveState.backward = false;
@@ -636,47 +695,92 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
   moveState.right = false;
   moveState.shift = false;
 
-  // Release pointer lock so mouse-look stops during the tween.
-  // This prevents camera drift if the mouse moves during the animation.
   if (document.exitPointerLock) document.exitPointerLock();
 
-  // Cancel any in-progress camera tween
   if (tweenHandle) {
     cancelAnimationFrame(tweenHandle);
     tweenHandle = null;
   }
 
-  // Save current standing position so standUp() can return here
   if (camera) {
     standPosition.copy(camera.position);
     standPosition.y = EYE_HEIGHT;
   }
 
-  // Snap (not tween) the player body mesh onto the chair prop immediately.
-  // Tweening the body during the camera transition caused visual fighting.
-  if (playerBodyMesh) {
-    playerBodyMesh.position.set(pos.x, 0, pos.z);
-    const lookDir = lookAt.clone().sub(pos);
-    playerBodyMesh.rotation.y = Math.atan2(lookDir.x, lookDir.z);
+  const currentPos = (cameraMode === "third-person" && playerBodyMesh)
+    ? playerBodyMesh.position.clone()
+    : (camera ? camera.position.clone() : pos.clone());
+
+  const startX = currentPos.x;
+  const startZ = currentPos.z;
+  const targetX = pos.x;
+  const targetZ = pos.z;
+
+  const dx = targetX - startX;
+  const dz = targetZ - startZ;
+  const walkDist = Math.sqrt(dx * dx + dz * dz);
+  const walkDuration = Math.min(650, Math.max(300, walkDist * 260));
+
+  const startYaw = playerBodyMesh ? playerBodyMesh.rotation.y : euler.y;
+  const finalFacingYaw = Math.atan2(lookAt.x - pos.x, lookAt.z - pos.z);
+
+  // ── Stage 1: Character walks to the chair ──────────────────────────────────
+  const walkStart = performance.now();
+
+  function walkStep(now) {
+    const t = Math.min(1, (now - walkStart) / walkDuration);
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+    const curX = THREE.MathUtils.lerp(startX, targetX, eased);
+    const curZ = THREE.MathUtils.lerp(startZ, targetZ, eased);
+
+    if (playerBodyMesh) {
+      playerBodyMesh.position.set(curX, 0, curZ);
+      playerBodyMesh.rotation.y = THREE.MathUtils.lerp(startYaw, finalFacingYaw, eased);
+    }
+    if (camera) {
+      if (cameraMode === "first-person") {
+        camera.position.set(curX, EYE_HEIGHT, curZ);
+      }
+    }
+
+    if (t < 1) {
+      tweenHandle = requestAnimationFrame(walkStep);
+    } else {
+      // ── Stage 2: Character is at chair; play full sitting animation ────────
+      tweenHandle = null;
+      if (playerBodyMesh) {
+        playerBodyMesh.position.set(pos.x, 0, pos.z);
+        playerBodyMesh.rotation.y = finalFacingYaw;
+      }
+
+      setPlayerSittingState(true);
+
+      const sitDuration = 680;
+      if (cameraMode === "third-person") {
+        const seatFacing = lookAt.clone().sub(pos).normalize();
+        const tpSeatCamPos = pos.clone().add(
+          new THREE.Vector3(-seatFacing.z * 1.3 - seatFacing.x * 1.9, 1.45, seatFacing.x * 1.3 - seatFacing.z * 1.9)
+        );
+        const tpSeatLookAt = pos.clone().add(new THREE.Vector3(0, 0.9, 0));
+        tweenCamera(tpSeatCamPos, tpSeatLookAt, sitDuration, () => {
+          // Sitting fully completed! Only now invoke callback to open editor
+          if (cb) cb();
+        });
+      } else {
+        const seatedCamPos = new THREE.Vector3(pos.x, 1.18, pos.z);
+        tweenCamera(seatedCamPos, lookAt, sitDuration, () => {
+          // Sitting fully completed! Only now invoke callback to open editor
+          if (cb) cb();
+        });
+      }
+    }
   }
 
-  // Trigger sitting-down animation on the character rig
-  setPlayerSittingState(true);
-
-  if (cameraMode === "third-person") {
-    // In third-person, smoothly frame the character sitting at the workstation
-    const seatFacing = lookAt.clone().sub(pos).normalize();
-    const tpSeatCamPos = pos.clone().add(new THREE.Vector3(-seatFacing.z * 1.2 - seatFacing.x * 1.8, 1.4, seatFacing.x * 1.2 - seatFacing.z * 1.8));
-    const tpSeatLookAt = pos.clone().add(new THREE.Vector3(0, 0.85, 0));
-    tweenCamera(tpSeatCamPos, tpSeatLookAt, 550, cb);
-  } else {
-    // In first-person, animate directly into the chair screen view
-    tweenCamera(pos, lookAt, 480, cb);
-  }
+  walkStep(walkStart);
 }
 
 export function standUp(onStood) {
-  // Trigger standing-up animation
   setPlayerSittingState(false);
   velocity.set(0, 0, 0);
   moveState.forward = false;
@@ -687,11 +791,9 @@ export function standUp(onStood) {
 
   const backTo = standPosition.clone();
   const lookAt = backTo.clone().add(new THREE.Vector3(0, 0, -1));
-  tweenCamera(backTo, lookAt, 400, () => {
+  tweenCamera(backTo, lookAt, 420, () => {
     if (camera) {
       camera.position.copy(backTo);
-      // Sync euler from the camera's current quaternion so mouse-look
-      // doesn't snap when the player moves after standing up.
       euler.setFromQuaternion(camera.quaternion, "YXZ");
     }
     if (armsGroup) {
@@ -699,7 +801,6 @@ export function standUp(onStood) {
       armsGroup.position.z = baseZ;
     }
     movementLocked = false;
-    // Re-acquire pointer lock automatically
     if (domElement) {
       domElement.requestPointerLock();
     }

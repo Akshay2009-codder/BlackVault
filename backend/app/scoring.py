@@ -306,3 +306,171 @@ def score_code(puzzle: dict, code: str, time_remaining: int) -> Dict[str, Any]:
         "passed": passed, "score": score, "target": threshold,
         "higher_is_better": higher_is_better, "stars": stars, "error_message": None,
     }
+
+
+def score_code_tiered(puzzle: dict, code: str, step: int = 1, time_remaining: int = 300) -> Dict[str, Any]:
+    """Score code based on tiered progression (Step 1: Cleaning, Step 2: Features, Step 3: Model)."""
+    step = step or 1
+    door_type = puzzle.get("door_type", "classification")
+
+    if step == 1:
+        # Step 1: Only data cleaning required
+        df_raw = puzzle["dataframe"].copy(deep=True)
+        # Guarantee duplicates and missing values exist in test data
+        if df_raw.duplicated().sum() == 0:
+            df_raw = pd.concat([df_raw, df_raw.iloc[:12]], ignore_index=True)
+        feature_cols = list(puzzle.get("feature_cols", []))
+        if df_raw.isna().sum().sum() == 0 and feature_cols:
+            for c in feature_cols[:2]:
+                idx = df_raw.sample(frac=0.15, random_state=42).index
+                df_raw.loc[idx, c] = np.nan
+
+        func_name = "clean_data" if "def clean_data" in code else ("clean" if "def clean" in code else None)
+        if not func_name:
+            if "def predict" in code or "def cluster" in code or "def detect" in code:
+                # If they wrote a full model already, let them pass or evaluate
+                pass
+            else:
+                return {
+                    "passed": False, "score": 0.0, "target": 1.0, "step": 1, "next_step": 1,
+                    "step_passed": False, "stars": None,
+                    "error_message": "Function 'clean_data(df)' not found. Please define 'def clean_data(df):' to clean the dataset."
+                }
+
+        try:
+            if func_name:
+                cleaned = code_runner.run_player_code(code, func_name, (df_raw,))
+            else:
+                return score_code(puzzle, code, time_remaining)
+
+            if not isinstance(cleaned, pd.DataFrame):
+                return {
+                    "passed": False, "score": 0.0, "target": 1.0, "step": 1, "next_step": 1,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Expected clean_data to return a pandas DataFrame, got {type(cleaned).__name__}."
+                }
+
+            missing_count = int(cleaned.isna().sum().sum())
+            dup_count = int(cleaned.duplicated().sum())
+            min_rows = max(10, int(len(df_raw) * 0.4))
+
+            if len(cleaned) < min_rows:
+                return {
+                    "passed": False, "score": 0.0, "target": 1.0, "step": 1, "next_step": 1,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Too many rows removed ({len(cleaned)} remaining out of {len(df_raw)}). Use imputation (.fillna) rather than dropping all rows."
+                }
+
+            if dup_count > 0:
+                return {
+                    "passed": False, "score": 0.5, "target": 1.0, "step": 1, "next_step": 1,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Dataset still contains {dup_count} duplicate rows. Call df.drop_duplicates()."
+                }
+
+            if missing_count > 0:
+                return {
+                    "passed": False, "score": 0.5, "target": 1.0, "step": 1, "next_step": 1,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Dataset still contains {missing_count} missing values. Call df.fillna(...) to impute them."
+                }
+
+            # Step 1 Passed!
+            from .problem_statements import get_step_info
+            next_info = get_step_info(door_type, 2)
+            return {
+                "passed": True, "score": 1.0, "target": 1.0, "step": 1, "next_step": 2,
+                "step_passed": True, "stars": None, "error_message": None,
+                "next_starter_code": next_info["starter_code"],
+                "next_instructions": next_info["instructions"],
+            }
+        except Exception as e:
+            return {
+                "passed": False, "score": 0.0, "target": 1.0, "step": 1, "next_step": 1,
+                "step_passed": False, "stars": None, "error_message": f"{type(e).__name__}: {e}"
+            }
+
+    elif step == 2:
+        # Step 2: Feature work & scaling
+        df_raw = puzzle["dataframe"].copy(deep=True)
+        clean_df = df_raw.drop_duplicates().fillna(df_raw.median(numeric_only=True))
+        target_col = puzzle.get("target_col")
+        feature_df = clean_df.drop(columns=[target_col]) if target_col and target_col in clean_df else clean_df
+
+        func_name = "preprocess_features" if "def preprocess_features" in code else ("preprocess" if "def preprocess" in code else None)
+        if not func_name:
+            if "def predict" in code or "def cluster" in code or "def detect" in code:
+                return score_code(puzzle, code, time_remaining)
+            return {
+                "passed": False, "score": 0.0, "target": 1.0, "step": 2, "next_step": 2,
+                "step_passed": False, "stars": None,
+                "error_message": "Function 'preprocess_features(df)' not found. Please define 'def preprocess_features(df):'."
+            }
+
+        try:
+            res = code_runner.run_player_code(code, func_name, (feature_df,))
+            if isinstance(res, tuple):
+                res = res[0]
+            if isinstance(res, pd.DataFrame):
+                res = res.values
+            if not isinstance(res, np.ndarray):
+                return {
+                    "passed": False, "score": 0.0, "target": 1.0, "step": 2, "next_step": 2,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Expected preprocess_features to return a NumPy array or DataFrame of features, got {type(res).__name__}."
+                }
+
+            if res.shape[0] != len(feature_df):
+                return {
+                    "passed": False, "score": 0.0, "target": 1.0, "step": 2, "next_step": 2,
+                    "step_passed": False, "stars": None,
+                    "error_message": f"Expected {len(feature_df)} rows in output, got {res.shape[0]}."
+                }
+
+            if not np.issubdtype(res.dtype, np.number):
+                return {
+                    "passed": False, "score": 0.5, "target": 1.0, "step": 2, "next_step": 2,
+                    "step_passed": False, "stars": None,
+                    "error_message": "Features contain non-numeric data. Use pd.get_dummies() to encode categorical columns."
+                }
+
+            if np.isnan(res).any():
+                return {
+                    "passed": False, "score": 0.5, "target": 1.0, "step": 2, "next_step": 2,
+                    "step_passed": False, "stars": None,
+                    "error_message": "Preprocessed features contain NaN values. Ensure all missing values are imputed."
+                }
+
+            stds = np.nanstd(res, axis=0)
+            means = np.nanmean(res, axis=0)
+            is_scaled = np.all(stds < 6.0) and (np.all(np.abs(means) < 4.0) or (np.min(res) >= -0.1 and np.max(res) <= 1.2))
+            if not is_scaled:
+                return {
+                    "passed": False, "score": 0.7, "target": 1.0, "step": 2, "next_step": 2,
+                    "step_passed": False, "stars": None,
+                    "error_message": "Features do not appear scaled. Use StandardScaler().fit_transform(X) or MinMaxScaler()."
+                }
+
+            # Step 2 Passed!
+            from .problem_statements import get_step_info
+            next_info = get_step_info(door_type, 3)
+            return {
+                "passed": True, "score": 1.0, "target": 1.0, "step": 2, "next_step": 3,
+                "step_passed": True, "stars": None, "error_message": None,
+                "next_starter_code": next_info["starter_code"],
+                "next_instructions": next_info["instructions"],
+            }
+        except Exception as e:
+            return {
+                "passed": False, "score": 0.0, "target": 1.0, "step": 2, "next_step": 2,
+                "step_passed": False, "stars": None, "error_message": f"{type(e).__name__}: {e}"
+            }
+
+    else:
+        # Step 3: Full model evaluation
+        res = score_code(puzzle, code, time_remaining)
+        res["step"] = 3
+        res["next_step"] = None
+        res["step_passed"] = res["passed"]
+        return res
+

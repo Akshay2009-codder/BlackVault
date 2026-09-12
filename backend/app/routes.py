@@ -42,17 +42,16 @@ def open_door(req: DoorPuzzleRequest):
         max_attempts=door_cfg.max_attempts,
         max_attempts_remaining=door_cfg.max_attempts,
         hints_enabled=door_cfg.hints_enabled,
-        problem_statement=get_problem_statement(req.door_type),
-        starter_code=get_starter_code(req.door_type),
+        problem_statement=get_problem_statement(req.door_type, 1),
+        starter_code=get_starter_code(req.door_type, 1),
+        current_step=1,
+        total_steps=3,
     )
 
 
 @router.post("/api/door/submit_code", response_model=SubmitAttemptResponse)
 def submit_code(req: SubmitCodeRequest):
-    """The real gameplay path: the player writes actual Python, line by
-    line, in the in-game code editor -- no checkboxes. Their code is run in
-    a sandboxed subprocess (app/code_runner.py) against the puzzle's real
-    dataset, then graded with the real metric for that puzzle type."""
+    """The real gameplay path: tiered progression (Step 1 -> Step 2 -> Step 3)."""
     puzzle = puzzle_state.get_puzzle(req.puzzle_id)
     if not puzzle:
         raise HTTPException(404, "Active puzzle not found or expired. Please re-open the door.")
@@ -61,12 +60,12 @@ def submit_code(req: SubmitCodeRequest):
     max_attempts = puzzle.get("max_attempts", 5)
     attempts_remaining = max(0, max_attempts - puzzle["attempts_used"])
 
-    res = scoring.score_code(puzzle, req.code, req.time_remaining_seconds)
+    res = scoring.score_code_tiered(puzzle, req.code, req.step or 1, req.time_remaining_seconds)
 
     door_type = puzzle.get("door_type", "")
     level = puzzle.get("level", 1)
 
-    if res["passed"] and res["stars"]:
+    if res["passed"] and res.get("stars"):
         store.save_door_result(
             level=level,
             door_type=door_type,
@@ -85,6 +84,11 @@ def submit_code(req: SubmitCodeRequest):
         door_type=door_type,
         stars=res.get("stars"),
         error_message=res.get("error_message"),
+        step=res.get("step", req.step or 1),
+        next_step=res.get("next_step"),
+        step_passed=res.get("step_passed", res["passed"]),
+        next_starter_code=res.get("next_starter_code"),
+        next_instructions=res.get("next_instructions"),
     )
 
 
