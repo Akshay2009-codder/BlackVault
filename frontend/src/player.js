@@ -35,11 +35,11 @@ const GRAVITY = -24.0;
 const JUMP_IMPULSE = 8.5;
 let isGrounded = true;
 
-// Studio room & facility boundaries (5 sequential rooms along Z-axis)
-const BOUND_MIN_X = -14.0;
-const BOUND_MAX_X = 14.0;
-const BOUND_MIN_Z = -5.0;
-let BOUND_MAX_Z = 20.8; // Expands dynamically as security doors are unlocked
+// Studio room & facility boundaries (Scaled for 38m wide building)
+const BOUND_MIN_X = -18.2;
+const BOUND_MAX_X = 18.2;
+const BOUND_MIN_Z = -7.5;
+let BOUND_MAX_Z = 28.5; // Expands dynamically as security doors are unlocked or elevator rides complete
 
 const PLAYER_RADIUS = 0.42;
 
@@ -624,6 +624,29 @@ export function getPlayerPosition() {
   return _playerWorldPos.length() > 0 ? _playerWorldPos : (camera ? camera.position : new THREE.Vector3());
 }
 
+export function setPlayerPosition(x, y, z, facingYaw = null) {
+  const targetY = y || 0;
+  if (camera) {
+    camera.position.set(x, targetY + EYE_HEIGHT, z);
+  }
+  if (playerBodyMesh) {
+    playerBodyMesh.position.set(x, targetY, z);
+    if (facingYaw !== null) {
+      playerBodyMesh.rotation.y = facingYaw;
+    }
+  }
+  if (facingYaw !== null) {
+    euler.y = facingYaw;
+    euler.x = 0;
+    if (camera) camera.quaternion.setFromEuler(euler);
+  }
+  _playerWorldPos.set(x, targetY + EYE_HEIGHT, z);
+  velocity.set(0, 0, 0);
+  velocityY = 0;
+  posY = 0;
+  isGrounded = true;
+}
+
 export function getControls() {
   return {
     isLocked,
@@ -722,7 +745,8 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
   const walkDuration = Math.min(650, Math.max(300, walkDist * 260));
 
   const startYaw = playerBodyMesh ? playerBodyMesh.rotation.y : euler.y;
-  const finalFacingYaw = Math.atan2(lookAt.x - pos.x, lookAt.z - pos.z);
+  // Model forward is -Z, so facing vector (lookAt - pos) requires Math.atan2(pos.x - lookAt.x, pos.z - lookAt.z)
+  const finalFacingYaw = Math.atan2(pos.x - lookAt.x, pos.z - lookAt.z);
 
   // ── Stage 1: Character walks to the chair ──────────────────────────────────
   const walkStart = performance.now();
@@ -759,10 +783,11 @@ export function sitAt(seatPositionOrCam, seatLookAtOrPos, onSeatedOrLookAt, mayb
       const sitDuration = 680;
       if (cameraMode === "third-person") {
         const seatFacing = lookAt.clone().sub(pos).normalize();
+        // Camera positioned behind-and-to-the-side of seated character, looking towards desk & door
         const tpSeatCamPos = pos.clone().add(
-          new THREE.Vector3(-seatFacing.z * 1.3 - seatFacing.x * 1.9, 1.45, seatFacing.x * 1.3 - seatFacing.z * 1.9)
+          new THREE.Vector3(-seatFacing.z * 1.3 - seatFacing.x * 2.2, 1.45, seatFacing.x * 1.3 - seatFacing.z * 2.2)
         );
-        const tpSeatLookAt = pos.clone().add(new THREE.Vector3(0, 0.9, 0));
+        const tpSeatLookAt = pos.clone().add(new THREE.Vector3(0, 0.95, 0)).addScaledVector(seatFacing, 0.9);
         tweenCamera(tpSeatCamPos, tpSeatLookAt, sitDuration, () => {
           // Sitting fully completed! Only now invoke callback to open editor
           if (cb) cb();

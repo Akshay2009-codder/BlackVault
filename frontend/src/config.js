@@ -23,33 +23,37 @@ export const DOOR_LABELS = {
   mystery:        "Core Vault",
 };
 
-// Dusty Pink + Burgundy + Cream building identity palette
+// Sci-Fi Corporate Control-Room Palette: Dark Graphite + RGB Neon Accents
 export const BUILDING_PALETTE = {
-  burgundy:    0x6b1f2a,  // primary accent
-  dustyPink:   0xc98f8a,  // secondary accent
-  brushedGold: 0xc9a66b,  // tertiary accent (sparingly)
-  cream:       0xf2e8dc,  // wall main
-  creamAlt:    0xeadfd0,  // wall secondary
-  floorCream:  0xdccfc0,  // floor tile
-  grout:       0x2b1a1c,  // floor grout / dark trim
-  ceilingCream:0xf7f1e8,  // ceiling
-  furniture:   0x241417,  // deep burgundy-black (desks, chairs, panels)
-  gold:        0xc9a66b,  // brushed gold (handles, rings, chrome)
+  // RGB Neon Accents
+  hotPink:        0xff2e9a,  // #FF2E9A - vibrant neon pink/magenta
+  electricBlue:   0x2fd1ff,  // #2FD1FF - intense cyan/blue
+  emeraldGreen:   0x22f0a8,  // #22F0A8 - vivid data-center green
+  coolWhite:      0xe6f8ff,  // #E6F8FF - backlit signage white
+  gold:           0xd4af37,  // #D4AF37 - metallic hardware trim
+
+  // Dark Architectural Base
+  wallGraphite:   0x1a1d24,  // #1A1D24 - dark matte graphite walls
+  wallAlt:        0x161820,  // #161820 - secondary dark panel
+  floorDark:      0x14161b,  // #14161B - glossy reflective dark floor
+  floorGrout:     0x0d0f13,  // #0D0F13 - dark floor grid seam
+  ceilingDark:    0x0f1114,  // #0F1114 - dark exposed ceiling/trusses
+  furniture:      0x101216,  // #101216 - dark console/chassis body
 };
 
-// Door identity colours — each floor leans on one accent
+// Door identity colours — rotating accent per floor
 export const DOOR_COLORS = {
-  classification: 0x6b1f2a, // Burgundy
-  regression:     0xc98f8a, // Dusty Pink
-  clustering:     0xc9a66b, // Brushed Gold
-  anomaly:        0x8c2635, // Brighter Burgundy-Red (danger)
-  mystery:        0x6b1f2a, // Burgundy (climax returns to primary)
+  classification: 0xff2e9a, // 1F: Hot Pink
+  regression:     0x22f0a8, // 2F: Emerald Green
+  clustering:     0x2fd1ff, // 3F: Electric Blue
+  anomaly:        0xff2e9a, // 4F: Hot Pink & Cyan alert
+  mystery:        0x22f0a8, // 5F: Core Vault Climax (Tri-Accent)
 };
 
-// Status colours — reserved for locked / solved states ONLY
+// Status colours — reserved for locked / solved states ONLY (distinct from floor accents!)
 export const STATUS_COLORS = {
-  locked:   0x8c2635, // Bright burgundy-red  — locked / danger
-  unlocked: 0x7a9471, // Muted sage green      — solved / unlocked
+  locked:   0xff9900, // Electric Security Amber (#FF9900) — locked / danger
+  unlocked: 0x00f0ff, // Brilliant Ice Cyan (#00F0FF)      — solved / unlocked
 };
 
 export const ALGORITHMS = {

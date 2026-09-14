@@ -23,10 +23,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Cream architecture: warm off-white background
-  scene.background = new THREE.Color(0xf2e8dc);
-  // Airy warm fog — gives depth while staying in the cream palette
-  scene.fog = new THREE.FogExp2(0xf2e8dc, 0.005);
+  // Dark graphite architecture background
+  scene.background = new THREE.Color(0x0a0c10);
+  // Atmospheric tech fog — adds depth while preserving crisp neon light sources
+  scene.fog = new THREE.FogExp2(0x0c0e14, 0.0055);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -46,51 +46,56 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Warm cream ambient fill — bright enough to read the cream walls clearly
-  const ambientLight = new THREE.AmbientLight(0xfff5ee, 1.5);
+  // Moody dark graphite ambient fill — kept very low so real light sources do the work
+  const ambientLight = new THREE.AmbientLight(0x18202e, 0.35);
   scene.add(ambientLight);
 
-  // Warm golden-white overhead directional light (simulates recessed ceiling panels)
-  const skyDirLight = new THREE.DirectionalLight(0xfff3e0, 0.95);
-  skyDirLight.position.set(5, 22.0, 10);
+  // Hemisphere fill: cool-white sky, near-black ground bounce
+  // Gives surfaces correct directionality (top vs bottom faces differ) without any
+  // colour cast — ceilings read lighter than floors, which is architecturally correct.
+  const hemiLight = new THREE.HemisphereLight(0xd4e8ff, 0x0a0c10, 0.30);
+  scene.add(hemiLight);
+
+  // Cool-white overhead directional light simulating recessed ceiling fixtures
+  const skyDirLight = new THREE.DirectionalLight(0xe8f4ff, 0.85);
+  skyDirLight.position.set(5, 28.0, 15);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
   skyDirLight.shadow.mapSize.height = 2048;
-  skyDirLight.shadow.bias = -0.0001;
+  skyDirLight.shadow.bias = -0.00005;
+  skyDirLight.shadow.normalBias = 0.03; // cures shadow acne on walls and floors
   skyDirLight.shadow.camera.near = 0.5;
-  skyDirLight.shadow.camera.far = 200;
-  skyDirLight.shadow.camera.left  = -30;
-  skyDirLight.shadow.camera.right  = 30;
-  skyDirLight.shadow.camera.top    = 30;
-  skyDirLight.shadow.camera.bottom = -30;
+  skyDirLight.shadow.camera.far = 350;
+  skyDirLight.shadow.camera.left  = -45;
+  skyDirLight.shadow.camera.right  = 45;
+  skyDirLight.shadow.camera.top    = 45;
+  skyDirLight.shadow.camera.bottom = -45;
   scene.add(skyDirLight);
 
-  // Soft warm fill from below (bounce off the cream floor)
-  const fillLight = new THREE.DirectionalLight(0xfaf0e6, 0.35);
-  fillLight.position.set(-8, 2, -5);
-  scene.add(fillLight);
+  // NOTE: Global colour-wash directional lights were intentionally removed.
+  // Coloured accent lighting now comes only from local point/spot lights placed
+  // near actual LED strip objects, screens, and signage — not from scene-wide tints.
 
-  // ── Post-Processing: Bloom ─────────────────────────────────────────
-  // Higher threshold so cream walls stay clean; only emissive strips bloom.
+  // ── Post-Processing: Vivid Neon Bloom ─────────────────────────────
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5,    // strength
-    0.45,   // radius
-    0.78    // threshold — only truly bright emissives bloom
+    0.72,   // reduced strength — only true emissive surfaces (LEDs, screens) bloom
+    0.50,   // radius
+    0.55    // raised threshold — walls lit by point lights no longer bloom
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
 
-  // ── Atmospheric Dust Motes — warm golden ─────────────────────────
+  // ── Atmospheric Data Motes — electric cyan ─────────────────────────
   createDustMotes();
 
   window.addEventListener("resize", onWindowResize);
@@ -100,24 +105,24 @@ export function initScene() {
 }
 
 function createDustMotes() {
-  const particleCount = 700;
+  const particleCount = 650;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
 
   for (let i = 0; i < particleCount; i++) {
-    positions[i * 3]     = (Math.random() - 0.5) * 30;
-    positions[i * 3 + 1] = Math.random() * 7.0 + 0.3;
-    positions[i * 3 + 2] = Math.random() * 150 - 5;
+    positions[i * 3]     = (Math.random() - 0.5) * 38;
+    positions[i * 3 + 1] = Math.random() * 8.0 + 0.3;
+    positions[i * 3 + 2] = Math.random() * 180 - 5;
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-  // Warm golden dust — floats gently in the warm cream interior
+  // Electric cyan floating data motes
   const material = new THREE.PointsMaterial({
-    color: 0xe8c88a,
-    size: 0.06,
+    color: 0x2fd1ff,
+    size: 0.05,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.28,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
@@ -140,14 +145,13 @@ export function updateSceneEffects(delta) {
   dustParticles.geometry.attributes.position.needsUpdate = true;
 }
 
-// Idle monitor / light flicker animation — call every frame
+// Stable ambient illumination — eliminates distracting scene-wide flickering
 export function updateAnimatables(delta) {
-  const t = performance.now() * 0.001;
+  // Keep registered lights steady at their designed base intensity
   for (const { light, baseIntensity } of flickerLights) {
-    const flicker = 1.0
-      + Math.sin(t * 7.3 + light.id) * 0.055
-      + Math.sin(t * 17.1 + light.id * 0.7) * 0.022;
-    light.intensity = baseIntensity * flicker;
+    if (light && light.intensity !== baseIntensity) {
+      light.intensity = baseIntensity;
+    }
   }
 }
 

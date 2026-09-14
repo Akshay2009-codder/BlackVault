@@ -3,6 +3,7 @@ import { renderHud } from "./hud.js";
 import { setDoorActiveState, setExitUnlocked, getElevatorPositions } from "./world.js";
 import { triggerElevatorRide } from "./elevator.js";
 import { triggerFinale } from "./finale.js";
+import { setPlayerPosition, setMaxZBound } from "./player.js";
 
 // Sequential door order mirrors floor order
 const SEQUENTIAL_DOORS = ["classification", "regression", "clustering", "anomaly", BOSS_DOOR_TYPE];
@@ -14,6 +15,15 @@ const DOOR_FLOOR_MAP = {
   clustering:     { from: "2F", to: "3F" },
   anomaly:        { from: "3F", to: "4F" },
   mystery:        { from: "4F", to: "5F" },
+};
+
+export const FLOOR_CONFIGS = {
+  "G":  { entryZ: 0.0,   maxZ: 28.5  },
+  "1F": { entryZ: 33.5,  maxZ: 64.5  },
+  "2F": { entryZ: 69.5,  maxZ: 100.5 },
+  "3F": { entryZ: 105.5, maxZ: 136.5 },
+  "4F": { entryZ: 141.5, maxZ: 172.5 },
+  "5F": { entryZ: 177.5, maxZ: 224.5 },
 };
 
 // Map door index → floor label shown in HUD
@@ -109,6 +119,11 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
         state.currentFloor = floorData.to;
         state.elevatorRiding = false;
         renderHud(state);
+        const cfg = FLOOR_CONFIGS[floorData.to];
+        if (cfg) {
+          setMaxZBound(cfg.maxZ);
+          setPlayerPosition(0, 1.0, cfg.entryZ, 0);
+        }
       });
     }, 1800);
   }

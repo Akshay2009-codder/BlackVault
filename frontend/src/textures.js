@@ -660,12 +660,12 @@ export function createFloorDirectoryTexture() {
 
   // Floor entries
   const floors = [
-    { label: "5F",  name: "The Vault",         sub: "Mystery Level — Restricted",  col: "#c9a66b" },
-    { label: "4F",  name: "Anomaly Wing",       sub: "Security Operations",          col: "#8c2635" },
-    { label: "3F",  name: "Clustering Hub",     sub: "Executive Boardroom",          col: "#c9a66b" },
-    { label: "2F",  name: "Regression Lab",     sub: "Data & Server Floor",          col: "#c98f8a" },
-    { label: "1F",  name: "Classification Lab", sub: "Research & Development",       col: "#6b1f2a" },
-    { label: "G",   name: "Reception & Lobby",  sub: "Main Entrance — Visitor ID",   col: "#c9a66b" },
+    { label: "5F",  name: "The Vault",         sub: "Core Security Vault — Restricted", col: "#d4af37" },
+    { label: "4F",  name: "Anomaly Wing",       sub: "Security Operations & Radar",      col: "#ff3d81" },
+    { label: "3F",  name: "Clustering Hub",     sub: "Executive Boardroom",              col: "#e63946" },
+    { label: "2F",  name: "Regression Lab",     sub: "Data & Server Infrastructure",     col: "#16c784" },
+    { label: "1F",  name: "Classification Lab", sub: "Research & Machine Learning",      col: "#ff3d81" },
+    { label: "G",   name: "Reception & Lobby",  sub: "Main Entrance — Corporate Nexus",   col: "#d4af37" },
   ];
 
   floors.forEach((f, i) => {
@@ -864,9 +864,9 @@ export function createClusterTexture() {
   ctx.fillText("K-MEANS CLUSTER ANALYSIS", 24, 50);
 
   const clusters = [
-    { cx: 210, cy: 210, color: "#c98f8a" },
-    { cx: 510, cy: 170, color: "#6b1f2a" },
-    { cx: 360, cy: 350, color: "#c9a66b" },
+    { cx: 210, cy: 210, color: "#ff3d81" },
+    { cx: 510, cy: 170, color: "#16c784" },
+    { cx: 360, cy: 350, color: "#e63946" },
   ];
   clusters.forEach(c => {
     ctx.fillStyle = c.color;
@@ -904,10 +904,10 @@ export function createThreatLevelTexture() {
   ctx.fillRect(0, 0, 1024, 360);
 
   const screens = [
-    { x:  16, label: "SECTOR A", value: "97.4%", status: "BREACH",  col: "#8c2635" },
-    { x: 270, label: "SECTOR B", value: "12.1%", status: "NOMINAL", col: "#7a9471" },
-    { x: 524, label: "SECTOR C", value: "63.5%", status: "WARNING", col: "#c9a66b" },
-    { x: 778, label: "SECTOR D", value: "97.1%", status: "BREACH",  col: "#8c2635" },
+    { x:  16, label: "SECTOR A", value: "97.4%", status: "BREACH",  col: "#e63946" },
+    { x: 270, label: "SECTOR B", value: "12.1%", status: "NOMINAL", col: "#16c784" },
+    { x: 524, label: "SECTOR C", value: "63.5%", status: "WARNING", col: "#ff9900" },
+    { x: 778, label: "SECTOR D", value: "97.1%", status: "BREACH",  col: "#ff3d81" },
   ];
   screens.forEach(s => {
     ctx.fillStyle = "#120810";
@@ -1015,7 +1015,7 @@ export function createDoorTerminalScreenTexture(doorType = "classification", sta
   ctx.strokeRect(8, 8, 1008, 48);
 
   // Window dots
-  const dotColors = ["#c0504a", "#c9a66b", "#7a9471"];
+  const dotColors = ["#ff3d81", "#16c784", "#e63946"];
   dotColors.forEach((col, idx) => {
     ctx.fillStyle = col;
     ctx.beginPath();
@@ -1114,3 +1114,580 @@ export function createDoorTerminalScreenTexture(doorType = "classification", sta
   return new THREE.CanvasTexture(canvas);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTROL ROOM & DATA CENTER TEXTURES (Matching Reference Image)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Large illuminated BLACKVAULT backlit billboard logo with shield emblem */
+export function createBacklitLogoTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+
+  // Dark brushed titanium panel base
+  ctx.fillStyle = "#0e1117";
+  ctx.fillRect(0, 0, 2048, 512);
+
+  // Metallic horizontal grain
+  ctx.fillStyle = "rgba(255, 255, 255, 0.025)";
+  for (let y = 0; y < 512; y += 3) {
+    ctx.fillRect(0, y, 2048, 1);
+  }
+
+  // Intense outer perimeter backlight glow box (cool white & electric cyan)
+  ctx.shadowColor = "#2fd1ff";
+  ctx.shadowBlur = 32;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 12;
+  ctx.strokeRect(18, 18, 2012, 476);
+  ctx.shadowBlur = 0;
+
+  // Secondary inner cyan rim
+  ctx.strokeStyle = "#2fd1ff";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(30, 30, 1988, 452);
+
+  // --- Shield Icon on Left (Center around X = 360, Y = 256) ---
+  const cx = 350, cy = 256;
+  ctx.save();
+  ctx.shadowColor = "#2fd1ff";
+  ctx.shadowBlur = 26;
+
+  // Outer Shield Silhouette
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 130);
+  ctx.lineTo(cx + 85, cy - 90);
+  ctx.lineTo(cx + 75, cy + 45);
+  ctx.lineTo(cx, cy + 130);
+  ctx.lineTo(cx - 75, cy + 45);
+  ctx.lineTo(cx - 85, cy - 90);
+  ctx.closePath();
+  ctx.fillStyle = "#141822";
+  ctx.fill();
+  ctx.strokeStyle = "#2fd1ff";
+  ctx.lineWidth = 9;
+  ctx.stroke();
+
+  // Inner Shield Outline
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 100);
+  ctx.lineTo(cx + 60, cy - 70);
+  ctx.lineTo(cx + 52, cy + 30);
+  ctx.lineTo(cx, cy + 98);
+  ctx.lineTo(cx - 52, cy + 30);
+  ctx.lineTo(cx - 60, cy - 70);
+  ctx.closePath();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 4.5;
+  ctx.stroke();
+
+  // Glowing Concentric Lens Target Core
+  ctx.beginPath();
+  ctx.arc(cx, cy - 6, 36, 0, Math.PI * 2);
+  ctx.strokeStyle = "#2fd1ff";
+  ctx.lineWidth = 7;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - 6, 18, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - 6, 9, 0, Math.PI * 2);
+  ctx.fillStyle = "#22f0a8";
+  ctx.fill();
+
+  ctx.restore();
+
+  // --- Illuminated "BLACKVAULT" Wordmark Typography ---
+  ctx.save();
+  ctx.font = "900 132px 'Montserrat', 'Inter', 'Segoe UI', sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
+  // Double-pass neon drop glow
+  ctx.shadowColor = "#2fd1ff";
+  ctx.shadowBlur = 32;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("BLACKVAULT", 480, 256);
+
+  ctx.shadowColor = "#22f0a8";
+  ctx.shadowBlur = 14;
+  ctx.fillText("BLACKVAULT", 480, 256);
+  ctx.shadowBlur = 0;
+
+  // Tech sub-header
+  ctx.font = "bold 22px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#2fd1ff";
+  ctx.fillText("ENTERPRISE SECURITY OPERATIONS // NEURAL COMPUTE NEXUS", 490, 350);
+
+  ctx.restore();
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+/** Glossy dark floor with glowing holographic blueprint outlines and labeled zones */
+export function createHolographicFloorTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 2048;
+  const ctx = canvas.getContext("2d");
+
+  // High-gloss dark charcoal tile base
+  ctx.fillStyle = "#121419";
+  ctx.fillRect(0, 0, 2048, 2048);
+
+  // Floor grid tiles (128x128 tile grid)
+  ctx.strokeStyle = "rgba(42, 50, 68, 0.45)";
+  ctx.lineWidth = 2;
+  for (let x = 0; x <= 2048; x += 128) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 2048); ctx.stroke();
+  }
+  for (let y = 0; y <= 2048; y += 128) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(2048, y); ctx.stroke();
+  }
+
+  // Glowing cyan perimeter floor tracks
+  ctx.shadowColor = "#2fd1ff";
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = "rgba(47, 209, 255, 0.85)";
+  ctx.lineWidth = 4;
+
+  // Central Aisle Corridor Tracks
+  ctx.strokeRect(380, 180, 1288, 1688);
+  ctx.strokeRect(400, 200, 1248, 1648);
+
+  // Perforated air-flow floor ventilation tiles
+  for (let x = 460; x < 1580; x += 280) {
+    for (let y = 280; y < 1780; y += 380) {
+      ctx.fillStyle = "#0b0d12";
+      ctx.fillRect(x, y, 220, 290);
+      ctx.strokeStyle = "#2fd1ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, 220, 290);
+      // Perforation grid dots
+      ctx.fillStyle = "rgba(47, 209, 255, 0.65)";
+      for (let dotX = x + 18; dotX < x + 204; dotX += 22) {
+        for (let dotY = y + 18; dotY < y + 274; dotY += 22) {
+          ctx.fillRect(dotX, dotY, 4, 4);
+        }
+      }
+    }
+  }
+
+  // --- Labeled Holographic Blueprint Zones ---
+  // Zone 1: Green "CORE COMPUTE"
+  ctx.shadowColor = "#22f0a8";
+  ctx.strokeStyle = "#22f0a8";
+  ctx.lineWidth = 3.5;
+  ctx.strokeRect(100, 360, 260, 1280);
+  ctx.fillStyle = "rgba(34, 240, 168, 0.08)";
+  ctx.fillRect(100, 360, 260, 1280);
+
+  ctx.font = "bold 26px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#22f0a8";
+  ctx.save();
+  ctx.translate(145, 1000);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("CORE COMPUTE // CLUSTER ARRAY 01-16", 0, 0);
+  ctx.restore();
+
+  // Zone 2: Blue "SECURE STORAGE"
+  ctx.shadowColor = "#2fd1ff";
+  ctx.strokeStyle = "#2fd1ff";
+  ctx.strokeRect(1688, 360, 260, 1280);
+  ctx.fillStyle = "rgba(47, 209, 255, 0.08)";
+  ctx.fillRect(1688, 360, 260, 1280);
+
+  ctx.fillStyle = "#2fd1ff";
+  ctx.save();
+  ctx.translate(1840, 1000);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillText("SECURE STORAGE // TIER-4 VAULT VOLUMES", 0, 0);
+  ctx.restore();
+
+  // Zone 3: Pink "NETWORK HUB" in front of command console
+  ctx.shadowColor = "#ff2e9a";
+  ctx.strokeStyle = "#ff2e9a";
+  ctx.strokeRect(580, 1280, 888, 540);
+  ctx.fillStyle = "rgba(255, 46, 154, 0.07)";
+  ctx.fillRect(580, 1280, 888, 540);
+
+  ctx.fillStyle = "#ff2e9a";
+  ctx.font = "bold 26px 'JetBrains Mono', monospace";
+  ctx.fillText("[ NETWORK HUB // OPTICAL ROUTING ]", 620, 1340);
+  ctx.fillText("FUNCTION FLOOR AREA // SEC-01", 620, 1380);
+
+  // Coordinate ticks & tech specs
+  ctx.shadowBlur = 0;
+  ctx.font = "16px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.fillText("+04.22.8", 620, 1770);
+  ctx.fillText("SYS_CLK: 100Gbps // SYNCHRONIZED", 1060, 1770);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+/** Detailed server rack front face texture with blinking multi-color LEDs and blade chassis */
+export function createServerRackFaceTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  // Deep matte rack chassis
+  ctx.fillStyle = "#0c0d12";
+  ctx.fillRect(0, 0, 512, 1024);
+
+  // Side upright mounting rails
+  ctx.fillStyle = "#181b24";
+  ctx.fillRect(0, 0, 26, 1024);
+  ctx.fillRect(486, 0, 26, 1024);
+
+  // 18 Server blade unit slots
+  const slotH = 52;
+  for (let i = 0; i < 18; i++) {
+    const y = 28 + i * slotH;
+    // Slot chassis
+    ctx.fillStyle = i % 2 === 0 ? "#11131a" : "#141720";
+    ctx.fillRect(34, y, 444, slotH - 4);
+    ctx.strokeStyle = "#202533";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(34, y, 444, slotH - 4);
+
+    // Hard drive bays (4 per blade)
+    for (let d = 0; d < 4; d++) {
+      const dx = 46 + d * 56;
+      ctx.fillStyle = "#090a0e";
+      ctx.fillRect(dx, y + 8, 48, slotH - 20);
+      ctx.strokeStyle = "#262c3d";
+      ctx.strokeRect(dx, y + 8, 48, slotH - 20);
+      // Drive activity LED
+      ctx.fillStyle = Math.random() > 0.35 ? "#22f0a8" : "#2fd1ff";
+      ctx.fillRect(dx + 38, y + 12, 4, 4);
+    }
+
+    // Dense server status indicator LEDs on right side
+    const ledX = 285;
+    for (let c = 0; c < 8; c++) {
+      const lx = ledX + c * 22;
+      const rand = Math.random();
+      let col = "#22f0a8"; // emerald green
+      if (rand < 0.28) col = "#2fd1ff"; // electric blue
+      else if (rand < 0.42) col = "#ff2e9a"; // hot pink
+      else if (rand < 0.52) col = "#ff9900"; // amber
+      else if (rand < 0.62) col = "#0a1018"; // off
+
+      ctx.shadowColor = col;
+      ctx.shadowBlur = col !== "#0a1018" ? 6 : 0;
+      ctx.fillStyle = col;
+      ctx.fillRect(lx, y + 14, 8, 6);
+      ctx.fillRect(lx, y + 26, 8, 6);
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+/** 4 distinct high-tech data-viz screens for command console workstations */
+export function createControlConsoleScreenTextures() {
+  const textures = [];
+
+  // Screen 1: 3D Wireframe Topology & Cluster Graph (Cyan/Emerald)
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024; canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#0a0c12"; ctx.fillRect(0, 0, 1024, 512);
+
+    ctx.strokeStyle = "#2fd1ff"; ctx.lineWidth = 2; ctx.strokeRect(12, 12, 1000, 488);
+    ctx.fillStyle = "#2fd1ff"; ctx.font = "bold 20px 'JetBrains Mono', monospace";
+    ctx.fillText("SYSTEM TOPOLOGY // ISOMETRIC COMPUTE GRAPH", 32, 48);
+
+    // Isometric wireframe nodes
+    ctx.strokeStyle = "rgba(47, 209, 255, 0.7)"; ctx.lineWidth = 1.5;
+    const nodes = [
+      { x: 300, y: 220 }, { x: 520, y: 150 }, { x: 740, y: 220 },
+      { x: 400, y: 360 }, { x: 620, y: 360 }, { x: 520, y: 280 }
+    ];
+    nodes.forEach(n1 => {
+      nodes.forEach(n2 => {
+        if (Math.hypot(n1.x - n2.x, n1.y - n2.y) < 280) {
+          ctx.beginPath(); ctx.moveTo(n1.x, n1.y); ctx.lineTo(n2.x, n2.y); ctx.stroke();
+        }
+      });
+    });
+    nodes.forEach((n, i) => {
+      ctx.fillStyle = i % 2 === 0 ? "#22f0a8" : "#2fd1ff";
+      ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    textures.push(new THREE.CanvasTexture(canvas));
+  }
+
+  // Screen 2: World Threat Heatmap & Spatial Matrix (Pink/Amber/Cyan)
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024; canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#0c0a12"; ctx.fillRect(0, 0, 1024, 512);
+
+    ctx.strokeStyle = "#ff2e9a"; ctx.lineWidth = 2; ctx.strokeRect(12, 12, 1000, 488);
+    ctx.fillStyle = "#ff2e9a"; ctx.font = "bold 20px 'JetBrains Mono', monospace";
+    ctx.fillText("GLOBAL INTRUSION RADAR // THREAT HEATMAP", 32, 48);
+
+    // Heatmap concentric gradient rings
+    const hotspots = [
+      { x: 340, y: 240, r: 120, col: "rgba(255, 46, 154, " },
+      { x: 680, y: 200, r: 100, col: "rgba(34, 240, 168, " },
+      { x: 520, y: 320, r: 140, col: "rgba(47, 209, 255, " }
+    ];
+    hotspots.forEach(h => {
+      const grad = ctx.createRadialGradient(h.x, h.y, 5, h.x, h.y, h.r);
+      grad.addColorStop(0, h.col + "0.85)");
+      grad.addColorStop(0.5, h.col + "0.35)");
+      grad.addColorStop(1, h.col + "0.0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Radar scan lines
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+    for (let r = 50; r < 350; r += 50) {
+      ctx.beginPath(); ctx.arc(520, 260, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    textures.push(new THREE.CanvasTexture(canvas));
+  }
+
+  // Screen 3: Telemetry, Training Loss & Accuracy Graphs (Emerald/White)
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024; canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#090d12"; ctx.fillRect(0, 0, 1024, 512);
+
+    ctx.strokeStyle = "#22f0a8"; ctx.lineWidth = 2; ctx.strokeRect(12, 12, 1000, 488);
+    ctx.fillStyle = "#22f0a8"; ctx.font = "bold 20px 'JetBrains Mono', monospace";
+    ctx.fillText("MODEL TELEMETRY // REAL-TIME F1 & LOSS CONVERGENCE", 32, 48);
+
+    // Coordinate grid
+    ctx.strokeStyle = "rgba(34, 240, 168, 0.18)";
+    for (let x = 60; x < 960; x += 60) {
+      ctx.beginPath(); ctx.moveTo(x, 80); ctx.lineTo(x, 460); ctx.stroke();
+    }
+    for (let y = 80; y < 460; y += 50) {
+      ctx.beginPath(); ctx.moveTo(60, y); ctx.lineTo(960, y); ctx.stroke();
+    }
+
+    // Loss curve 1 (Green)
+    ctx.strokeStyle = "#22f0a8"; ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(60, 410);
+    ctx.bezierCurveTo(280, 390, 520, 180, 960, 140);
+    ctx.stroke();
+
+    // Loss curve 2 (Pink)
+    ctx.strokeStyle = "#ff2e9a"; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(60, 160);
+    ctx.bezierCurveTo(320, 190, 600, 380, 960, 420);
+    ctx.stroke();
+
+    ctx.font = "16px 'JetBrains Mono', monospace";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("ACCURACY: 98.6%  |  VAL_LOSS: 0.0142  |  EPOCH: 500/500", 60, 478);
+    textures.push(new THREE.CanvasTexture(canvas));
+  }
+
+  // Screen 4: Real-time Optical Packet Waterfall & Radar (Cyan/Blue)
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024; canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#0a0c14"; ctx.fillRect(0, 0, 1024, 512);
+
+    ctx.strokeStyle = "#2fd1ff"; ctx.lineWidth = 2; ctx.strokeRect(12, 12, 1000, 488);
+    ctx.fillStyle = "#2fd1ff"; ctx.font = "bold 20px 'JetBrains Mono', monospace";
+    ctx.fillText("NETWORK THROUGHPUT // PACKET ROUTING MATRIX", 32, 48);
+
+    // Spectrum bars
+    for (let b = 0; b < 44; b++) {
+      const bx = 60 + b * 20;
+      const h = 40 + Math.random() * 280;
+      ctx.fillStyle = b % 3 === 0 ? "#ff2e9a" : (b % 2 === 0 ? "#2fd1ff" : "#22f0a8");
+      ctx.fillRect(bx, 440 - h, 14, h);
+    }
+    textures.push(new THREE.CanvasTexture(canvas));
+  }
+
+  return textures;
+}
+
+/** Holographic transparent glass HUD overlay with green diagnostics ("MAPPING SYSTEM ACTIVE") */
+export function createHolographicGlassTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  // Transparent base with subtle glass gradient
+  ctx.clearRect(0, 0, 1024, 1024);
+  ctx.fillStyle = "rgba(10, 24, 20, 0.35)";
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Outer frame
+  ctx.shadowColor = "#22f0a8";
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = "rgba(34, 240, 168, 0.85)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(16, 16, 992, 992);
+
+  // Top header bar
+  ctx.fillStyle = "rgba(34, 240, 168, 0.2)";
+  ctx.fillRect(16, 16, 992, 54);
+  ctx.font = "bold 24px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#22f0a8";
+  ctx.fillText("[ MAPPING SYSTEM ACTIVE // FACILITY HUD ]", 36, 52);
+
+  // Center wireframe diagram & circular radar
+  const cx = 512, cy = 460;
+  ctx.strokeStyle = "rgba(34, 240, 168, 0.65)";
+  ctx.lineWidth = 2;
+  [80, 160, 240, 320].forEach(r => {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  });
+  // Crosshairs
+  ctx.beginPath(); ctx.moveTo(cx - 340, cy); ctx.lineTo(cx + 340, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - 340); ctx.lineTo(cx, cy + 340); ctx.stroke();
+
+  // Diagnostics readouts
+  ctx.font = "18px 'JetBrains Mono', monospace";
+  ctx.fillText("NODE STATUS: SECURE", 60, 840);
+  ctx.fillText("ENCRYPTION: AES-256-GCM", 60, 875);
+  ctx.fillText("UPLINK: ACTIVE // 100Gbps", 60, 910);
+  ctx.fillText("INTEGRITY: 99.98%", 60, 945);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+/** Geometric 3D acoustic baffle wall pattern with pink/magenta back-glow */
+export function createAcousticWallPanelTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  // Deep graphite base
+  ctx.fillStyle = "#161922";
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Diamond geometric grid with magenta neon backlit seams
+  const step = 128;
+  for (let x = 0; x < 1024; x += step) {
+    for (let y = 0; y < 1024; y += step) {
+      ctx.save();
+      ctx.translate(x + step / 2, y + step / 2);
+      // Outer bevel
+      ctx.fillStyle = (x + y) % (step * 2) === 0 ? "#1c202b" : "#141720";
+      ctx.beginPath();
+      ctx.moveTo(0, -step / 2 + 8);
+      ctx.lineTo(step / 2 - 8, 0);
+      ctx.lineTo(0, step / 2 - 8);
+      ctx.lineTo(-step / 2 + 8, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Neon magenta glowing border seam
+      ctx.shadowColor = "#ff2e9a";
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = "rgba(255, 46, 154, 0.75)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+// ── Wall surface noise texture ─────────────────────────────────────────────
+// Gives graphite walls micro-grain and panel-seam variation so they read as
+// real concrete/composite panels rather than flat digital fill.
+export function createWallNoiseTexture() {
+  const W = 512, H = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Base: dark graphite matching P.wallMain (#1A1D24)
+  ctx.fillStyle = "#1c2028";
+  ctx.fillRect(0, 0, W, H);
+
+  // Pixel-level noise — subtle grain across the whole surface
+  const imgData = ctx.getImageData(0, 0, W, H);
+  const data = imgData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 18;
+    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 1.1));
+    // data[i + 3] stays 255
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Horizontal panel seams — concrete block / composite panel joints
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let y = 128; y < H; y += 128) {
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+  }
+  ctx.stroke();
+
+  // Faint secondary horizontal crack/grout
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (let y = 64; y < H; y += 128) {
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+  }
+  ctx.stroke();
+
+  // Vertical panel joints (less frequent — wide panels)
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.30)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let x = 256; x < W; x += 256) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, H);
+  }
+  ctx.stroke();
+
+  // Subtle lighter edge highlight along panel top edges (like indirect light catching)
+  ctx.strokeStyle = "rgba(80, 90, 110, 0.12)";
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  for (let y = 128; y < H; y += 128) {
+    ctx.moveTo(0, y - 1); ctx.lineTo(W, y - 1);
+  }
+  ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 2);
+  return texture;
+}

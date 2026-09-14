@@ -5,7 +5,8 @@
 
 import * as THREE from "three";
 import { getDoorRegistry, getExitDoor } from "./world.js";
-import { getPlayerPosition, getControls, sitAt } from "./player.js";
+import { getPlayerPosition, getControls, sitAt, setPlayerPosition, setMaxZBound } from "./player.js";
+import { getNearestElevator, triggerElevatorRide } from "./elevator.js";
 import * as hud from "./hud.js";
 import * as levelManager from "./levelManager.js";
 
@@ -17,6 +18,7 @@ let camera = null;
 let openTerminalCallback = null;
 let targetedDoorType = null;
 let targetedIsExit = false;
+let targetedElevator = null;
 
 export function initInteractions(cam, onOpenDoor) {
   camera = cam;
@@ -26,6 +28,20 @@ export function initInteractions(cam, onOpenDoor) {
 
 function onKeyDown(e) {
   if (e.code !== "KeyE") return;
+
+  if (targetedElevator) {
+    const el = targetedElevator;
+    targetedElevator = null;
+    triggerElevatorRide(el.label, el.nextLabel, () => {
+      const cfg = levelManager.FLOOR_CONFIGS[el.nextLabel];
+      if (cfg) {
+        setMaxZBound(cfg.maxZ);
+        setPlayerPosition(0, 1.0, cfg.entryZ, 0);
+      }
+    });
+    return;
+  }
+
   if (!targetedDoorType) return;
   if (targetedIsExit) {
     if (levelManager.isLevelComplete && levelManager.isLevelComplete()) {
@@ -51,6 +67,7 @@ export function updateInteractions() {
 
   targetedDoorType = null;
   targetedIsExit = false;
+  targetedElevator = null;
   hud.hideInteractPrompt();
 
   const playerPos = getPlayerPosition();
@@ -99,6 +116,12 @@ export function updateInteractions() {
         const activeDoor = levelManager.getActiveDoor ? levelManager.getActiveDoor() : "active";
         hud.showInteractPrompt(`DOOR LOCKED — Complete active ${activeDoor} door terminal first`);
       }
+    }
+  } else {
+    const elevator = getNearestElevator(playerPos, 5.0);
+    if (elevator) {
+      targetedElevator = elevator;
+      hud.showInteractPrompt(`Press E to take elevator to ${elevator.nextLabel}`);
     }
   }
 }
