@@ -17,7 +17,6 @@ import * as THREE from "three";
 import { BOSS_DOOR_TYPE, STATUS_COLORS } from "./config.js";
 import {
   createFloorTexture,
-  createCitySkylineTexture,
   createLeftUltrawideScreenTexture,
   createRightUltrawideScreenTexture,
   createKeyboardTexture,
@@ -40,6 +39,11 @@ import {
   createControlConsoleScreenTextures,
   createHolographicGlassTexture,
   createAcousticWallPanelTexture,
+  createWallNoiseTexture,
+  createWalnutWoodSlatTexture,
+  createBrushedSilverWallTexture,
+  createModernArtCanvasTexture,
+  createWallDirectoryTexture,
 } from "./textures.js";
 import { setMaxZBound } from "./player.js";
 import { registerFlickerLight } from "./sceneSetup.js";
@@ -77,17 +81,23 @@ export function clearCollisionBoxes() {
 
 let worldCamera = null;
 
-// ── Sci-Fi Corporate Control-Room Palette: Dark Graphite + RGB Neon ─────────
+// ── Aesthetic Brushed Silver + Walnut Brown Corporate Palette ───────────────
 const P = {
-  // Dark Architecture Base
-  wallMain:  0x1a1d24,   // #1A1D24 Dark matte graphite walls
-  wallAlt:   0x161820,   // #161820 Secondary dark panel
-  floor:     0x14161b,   // #14161B High-gloss reflective dark floor
-  floorTrim: 0x0d0f13,   // #0D0F13 Deep obsidian baseboard trim
-  ceiling:   0x0f1114,   // #0F1114 Exposed structural ceiling
-  furniture: 0x101216,   // #101216 Deep console/chassis body
-  chrome:    0x2a3242,   // Gunmetal / brushed steel
-  gold:      0xd4af37,   // Brushed gold trim
+  // Rich Silver + Architectural Walnut Brown Base
+  wallMain:    0x969ea8,   // Sleek architectural brushed silver-champagne
+  wallAlt:     0x745640,   // Rich warm walnut wood / architectural brown
+  wallSilver:  0xa8b2bc,   // Clean anodized silver composite panels
+  wallBrown:   0x7a563c,   // Warm walnut wood / cognac brown
+  wallBronze:  0x6a4a34,   // Deep bronze & brass accents
+  warmWood:    0x8a5c38,   // Natural warm teak / walnut timber
+  floor:       0x24201c,   // Polished warm espresso & charcoal floor
+  floorTrim:   0x483628,   // Warm walnut & bronze baseboard
+  ceiling:     0x2c2622,   // Deep architectural bronze-taupe ceiling
+  furniture:   0x282c36,   // Sleek titanium-slate furniture & server chassis
+  chrome:      0xbcc8d6,   // Bright brushed silver / chrome
+  gold:        0xd8b056,   // Brushed champagne brass / gold
+  leatherWarm: 0x8a5434,   // Rich cognac / caramel leather
+  fabricSlate: 0x586270,   // Slate silver acoustic fabric
 
   // RGB Neon Accents (Vibrant Light Sources)
   pink:      0xff2e9a,   // #FF2E9A - vibrant neon pink/magenta
@@ -100,9 +110,9 @@ const P = {
   sage:      0x00f0ff,   // Brilliant Ice Cyan (#00F0FF)
 
   // Plant greens
-  plant1:    0x22f0a8,
-  plant2:    0x18b880,
-  plant3:    0x2ecc71,
+  plant1:    0x2ecc71,
+  plant2:    0x27ae60,
+  plant3:    0x1abc9c,
 };
 
 // Room geometry constants (Generously scaled for expansive 38m wide layout)
@@ -137,17 +147,47 @@ export function initWorld(scene, cameraRef = null) {
   worldCamera = cameraRef;
   clearCollisionBoxes();
 
-  // ── Shared base materials (High-gloss reflective dark surfaces) ───────────
+  // ── Shared base materials ─────────────────────────────────────────────────
   const floorMat = new THREE.MeshStandardMaterial({
     map: createHolographicFloorTexture(),
     color: 0xffffff,
-    roughness: 0.12,
-    metalness: 0.45,
+    roughness: 0.26,
+    metalness: 0.25,
   });
-  const wallMat    = new THREE.MeshStandardMaterial({ color: P.wallMain, roughness: 0.55, metalness: 0.15 });
-  const wallAltMat = new THREE.MeshStandardMaterial({ color: P.wallAlt,  roughness: 0.55, metalness: 0.15 });
-  const ceilMat    = new THREE.MeshStandardMaterial({ color: P.ceiling,  roughness: 0.75, metalness: 0.35 });
-  const trimMat    = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.3,  metalness: 0.5 });
+
+  // Upper Walls: Brushed Silver composite panels (non-emissive PBR with metallic sheen)
+  const wallSilverMat = new THREE.MeshStandardMaterial({
+    map: createBrushedSilverWallTexture(),
+    color: 0xffffff,
+    roughness: 0.52,
+    metalness: 0.38,
+  });
+
+  // Lower Walls & Wainscoting: Warm Walnut vertical timber slats
+  const woodSlatMat = new THREE.MeshStandardMaterial({
+    map: createWalnutWoodSlatTexture(),
+    color: 0xffffff,
+    roughness: 0.62,
+    metalness: 0.06,
+  });
+
+  const wallNoiseTex = createWallNoiseTexture();
+  const wallMat = new THREE.MeshStandardMaterial({
+    map: wallNoiseTex,
+    color: P.wallMain,
+    roughness: 0.70,
+    metalness: 0.22,
+  });
+  const wallAltMat = new THREE.MeshStandardMaterial({
+    map: wallNoiseTex,
+    color: P.wallAlt,
+    roughness: 0.65,
+    metalness: 0.12,
+  });
+
+  const ceilMat = new THREE.MeshStandardMaterial({ color: P.ceiling,  roughness: 0.88, metalness: 0.04 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
+  const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
 
   // ── Global continuous reflective dark floor ──────────────────────────────
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, TOTAL_LEN), floorMat);
@@ -184,39 +224,79 @@ export function initWorld(scene, cameraRef = null) {
   transWall.position.set(0, ROOM_H + (VAULT_H - ROOM_H) / 2, 174.0);
   scene.add(transWall);
 
-  // ── Outer perimeter walls (dark graphite) ────────────────────────────────
-  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, ROOM_H), wallMat);
-  leftWall.position.set(-ROOM_W / 2, ROOM_H / 2, TOTAL_LEN / 2 - 6.0);
-  leftWall.rotation.y = Math.PI / 2;
-  leftWall.receiveShadow = true;
-  scene.add(leftWall);
+  // ── Two-Tone Architectural Perimeter Walls (Walnut Wood Slats Lower + Brushed Silver Upper) ──
+  const wainH = 2.4; // Wainscot height in meters
+  const upperH = ROOM_H - wainH;
 
-  const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, ROOM_H), wallMat);
-  rightWall.position.set(ROOM_W / 2, ROOM_H / 2, TOTAL_LEN / 2 - 6.0);
-  rightWall.rotation.y = -Math.PI / 2;
-  rightWall.receiveShadow = true;
-  scene.add(rightWall);
+  // Left Wall: Lower Walnut Slats
+  const leftWallLower = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, wainH), woodSlatMat);
+  leftWallLower.position.set(-ROOM_W / 2, wainH / 2, TOTAL_LEN / 2 - 6.0);
+  leftWallLower.rotation.y = Math.PI / 2;
+  leftWallLower.receiveShadow = true;
+  scene.add(leftWallLower);
+
+  // Left Wall: Upper Brushed Silver
+  const leftWallUpper = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, upperH), wallSilverMat);
+  leftWallUpper.position.set(-ROOM_W / 2, wainH + upperH / 2, TOTAL_LEN / 2 - 6.0);
+  leftWallUpper.rotation.y = Math.PI / 2;
+  leftWallUpper.receiveShadow = true;
+  scene.add(leftWallUpper);
+
+  // Left Wall: Brushed Brass Accent Reveal Trim between Walnut and Silver
+  const leftBrassTrim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, TOTAL_LEN), brassTrimMat);
+  leftBrassTrim.position.set(-ROOM_W / 2 + 0.04, wainH, TOTAL_LEN / 2 - 6.0);
+  scene.add(leftBrassTrim);
+
+  // Right Wall: Lower Walnut Slats
+  const rightWallLower = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, wainH), woodSlatMat);
+  rightWallLower.position.set(ROOM_W / 2, wainH / 2, TOTAL_LEN / 2 - 6.0);
+  rightWallLower.rotation.y = -Math.PI / 2;
+  rightWallLower.receiveShadow = true;
+  scene.add(rightWallLower);
+
+  // Right Wall: Upper Brushed Silver
+  const rightWallUpper = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL_LEN, upperH), wallSilverMat);
+  rightWallUpper.position.set(ROOM_W / 2, wainH + upperH / 2, TOTAL_LEN / 2 - 6.0);
+  rightWallUpper.rotation.y = -Math.PI / 2;
+  rightWallUpper.receiveShadow = true;
+  scene.add(rightWallUpper);
+
+  // Right Wall: Brushed Brass Accent Reveal Trim
+  const rightBrassTrim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, TOTAL_LEN), brassTrimMat);
+  rightBrassTrim.position.set(ROOM_W / 2 - 0.04, wainH, TOTAL_LEN / 2 - 6.0);
+  scene.add(rightBrassTrim);
+
+  // Architectural Pilaster Columns with warm sconce lights along perimeter walls
+  for (let pz = 0; pz <= TOTAL_LEN - 12.0; pz += 18.0) {
+    buildWallPilasterColumn(scene, -ROOM_W / 2 + 0.15, pz - 6.0, ROOM_H, Math.PI / 2);
+    buildWallPilasterColumn(scene,  ROOM_W / 2 - 0.15, pz - 6.0, ROOM_H, -Math.PI / 2);
+  }
 
   // Elevated vault side walls (Y: 8.5→11.5)
   [[-ROOM_W / 2, Math.PI / 2], [ROOM_W / 2, -Math.PI / 2]].forEach(([wx, ry]) => {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(52.0, VAULT_H - ROOM_H), wallAltMat);
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(52.0, VAULT_H - ROOM_H), wallSilverMat);
     w.position.set(wx, ROOM_H + (VAULT_H - ROOM_H) / 2, 200.0);
     w.rotation.y = ry;
     scene.add(w);
   });
 
-  // South entry wall + city-skyline backdrop
-  const southWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_H), wallMat);
-  southWall.position.set(0, ROOM_H / 2, -6.0);
-  southWall.rotation.y = Math.PI;
-  scene.add(southWall);
+  // ── South Entrance Wall Architecture (Solid Silver & Walnut facing +Z into room) ──
+  const southWallUpper = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, upperH), wallSilverMat);
+  southWallUpper.position.set(0, wainH + upperH / 2, -6.0);
+  southWallUpper.receiveShadow = true;
+  scene.add(southWallUpper);
 
-  const skyline = new THREE.Mesh(
-    new THREE.PlaneGeometry(ROOM_W + 8, ROOM_H + 3),
-    new THREE.MeshBasicMaterial({ map: createCitySkylineTexture() })
-  );
-  skyline.position.set(0, ROOM_H / 2, -6.2);
-  scene.add(skyline);
+  const southWallLower = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, wainH), woodSlatMat);
+  southWallLower.position.set(0, wainH / 2, -5.96);
+  southWallLower.receiveShadow = true;
+  scene.add(southWallLower);
+
+  const southBrassTrim = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.08, 0.08), brassTrimMat);
+  southBrassTrim.position.set(0, wainH, -5.92);
+  scene.add(southBrassTrim);
+
+  // Grand Architectural Main Entrance Doors & Foyer
+  buildGrandEntranceDoors(scene, 0, -5.94);
 
   // ── Build all floors ──────────────────────────────────────────────────────
   buildGroundLobby(scene);
@@ -243,17 +323,94 @@ function addCeiling(scene, len, h, midZ, mat) {
   scene.add(c);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GROUND FLOOR — BLACKVAULT SECURITY OPERATIONS & DATA CENTER HUB
-// Rebuilt to match the reference image:
-// - Backlit BLACKVAULT billboard sign with glowing shield emblem on far wall
-// - Industrial roof trusses with suspended linear LED lights
-// - Facing parallel rows of data-center server racks with blinking LEDs
-// - Center curved command console desk with multi-monitor data-viz displays
-// - High-gloss reflective dark tile floor with holographic blueprint zones
-// - Left geometric acoustic baffle wall with neon pink backlighting & schematics
-// - Right transparent glass mezzanine with emerald green diagnostic HUD
-// ─────────────────────────────────────────────────────────────────────────────
+/** Grand Architectural Main Entrance Double Glass Doors & Foyer */
+function buildGrandEntranceDoors(scene, x, z) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+
+  const frameMat   = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.92, roughness: 0.18 });
+  const woodMat    = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
+  const glassMat   = new THREE.MeshStandardMaterial({ color: 0x18202a, transparent: true, opacity: 0.72, roughness: 0.1, metalness: 0.85 });
+  const brassMat   = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
+  const scannerMat = new THREE.MeshStandardMaterial({ color: 0x222630, metalness: 0.7, roughness: 0.3 });
+
+  const doorW = 5.2, doorH = 3.6, frameD = 0.18;
+
+  // 1. Heavy Outer Portal Casing in Walnut Timber
+  const portal = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.8, doorH + 0.5, frameD + 0.08), woodMat);
+  portal.position.set(0, (doorH + 0.5) / 2, 0);
+  g.add(portal);
+
+  // 2. Brushed Chrome Main Door Frame
+  const mainFrame = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.2, doorH + 0.1, frameD), frameMat);
+  mainFrame.position.set(0, (doorH + 0.1) / 2, 0.02);
+  g.add(mainFrame);
+
+  // Left Door Leaf (Width: 2.3m)
+  const leftLeafFrame = new THREE.Mesh(new THREE.BoxGeometry(2.35, doorH - 0.2, 0.08), frameMat);
+  leftLeafFrame.position.set(-1.25, doorH / 2, 0.04);
+  g.add(leftLeafFrame);
+
+  const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.05, doorH - 0.5), glassMat);
+  leftGlass.position.set(-1.25, doorH / 2, 0.09);
+  g.add(leftGlass);
+
+  // Right Door Leaf (Width: 2.3m)
+  const rightLeafFrame = new THREE.Mesh(new THREE.BoxGeometry(2.35, doorH - 0.2, 0.08), frameMat);
+  rightLeafFrame.position.set(1.25, doorH / 2, 0.04);
+  g.add(rightLeafFrame);
+
+  const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.05, doorH - 0.5), glassMat);
+  rightGlass.position.set(1.25, doorH / 2, 0.09);
+  g.add(rightGlass);
+
+  // Vertical Architectural Brass Pull Handles
+  [-0.22, 0.22].forEach(hx => {
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.4, 12), brassMat);
+    handle.position.set(hx, 1.55, 0.14);
+    g.add(handle);
+
+    [-0.55, 0.55].forEach(sy => {
+      const standoff = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.06, 8), brassMat);
+      standoff.rotation.x = Math.PI / 2;
+      standoff.position.set(hx, 1.55 + sy, 0.11);
+      g.add(standoff);
+    });
+  });
+
+  // Transom Header Plaque ("BLACKVAULT // CORPORATE ARCHIVE TOWER // MAIN ACCESS")
+  const plaque = new THREE.Mesh(
+    new THREE.BoxGeometry(doorW - 0.4, 0.35, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x1e2430, metalness: 0.85, roughness: 0.25 })
+  );
+  plaque.position.set(0, doorH + 0.1, 0.06);
+  g.add(plaque);
+
+  const plaqueTrim = new THREE.Mesh(new THREE.BoxGeometry(doorW - 0.36, 0.03, 0.05), brassMat);
+  plaqueTrim.position.set(0, doorH + 0.28, 0.06);
+  g.add(plaqueTrim);
+
+  // Overhead warm downlight fixture
+  const downlight = new THREE.PointLight(0xffecd0, 0.75, 6.0);
+  downlight.position.set(0, doorH + 0.3, 0.6);
+  g.add(downlight);
+
+  // Electronic RFID Security Badge Scanner on right side wall
+  const scanner = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.06), scannerMat);
+  scanner.position.set(3.2, 1.4, 0.04);
+  g.add(scanner);
+
+  const scanLED = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.02), new THREE.MeshBasicMaterial({ color: P.blue }));
+  scanLED.position.set(3.2, 1.52, 0.08);
+  g.add(scanLED);
+
+  // Flanking Entrance Architectural Planters
+  buildArchitecturalPlanter(scene, -4.2, z + 0.8, 1.8, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  4.2, z + 0.8, 1.8, 0.8, 0.75);
+
+  scene.add(g);
+  addCollisionBox(x - doorW / 2 - 0.5, x + doorW / 2 + 0.5, z - 0.4, z + 0.3, "entrance_doors");
+}
 
 /** Backlit BLACKVAULT billboard sign on far wall */
 function buildBacklitBlackvaultSign(scene, x, y, z) {
@@ -367,23 +524,482 @@ function buildIndustrialCeilingTrusses(scene, zPositions) {
   });
 }
 
-/** Data Center Server Rack banks (corridor aisles & rear wall arrays) */
+/** Architectural Pilaster column on perimeter wall with up/down warm LED sconce */
+function buildWallPilasterColumn(scene, x, z, h, rotY) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+
+  const silverMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.85, roughness: 0.25 });
+  const woodMat   = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.6 });
+  const sconceMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
+  const glowMat   = new THREE.MeshBasicMaterial({ color: 0xffedd0 });
+
+  // Main pilaster column
+  const col = new THREE.Mesh(new THREE.BoxGeometry(0.32, h, 0.45), silverMat);
+  col.position.set(0, h / 2, 0);
+  g.add(col);
+
+  // Walnut vertical inset
+  const inset = new THREE.Mesh(new THREE.BoxGeometry(0.34, h - 0.6, 0.22), woodMat);
+  inset.position.set(0, h / 2, 0);
+  g.add(inset);
+
+  // Sconce fixture at Y = 2.8m
+  const sconce = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.40, 0.16), sconceMat);
+  sconce.position.set(0, 2.8, 0.16);
+  g.add(sconce);
+
+  // Top and bottom glowing light slits
+  const topSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), glowMat);
+  topSlit.position.set(0, 3.02, 0.16);
+  g.add(topSlit);
+
+  const botSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), glowMat);
+  botSlit.position.set(0, 2.58, 0.16);
+  g.add(botSlit);
+
+  // Warm localized light casting subtle illumination up and down the pillar
+  const sl = new THREE.PointLight(0xffecd0, 0.45, 5.5);
+  sl.position.set(0, 2.8, 0.45);
+  g.add(sl);
+
+  scene.add(g);
+}
+
+/** Modern Executive Lounge with Cognac Leather Sectional, Smoked Glass Table & Rug */
+function buildExecutiveLounge(scene, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+
+  const leatherMat = new THREE.MeshStandardMaterial({ color: P.leatherWarm, roughness: 0.45, metalness: 0.05 });
+  const silverBaseMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a2228, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.75 });
+  const rugMat = new THREE.MeshStandardMaterial({ map: createHubRugTexture(), roughness: 0.9 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.85, roughness: 0.25 });
+
+  // 1. Designer Geometric Rug (under lounge)
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 4.8), rugMat);
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.set(0, 0.015, 0);
+  g.add(rug);
+
+  // 2. L-Shaped Sectional Sofa
+  // Main back sofa section (length 3.6m)
+  const mainSofa = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.42, 0.9), leatherMat);
+  mainSofa.position.set(0, 0.28, -1.2);
+  g.add(mainSofa);
+
+  const mainBack = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.55, 0.25), leatherMat);
+  mainBack.position.set(0, 0.65, -1.55);
+  g.add(mainBack);
+
+  // Plinth base
+  const mainBase = new THREE.Mesh(new THREE.BoxGeometry(3.64, 0.08, 0.94), silverBaseMat);
+  mainBase.position.set(0, 0.04, -1.2);
+  g.add(mainBase);
+
+  // Chaise section (length 2.2m extending along -X)
+  const chaise = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.42, 2.0), leatherMat);
+  chaise.position.set(-1.32, 0.28, 0.25);
+  g.add(chaise);
+
+  const chaiseBack = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.55, 2.0), leatherMat);
+  chaiseBack.position.set(-1.67, 0.65, 0.25);
+  g.add(chaiseBack);
+
+  const chaiseBase = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 2.04), silverBaseMat);
+  chaiseBase.position.set(-1.32, 0.04, 0.25);
+  g.add(chaiseBase);
+
+  // Throw pillows
+  [-0.6, 0.6, 1.2].forEach((px, idx) => {
+    const pillow = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.38, 0.14),
+      new THREE.MeshStandardMaterial({ color: idx === 1 ? P.gold : P.fabricSlate, roughness: 0.7 })
+    );
+    pillow.position.set(px, 0.58, -1.35);
+    pillow.rotation.y = 0.15 * (idx - 1);
+    g.add(pillow);
+  });
+
+  // 3. Circular Smoked Glass & Walnut Coffee Table
+  const tableBase = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.75, 0.32, 24), new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 }));
+  tableBase.position.set(0.4, 0.16, 0.1);
+  g.add(tableBase);
+
+  const glassTop = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.03, 32), glassMat);
+  glassTop.position.set(0.4, 0.34, 0.1);
+  g.add(glassTop);
+
+  const tableRing = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.02, 8, 32), goldMat);
+  tableRing.rotation.x = Math.PI / 2;
+  tableRing.position.set(0.4, 0.34, 0.1);
+  g.add(tableRing);
+
+  // Tabletop decorative sculpture / centerpiece
+  const sculpture = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.12, 0),
+    goldMat
+  );
+  sculpture.position.set(0.4, 0.46, 0.1);
+  g.add(sculpture);
+
+  // Glowing holographic datapad on table
+  const datapad = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 0.015, 0.18),
+    new THREE.MeshBasicMaterial({ color: P.blue })
+  );
+  datapad.position.set(0.65, 0.36, 0.25);
+  datapad.rotation.y = 0.4;
+  g.add(datapad);
+
+  // 4. Modern Architectural Floor Lamp
+  const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.85, 12), silverBaseMat);
+  lampPole.position.set(1.9, 0.92, -1.4);
+  g.add(lampPole);
+
+  const lampShade = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.32, 0.35, 16, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xf5eedc, roughness: 0.8, side: THREE.DoubleSide })
+  );
+  lampShade.position.set(1.9, 1.75, -1.4);
+  g.add(lampShade);
+
+  const lampLight = new THREE.PointLight(0xffebd0, 0.85, 6.0);
+  lampLight.position.set(1.9, 1.70, -1.4);
+  g.add(lampLight);
+
+  scene.add(g);
+  addCollisionBox(x - 2.0, x + 2.0, z - 2.0, z + 1.8, "lounge");
+}
+
+/** Multi-tiered Architectural Planter Box with lush tropical sci-fi greenery */
+function buildArchitecturalPlanter(scene, x, z, w = 2.4, d = 0.8, h = 0.75) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+
+  const planterMat = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
+  const trimMat    = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.88, roughness: 0.2 });
+  const soilMat    = new THREE.MeshStandardMaterial({ color: 0x18120e, roughness: 0.95 });
+
+  // Planter Casing
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), planterMat);
+  box.position.y = h / 2;
+  g.add(box);
+
+  // Top Brushed Silver Rim
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.06, d + 0.06), trimMat);
+  rim.position.y = h;
+  g.add(rim);
+
+  // Base plinth
+  const base = new THREE.Mesh(new THREE.BoxGeometry(w - 0.1, 0.08, d - 0.1), trimMat);
+  base.position.y = 0.04;
+  g.add(base);
+
+  // Soil bed
+  const soil = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.12, d - 0.12), soilMat);
+  soil.rotation.x = -Math.PI / 2;
+  soil.position.y = h - 0.04;
+  g.add(soil);
+
+  // Layered foliage (bamboo stalks + monstera leaves + ferns)
+  const plantCols = [0x2ecc71, 0x27ae60, 0x1abc9c, 0x16a085, 0x34495e];
+  const count = Math.max(3, Math.floor(w * 2.2));
+  for (let i = 0; i < count; i++) {
+    const px = -w / 2 + 0.3 + (i / (count - 1)) * (w - 0.6) + (Math.random() - 0.5) * 0.15;
+    const pz = (Math.random() - 0.5) * (d * 0.45);
+    const stalkH = 0.8 + Math.random() * 0.9;
+    const pMat = new THREE.MeshStandardMaterial({
+      color: plantCols[i % plantCols.length],
+      roughness: 0.5,
+      metalness: 0.05,
+      side: THREE.DoubleSide
+    });
+
+    // Bamboo stalk
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, stalkH, 6), trimMat);
+    stalk.position.set(px, h + stalkH / 2, pz);
+    g.add(stalk);
+
+    // Leaves radiating out
+    for (let l = 0; l < 4; l++) {
+      const leafGeo = new THREE.PlaneGeometry(0.28 + Math.random() * 0.15, 0.14 + Math.random() * 0.06);
+      const leaf = new THREE.Mesh(leafGeo, pMat);
+      leaf.position.set(px, h + stalkH * (0.4 + l * 0.18), pz);
+      leaf.rotation.set(0.35 + Math.random() * 0.3, l * (Math.PI / 2) + Math.random() * 0.4, 0.2);
+      g.add(leaf);
+    }
+  }
+
+  scene.add(g);
+  addCollisionBox(x - w / 2 - 0.1, x + w / 2 + 0.1, z - d / 2 - 0.1, z + d / 2 + 0.1, "planter");
+}
+
+/** Standing Architectural Directory & Wayfinding Totem */
+function buildWayfindingTotem(scene, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
+  const baseMat  = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 });
+  const screenMat = new THREE.MeshBasicMaterial({ map: createWallDirectoryTexture() });
+
+  // Plinth Base
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.16, 0.6), baseMat);
+  base.position.y = 0.08;
+  g.add(base);
+
+  // Main Totem Body Frame
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 0.14), frameMat);
+  frame.position.y = 1.36;
+  g.add(frame);
+
+  // Glowing Screen Face (both sides)
+  const screenFront = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.1), screenMat);
+  screenFront.position.set(0, 1.36, 0.075);
+  g.add(screenFront);
+
+  const screenBack = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.1), screenMat);
+  screenBack.position.set(0, 1.36, -0.075);
+  screenBack.rotation.y = Math.PI;
+  g.add(screenBack);
+
+  // Cyan base glow accent
+  const baseGlow = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.04, 0.18), new THREE.MeshBasicMaterial({ color: P.blue }));
+  baseGlow.position.y = 0.22;
+  g.add(baseGlow);
+
+  const pl = new THREE.PointLight(P.blue, 0.9, 4.0);
+  pl.position.set(0, 1.4, 0.4);
+  g.add(pl);
+
+  scene.add(g);
+  addCollisionBox(x - 0.7, x + 0.7, z - 0.35, z + 0.35, "totem");
+}
+
+/** High-Tech Holographic Security Core Pedestal */
+function buildHolographicPedestal(scene, x, z) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+
+  const metalMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.92, roughness: 0.18 });
+  const woodMat  = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x88d4f0, transparent: true, opacity: 0.35, roughness: 0.05 });
+  const cyanGlow = new THREE.MeshBasicMaterial({ color: P.blue, wireframe: true });
+
+  // Hexagonal Base
+  const base1 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 0.35, 6), metalMat);
+  base1.position.y = 0.175;
+  g.add(base1);
+
+  const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.45, 6), woodMat);
+  base2.position.y = 0.575;
+  g.add(base2);
+
+  const topPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.55, 0.1, 6), metalMat);
+  topPlate.position.y = 0.85;
+  g.add(topPlate);
+
+  // Glass containment cylinder
+  const glassCol = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.2, 16), glassMat);
+  glassCol.position.y = 1.5;
+  g.add(glassCol);
+
+  // Top cap
+  const topCap = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.15, 6), metalMat);
+  topCap.position.y = 2.175;
+  g.add(topCap);
+
+  // Floating Rotating Wireframe Hologram Core
+  const holoCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 1), cyanGlow);
+  holoCore.position.y = 1.5;
+  g.add(holoCore);
+
+  const innerCube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: P.pink, wireframe: true }));
+  innerCube.position.y = 1.5;
+  g.add(innerCube);
+
+  // Point Light casting holographic cyan glow
+  const hLight = new THREE.PointLight(P.blue, 1.4, 5.5);
+  hLight.position.y = 1.5;
+  g.add(hLight);
+
+  scene.add(g);
+  addCollisionBox(x - 0.85, x + 0.85, z - 0.85, z + 0.85, "holo_pedestal");
+}
+
+/** Framed Modern Abstract Art piece on wall */
+function buildWallArtPiece(scene, x, y, z, rotY, w = 2.6, h = 3.4, themeIndex = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+
+  const canvasMat = new THREE.MeshBasicMaterial({ map: createModernArtCanvasTexture(themeIndex) });
+  const frameMat  = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.88, roughness: 0.25 });
+  const walnutMat = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
+
+  // Outer Walnut Shadowbox Frame
+  const shadowbox = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08), walnutMat);
+  shadowbox.position.z = -0.04;
+  g.add(shadowbox);
+
+  // Brass Inner Frame
+  const brassFrame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, h + 0.04, 0.06), frameMat);
+  brassFrame.position.z = -0.01;
+  g.add(brassFrame);
+
+  // Art Canvas
+  const artMesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), canvasMat);
+  artMesh.position.z = 0.025;
+  g.add(artMesh);
+
+  // Wall-mounted picture spotlight sconce above frame
+  const sconceArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.35, 8), frameMat);
+  sconceArm.rotation.x = Math.PI / 2;
+  sconceArm.position.set(0, h / 2 + 0.25, 0.18);
+  g.add(sconceArm);
+
+  const sconceHead = new THREE.Mesh(new THREE.BoxGeometry(w * 0.45, 0.05, 0.08), frameMat);
+  sconceHead.position.set(0, h / 2 + 0.25, 0.36);
+  g.add(sconceHead);
+
+  const artLight = new THREE.PointLight(0xffeed8, 0.65, 4.0);
+  artLight.position.set(0, h / 2 + 0.15, 0.45);
+  g.add(artLight);
+
+  scene.add(g);
+}
+
+/** Modern Walnut & Brushed Silver Espresso & Refreshment Station */
+function buildEspressoLoungeBar(scene, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+
+  const woodMat   = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 });
+  const marbleMat = new THREE.MeshStandardMaterial({ color: 0xded8d0, roughness: 0.2, metalness: 0.1 });
+  const steelMat  = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
+  const leatherMat = new THREE.MeshStandardMaterial({ color: P.leatherWarm, roughness: 0.45 });
+
+  // Main Counter Island (Length 3.2m, Height 0.95m)
+  const counterBase = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.9, 0.9), woodMat);
+  counterBase.position.y = 0.45;
+  g.add(counterBase);
+
+  // Countertop (White Marble / Brushed Quartz)
+  const counterTop = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.06, 1.0), marbleMat);
+  counterTop.position.y = 0.93;
+  g.add(counterTop);
+
+  // Espresso Machine
+  const espressoMachine = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.45, 0.45), steelMat);
+  espressoMachine.position.set(-0.8, 1.18, 0);
+  g.add(espressoMachine);
+
+  // Coffee cups & accessories
+  [-0.3, -0.15, 0].forEach(cx => {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.08, 12), marbleMat);
+    cup.position.set(cx, 0.99, 0.1);
+    g.add(cup);
+  });
+
+  // Modern Barstools (3 stools)
+  [-1.0, 0, 1.0].forEach(sx => {
+    const stool = new THREE.Group();
+    stool.position.set(sx, 0, 0.85);
+
+    // Leather round cushion
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16), leatherMat);
+    seat.position.y = 0.68;
+    stool.add(seat);
+
+    // Stem and base
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.64, 8), steelMat);
+    stem.position.y = 0.32;
+    stool.add(stem);
+
+    const sBase = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 16), steelMat);
+    sBase.position.y = 0.02;
+    stool.add(sBase);
+
+    g.add(stool);
+  });
+
+  scene.add(g);
+  addCollisionBox(x - 1.7, x + 1.7, z - 0.6, z + 1.2, "espresso_bar");
+}
+
+/** Modern Walnut & Steel Architectural Bookshelf Unit */
+function buildBookshelfStorageUnit(scene, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.85, roughness: 0.25 });
+  const shelfMat = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
+  const bookColors = [0x7a482b, 0x34495e, 0x2c3e50, 0x8a5434, 0xd4af37, 0x27ae60];
+
+  const w = 3.2, h = 2.6, d = 0.45;
+
+  // Vertical steel side uprights
+  [-w / 2 + 0.04, w / 2 - 0.04].forEach(ux => {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, h, d), frameMat);
+    post.position.set(ux, h / 2, 0);
+    g.add(post);
+  });
+
+  // Shelves at 5 vertical tiers
+  for (let s = 0; s < 5; s++) {
+    const sy = 0.15 + s * 0.55;
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), shelfMat);
+    shelf.position.set(0, sy, 0);
+    g.add(shelf);
+
+    // Add books, binders, and succulent decor on each tier
+    for (let b = 0; b < 6; b++) {
+      const bx = -w / 2 + 0.4 + b * 0.45 + (Math.random() - 0.5) * 0.08;
+      const bH = 0.25 + Math.random() * 0.18;
+      const bW = 0.06 + Math.random() * 0.12;
+      const bMat = new THREE.MeshStandardMaterial({ color: bookColors[(s * 3 + b) % bookColors.length], roughness: 0.7 });
+      const book = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, 0.26), bMat);
+      book.position.set(bx, sy + bH / 2 + 0.02, 0);
+      g.add(book);
+    }
+  }
+
+  scene.add(g);
+  addCollisionBox(x - w / 2 - 0.1, x + w / 2 + 0.1, z - d / 2 - 0.1, z + d / 2 + 0.1, "bookshelf");
+}
+
+/** Data Center Server Rack banks (refined titanium & silver styling) */
 function buildDataCenterServerAisles(scene) {
-  const rackMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.9, roughness: 0.2 });
-  const faceMat = new THREE.MeshBasicMaterial({ map: createServerRackFaceTexture() });
+  const rackMat = new THREE.MeshStandardMaterial({ color: 0x485260, metalness: 0.8, roughness: 0.25 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.95, roughness: 0.15 });
+  const faceMat = new THREE.MeshBasicMaterial({ map: createServerRackFaceTexture(), side: THREE.DoubleSide });
   const blueGlow = new THREE.MeshBasicMaterial({ color: P.blue });
   const pinkGlow = new THREE.MeshBasicMaterial({ color: P.pink });
   const greenGlow = new THREE.MeshBasicMaterial({ color: P.green });
 
-  // 1. Left continuous server corridor bank: X = -9.2, Z = -2.0 to 22.0
-  for (let z = -2.0; z <= 22.0; z += 3.8) {
+  // 1. Left server corridor bank: X = -11.5, Z = 0.0 to 20.0 (clean side placement)
+  for (let z = 0.0; z <= 20.0; z += 4.0) {
     const rackG = new THREE.Group();
-    rackG.position.set(-9.2, 0, z);
+    rackG.position.set(-11.5, 0, z);
 
     // Chassis body
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4.8, 3.4), rackMat);
     body.position.y = 2.4;
     rackG.add(body);
+
+    // Brushed silver corner extrusions (all 4 vertical corners)
+    [[-0.78, -1.68], [-0.78, 1.68], [0.78, -1.68], [0.78, 1.68]].forEach(([ex, ez]) => {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 4.8, 0.06), trimMat);
+      edge.position.set(ex, 2.4, ez);
+      rackG.add(edge);
+    });
 
     // Front face panel facing towards center aisle (+X)
     const face = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 4.6), faceMat);
@@ -394,7 +1010,7 @@ function buildDataCenterServerAisles(scene) {
     // Top glowing LED edge strip
     const topStrip = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.08, 3.4),
-      z % 2 === 0 ? blueGlow : pinkGlow
+      z % 8 === 0 ? blueGlow : pinkGlow
     );
     topStrip.position.set(0.82, 4.75, 0);
     rackG.add(topStrip);
@@ -412,20 +1028,29 @@ function buildDataCenterServerAisles(scene) {
     rackG.add(cable2);
 
     scene.add(rackG);
-    addCollisionBox(-10.1, -8.3, z - 1.75, z + 1.75, "server_rack_l");
+    addCollisionBox(-12.4, -10.6, z - 1.75, z + 1.75, "server_rack_l");
   }
 
-  // 2. Rear server wall banks behind command console: Z = 21.5
-  // Left rear bank: X = -14.0 to -4.5
-  for (let x = -13.5; x <= -5.0; x += 3.0) {
+  // 2. Rear server flanking arrays: Z = 23.0
+  // Left rear array: X = -13.5 to -8.5
+  for (let x = -13.5; x <= -8.5; x += 3.2) {
     const rG = new THREE.Group();
-    rG.position.set(x, 0, 21.5);
+    rG.position.set(x, 0, 23.0);
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.8, 1.4), rackMat);
     body.position.y = 2.4;
     rG.add(body);
 
+    // Silver corner extrusions
+    [[-1.38, -0.68], [1.38, -0.68], [-1.38, 0.68], [1.38, 0.68]].forEach(([ex, ez]) => {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 4.8, 0.06), trimMat);
+      edge.position.set(ex, 2.4, ez);
+      rG.add(edge);
+    });
+
+    // Face panel facing player (-Z)
     const face = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 4.6), faceMat);
     face.position.set(0, 2.4, -0.71);
+    face.rotation.y = Math.PI; // Face towards -Z (Player)
     rG.add(face);
 
     const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), greenGlow);
@@ -433,19 +1058,27 @@ function buildDataCenterServerAisles(scene) {
     rG.add(topStrip);
 
     scene.add(rG);
-    addCollisionBox(x - 1.45, x + 1.45, 20.7, 22.3, "server_rack_rear_l");
+    addCollisionBox(x - 1.45, x + 1.45, 22.2, 23.8, "server_rack_rear_l");
   }
 
-  // Right rear bank: X = 5.0 to 13.5
-  for (let x = 5.0; x <= 13.5; x += 3.0) {
+  // Right rear array: X = 8.5 to 13.5
+  for (let x = 8.5; x <= 13.5; x += 3.2) {
     const rG = new THREE.Group();
-    rG.position.set(x, 0, 21.5);
+    rG.position.set(x, 0, 23.0);
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.8, 1.4), rackMat);
     body.position.y = 2.4;
     rG.add(body);
 
+    [[-1.38, -0.68], [1.38, -0.68], [-1.38, 0.68], [1.38, 0.68]].forEach(([ex, ez]) => {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 4.8, 0.06), trimMat);
+      edge.position.set(ex, 2.4, ez);
+      rG.add(edge);
+    });
+
+    // Face panel facing player (-Z)
     const face = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 4.6), faceMat);
     face.position.set(0, 2.4, -0.71);
+    face.rotation.y = Math.PI; // Face towards -Z (Player)
     rG.add(face);
 
     const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), blueGlow);
@@ -453,29 +1086,7 @@ function buildDataCenterServerAisles(scene) {
     rG.add(topStrip);
 
     scene.add(rG);
-    addCollisionBox(x - 1.45, x + 1.45, 20.7, 22.3, "server_rack_rear_r");
-  }
-
-  // Right aisle secondary rack bank at X = 10.5, Z = 6.0 to 14.0
-  for (let z = 6.0; z <= 14.0; z += 3.8) {
-    const rackG = new THREE.Group();
-    rackG.position.set(10.5, 0, z);
-
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 4.8, 3.2), rackMat);
-    body.position.y = 2.4;
-    rackG.add(body);
-
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 4.6), faceMat);
-    face.position.set(-0.71, 2.4, 0);
-    face.rotation.y = -Math.PI / 2;
-    rackG.add(face);
-
-    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 3.2), pinkGlow);
-    topStrip.position.set(-0.72, 4.75, 0);
-    rackG.add(topStrip);
-
-    scene.add(rackG);
-    addCollisionBox(9.7, 11.3, z - 1.65, z + 1.65, "server_rack_r");
+    addCollisionBox(x - 1.45, x + 1.45, 22.2, 23.8, "server_rack_rear_r");
   }
 }
 
@@ -485,8 +1096,8 @@ function buildSeatedOperatorOperative(scene, x, y, z, rotY) {
   g.position.set(x, y, z);
   g.rotation.y = rotY;
 
-  const suitMat = new THREE.MeshStandardMaterial({ color: 0x141720, roughness: 0.6 });
-  const armorMat = new THREE.MeshStandardMaterial({ color: 0x1c212c, metalness: 0.8, roughness: 0.2 });
+  const suitMat = new THREE.MeshStandardMaterial({ color: 0x1e2430, roughness: 0.6 });
+  const armorMat = new THREE.MeshStandardMaterial({ color: 0x2c3444, metalness: 0.8, roughness: 0.2 });
   const visorMat = new THREE.MeshBasicMaterial({ color: P.blue });
   const skinMat = new THREE.MeshStandardMaterial({ color: 0xc89d7c, roughness: 0.7 });
 
@@ -555,7 +1166,7 @@ function buildOperatorDeskChair(parentGroup, x, z) {
   const cg = new THREE.Group();
   cg.position.set(x, 0, z);
 
-  const mat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.4 });
+  const mat = new THREE.MeshStandardMaterial({ color: P.leatherWarm, roughness: 0.45 });
   const frameMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
 
   // Seat
@@ -598,12 +1209,18 @@ function buildCentralCommandStation(scene, x, z) {
 
   const consoleMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.25, metalness: 0.6 });
   const trimMat    = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
+  const woodTrim   = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
   const glowMat    = new THREE.MeshBasicMaterial({ color: P.blue });
 
   // 1. Center main desk
   const centerDesk = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.08, 1.35), consoleMat);
   centerDesk.position.set(0, 0.74, 0);
   g.add(centerDesk);
+
+  // Walnut edge trim along front
+  const frontWood = new THREE.Mesh(new THREE.BoxGeometry(4.44, 0.09, 0.06), woodTrim);
+  frontWood.position.set(0, 0.74, -0.68);
+  g.add(frontWood);
 
   // Desk underglow line
   const underGlow = new THREE.Mesh(new THREE.BoxGeometry(4.42, 0.03, 1.37), glowMat);
@@ -622,6 +1239,11 @@ function buildCentralCommandStation(scene, x, z) {
     wing.position.set(wx, 0.74, 0.22);
     wing.rotation.y = angle;
     g.add(wing);
+
+    const wingWood = new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.09, 0.06), woodTrim);
+    wingWood.position.set(wx, 0.74, -0.42 + (side === 0 ? 0.05 : -0.05));
+    wingWood.rotation.y = angle;
+    g.add(wingWood);
 
     const wingGlow = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.03, 1.27), glowMat);
     wingGlow.position.set(wx, 0.70, 0.22);
@@ -716,32 +1338,32 @@ function buildLeftAcousticBaffleWall(scene, z0, z1) {
 
   const panelMat = new THREE.MeshStandardMaterial({
     map: createAcousticWallPanelTexture(),
-    roughness: 0.6,
-    metalness: 0.2,
+    roughness: 0.55,
+    metalness: 0.35,
   });
   const pinkGlow = new THREE.MeshBasicMaterial({ color: P.pink });
   const blueGlow = new THREE.MeshBasicMaterial({ color: P.blue });
 
-  const panelMesh = new THREE.Mesh(new THREE.PlaneGeometry(wallLen, ROOM_H), panelMat);
-  panelMesh.position.set(wallX, ROOM_H / 2, midZ);
+  const panelMesh = new THREE.Mesh(new THREE.PlaneGeometry(wallLen, ROOM_H - 2.4), panelMat);
+  panelMesh.position.set(wallX, 2.4 + (ROOM_H - 2.4) / 2, midZ);
   panelMesh.rotation.y = Math.PI / 2;
   scene.add(panelMesh);
 
-  // Vertical Hot Pink Neon Light Coves
-  for (let z = z0 + 3.0; z < z1 - 2.0; z += 6.0) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, ROOM_H - 1.2, 0.06), pinkGlow);
-    strip.position.set(wallX + 0.04, ROOM_H / 2, z);
+  // Vertical Hot Pink Neon Light Coves — 3 refined coves
+  [z0 + 9.0, z0 + 21.0, z0 + 31.0].forEach(z => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, ROOM_H - 3.2, 0.06), pinkGlow);
+    strip.position.set(wallX + 0.04, 2.4 + (ROOM_H - 2.4) / 2, z);
     scene.add(strip);
 
-    const pl = new THREE.PointLight(P.pink, 1.8, 9.0);
-    pl.position.set(wallX + 0.4, ROOM_H / 2, z);
+    const pl = new THREE.PointLight(P.pink, 0.85, 6.0);
+    pl.position.set(wallX + 0.45, 2.4 + (ROOM_H - 2.4) / 2, z);
     scene.add(pl);
-  }
+  });
 
   // 3 Illuminated Holographic Technical Schematic Panels on Wall Standoffs
   [z0 + 7.0, z0 + 17.0, z0 + 27.0].forEach(pz => {
     const scG = new THREE.Group();
-    scG.position.set(wallX + 0.08, 3.8, pz);
+    scG.position.set(wallX + 0.08, 4.2, pz);
     scG.rotation.y = Math.PI / 2;
 
     const glass = new THREE.Mesh(
@@ -786,7 +1408,7 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
 
   [z0 + 8.0, z0 + 18.0, z0 + 27.0].forEach(pz => {
     const gg = new THREE.Group();
-    gg.position.set(wallX, 3.2, pz);
+    gg.position.set(wallX, 3.6, pz);
     gg.rotation.y = -Math.PI / 2;
 
     const gMesh = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 4.8), glassMat);
@@ -805,7 +1427,7 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
     rightF.position.x = 2.76;
     gg.add(rightF);
 
-    const hLight = new THREE.PointLight(P.green, 1.8, 8.0);
+    const hLight = new THREE.PointLight(P.green, 0.85, 5.5);
     hLight.position.set(0, 0, 0.4);
     gg.add(hLight);
 
@@ -826,7 +1448,7 @@ function buildGroundLobby(scene) {
   buildDataCenterServerAisles(scene);
 
   // 4. Center Command Workstation Island with 4 Panoramic Displays & Operators
-  buildCentralCommandStation(scene, 0, 11.5);
+  buildCentralCommandStation(scene, 0, 12.5);
 
   // 5. Left Geometric Acoustic Baffle Wall with Hot Pink Backlighting & Schematics
   buildLeftAcousticBaffleWall(scene, Z0, Z1);
@@ -834,18 +1456,43 @@ function buildGroundLobby(scene) {
   // 6. Right Transparent Glass Mezzanine Wall with Emerald Green Diagnostic HUD
   buildRightGlassMezzanineWall(scene, Z0, Z1);
 
-  // 7. Elevator Alcove on Right Wall (Leads to Floor 1)
+  // ── Aesthetic Room Additions: Executive Lounge, Planters, Totem & Core ──
+  // 7. Executive Cognac Lounge on Right Entrance Corner (X = 9.0, Z = 2.5)
+  buildExecutiveLounge(scene, 9.5, 2.5, -0.4);
+
+  // 8. Architectural Planter Boxes
+  buildArchitecturalPlanter(scene, -4.5, -3.5, 3.2, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  5.5, -3.5, 3.2, 0.8, 0.75);
+  buildArchitecturalPlanter(scene, 14.5,  9.5, 2.8, 0.8, 0.75);
+
+  // 9. Standing Wayfinding Directory Totem near entrance
+  buildWayfindingTotem(scene, 3.8, -1.5, -0.3);
+
+  // 10. High-Tech Holographic Security Core Pedestal
+  buildHolographicPedestal(scene, -4.2, 3.5);
+
+  // 11. Modern Framed Abstract Art on Walls
+  buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.8, -1.0, Math.PI / 2, 2.8, 3.6, 0);
+  buildWallArtPiece(scene,  ROOM_W / 2 - 0.12, 3.8, -1.0, -Math.PI / 2, 2.8, 3.6, 1);
+
+  // 12. Modern Espresso & Refreshment Station on Right Wall
+  buildEspressoLoungeBar(scene, 12.5, 17.5, -Math.PI / 2);
+
+  // 13. Elevator Alcove on Right Wall (Leads to Floor 1)
   buildElevatorAlcove(scene, 16.0, 24.0, "G", ROOM_H, P.blue);
   elevatorPositions.push({ z: 24.0, label: "G", nextLabel: "1F", doorType: "classification" });
 
-  // 8. Overhead & Floor Neon Guide Lights
-  floorStrip(scene, -6.5, Z0, Z1, new THREE.MeshBasicMaterial({ color: P.blue }));
-  floorStrip(scene,  6.5, Z0, Z1, new THREE.MeshBasicMaterial({ color: P.blue }));
+  // 14. Floor guide strips — focal point near the door zone
+  floorStrip(scene, -1.8, 22.0, 30.0, new THREE.MeshBasicMaterial({ color: P.blue }));
+  floorStrip(scene,  1.8, 22.0, 30.0, new THREE.MeshBasicMaterial({ color: P.blue }));
 
-  // Main ambient room fill — moody dark graphite with cool white/cyan tint
-  const ambLight = new THREE.PointLight(0xd4eaff, 1.2, 35);
-  ambLight.position.set(0, 6.0, ZMid);
-  scene.add(ambLight);
+  // Main ambient room fill
+  const ambLight1 = new THREE.PointLight(0xfff0e2, 0.75, 24);
+  ambLight1.position.set(-4.0, 6.8, 5.0);
+  scene.add(ambLight1);
+  const ambLight2 = new THREE.PointLight(0xfff0e2, 0.75, 24);
+  ambLight2.position.set( 4.0, 6.8, 18.0);
+  scene.add(ambLight2);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -867,16 +1514,17 @@ function buildFloor1Classification(scene) {
   wain.rotation.y = Math.PI / 2;
   scene.add(wain);
 
-  // Accent strips
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z0, Z1, accentMat, ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z0, Z1, accentMat, ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z0, Z1, accentMat);
+  // Accent strips: only at the far-wall door threshold and elevator alcove
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, accentMat, ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, accentMat, ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
 
-  const rl = new THREE.PointLight(accent, 0.7, 36);
+  // Near-neutral architectural fill from ceiling — colour comes from cubicle monitors
+  const rl = new THREE.PointLight(0xfff4f8, 0.50, 32);
   rl.position.set(0, ROOM_H - 0.8, ZMid);
   scene.add(rl);
-  registerFlickerLight(rl, 0.7);
+  registerFlickerLight(rl, 0.50);
 
   // ── Cubicle farm (2 rows × 3 cubicles) ──────────────────────────────────
   const cubiclePositions = [
@@ -892,6 +1540,13 @@ function buildFloor1Classification(scene) {
     });
     registerFlickerLight(ml, 2.0);
   });
+
+  // ── Aesthetic Room Additions: Bookshelves, Planters & Wall Art ──────────
+  buildBookshelfStorageUnit(scene, -ROOM_W / 2 + 3.0, Z0 + 10.0, Math.PI / 2);
+  buildArchitecturalPlanter(scene, -ROOM_W / 2 + 3.0, Z0 + 18.0, 3.2, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  ROOM_W / 2 - 3.0, Z0 + 18.0, 3.2, 0.8, 0.75);
+  buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.8, Z0 + 14.0, Math.PI / 2, 2.4, 3.2, 0);
+  buildWallArtPiece(scene,  ROOM_W / 2 - 0.12, 3.8, Z0 + 14.0, -Math.PI / 2, 2.4, 3.2, 1);
 
   // ── Whiteboard on left wall ───────────────────────────────────────────────
   const wb = new THREE.Mesh(
@@ -929,15 +1584,17 @@ function buildFloor2Regression(scene) {
   floorPlaqueMesh(scene, "2F", "Regression Lab", P.green, 0, h - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "DATA ENGINEERING FLOOR", "Server Infrastructure & Regression Systems", Z0 + 0.08, h / 2, P.green);
 
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z0, Z1, accentMat, h);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z0, Z1, accentMat, h);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z0, Z1, accentMat);
+  // Only accent strips near the elevator/door end — not full room perimeter
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, accentMat, h);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, accentMat, h);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
 
-  const rl = new THREE.PointLight(accent, 1.0, 32);
+  // Near-neutral ceiling fill — green character comes from server rack LEDs and pendant lights
+  const rl = new THREE.PointLight(0xf0fff6, 0.50, 28);
   rl.position.set(0, h - 0.8, ZMid);
   scene.add(rl);
-  registerFlickerLight(rl, 1.0);
+  registerFlickerLight(rl, 0.50);
 
   // Dense server rack arrays — emerald green left, electric blue right
   [Z0 + 6.0, Z0 + 14.0, Z0 + 22.0, Z0 + 29.0].forEach(rz => {
@@ -969,6 +1626,12 @@ function buildFloor2Regression(scene) {
   );
   trayLED.position.set(0, h - 0.45, ZMid);
   scene.add(trayLED);
+
+  // ── Aesthetic Room Additions: Planters, Bookshelves & Wall Art ──────────
+  buildBookshelfStorageUnit(scene, -ROOM_W / 2 + 3.0, Z0 + 10.0, Math.PI / 2);
+  buildArchitecturalPlanter(scene, -ROOM_W / 2 + 3.0, Z0 + 18.0, 2.8, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  ROOM_W / 2 - 3.0, Z0 + 18.0, 2.8, 0.8, 0.75);
+  buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.4, Z0 + 8.0, Math.PI / 2, 2.2, 2.8, 1);
 
   // Pendant cone lights
   const chromeMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.92 });
@@ -1022,10 +1685,10 @@ function buildFloor3Clustering(scene) {
   floorPlaqueMesh(scene, "3F", "Clustering Hub", P.blue, 0, ROOM_H - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "EXECUTIVE BOARDROOM", "Strategic Clustering & Analysis Division", Z0 + 0.08, ROOM_H / 2, P.blue);
 
-  // Dark feature wall at far end
+  // Feature wall at far end
   const featWall = new THREE.Mesh(
     new THREE.PlaneGeometry(ROOM_W, ROOM_H),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.55, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.75, metalness: 0.04 })
   );
   featWall.position.set(0, ROOM_H / 2, Z1 - 0.06);
   scene.add(featWall);
@@ -1034,7 +1697,7 @@ function buildFloor3Clustering(scene) {
   scene.add(featBorder);
 
   // Drop ceiling inset over table area
-  const dropMat = new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.5 });
+  const dropMat = new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.88, metalness: 0.02 });
   const dropCeil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W - 8.0, 18.0), dropMat);
   dropCeil.rotation.x = Math.PI / 2;
   dropCeil.position.set(0, 5.2, ZMid);
@@ -1052,10 +1715,11 @@ function buildFloor3Clustering(scene) {
     scene.add(corn);
   });
 
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z0, Z1, accentMat, ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z0, Z1, accentMat, ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z0, Z1, accentMat);
+  // Accent strips only at the far-end presentation screen focal point
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, accentMat, ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, accentMat, ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
 
   // Executive conference table
   const tableMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.18, metalness: 0.55 });
@@ -1119,6 +1783,14 @@ function buildFloor3Clustering(scene) {
   makeOfficePlant(scene, -ROOM_W / 2 + 2.5, Z0 + 4.0);
   makeOfficePlant(scene,  ROOM_W / 2 - 2.5, Z0 + 26.0);
 
+  // ── Aesthetic Room Additions: Executive Lounge, Bookshelves & Wall Art ──
+  buildExecutiveLounge(scene, -ROOM_W / 2 + 5.5, Z0 + 9.0, Math.PI / 3);
+  buildBookshelfStorageUnit(scene, ROOM_W / 2 - 3.0, Z0 + 9.0, -Math.PI / 2);
+  buildArchitecturalPlanter(scene, -ROOM_W / 2 + 3.0, Z0 + 22.0, 3.6, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  ROOM_W / 2 - 3.0, Z0 + 22.0, 3.6, 0.8, 0.75);
+  buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.8, Z0 + 17.0, Math.PI / 2, 3.0, 3.6, 0);
+  buildWallArtPiece(scene,  ROOM_W / 2 - 0.12, 3.8, Z0 + 17.0, -Math.PI / 2, 3.0, 3.6, 1);
+
   // Elevator alcove
   buildElevatorAlcove(scene, 16.0, Z1 - 2.5, "3F", ROOM_H, accent);
   elevatorPositions.push({ z: Z1 - 2.5, label: "3F", nextLabel: "4F", doorType: "anomaly" });
@@ -1135,13 +1807,14 @@ function buildFloor4AnomalyWing(scene) {
   floorPlaqueMesh(scene, "4F", "Anomaly Wing", P.pink, 0, ROOM_H - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "SECURITY OPERATIONS CENTER", "Anomaly Detection & Threat Monitoring", Z0 + 0.08, ROOM_H / 2, P.pink);
 
-  // Red-tinted feature wall on left half
+  // Feature wall on left half — standard dark graphite, PBR non-emissive
   const redPanel = new THREE.Mesh(
     new THREE.PlaneGeometry(ROOM_W / 2 - 1.0, ROOM_H),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.55, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.75, metalness: 0.04 })
   );
   redPanel.position.set(-ROOM_W / 4 - 0.5, ROOM_H / 2, Z0 + 0.06);
   scene.add(redPanel);
+  // Thin accent border at top
   const redBorder = new THREE.Mesh(
     new THREE.BoxGeometry(ROOM_W / 2 - 0.96, 0.06, 0.08),
     new THREE.MeshBasicMaterial({ color: red })
@@ -1157,12 +1830,16 @@ function buildFloor4AnomalyWing(scene) {
   threatSign.rotation.y = -Math.PI / 2;
   scene.add(threatSign);
 
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z0, Z1, new THREE.MeshBasicMaterial({ color: burg }), ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z0, Z1, new THREE.MeshBasicMaterial({ color: red }),  ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z0, Z1, new THREE.MeshBasicMaterial({ color: red }));
+  // Accent strips only at threat screen focal wall
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, new THREE.MeshBasicMaterial({ color: red }), ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, new THREE.MeshBasicMaterial({ color: red }), ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, new THREE.MeshBasicMaterial({ color: red }));
 
-  const dl1 = new THREE.PointLight(P.blue, 1.5, 26); dl1.position.set(-6.0, ROOM_H - 0.8, ZMid); scene.add(dl1); registerFlickerLight(dl1, 1.5);
-  const dl2 = new THREE.PointLight(red,    1.5, 26); dl2.position.set( 6.0, ROOM_H - 0.8, ZMid); scene.add(dl2); registerFlickerLight(dl2, 1.5);
+  // Near-neutral architectural fill
+  const dl1 = new THREE.PointLight(0xfff2ee, 0.45, 30);
+  dl1.position.set(0, ROOM_H - 0.8, ZMid);
+  scene.add(dl1);
+  registerFlickerLight(dl1, 0.45);
 
   // Security command arc (3 desks)
   [
@@ -1180,6 +1857,12 @@ function buildFloor4AnomalyWing(scene) {
 
   // Lounge break area
   buildLoungeArea(scene, -ROOM_W / 2 + 4.5, Z0 + 7.0);
+
+  // ── Aesthetic Room Additions: Planters, Bookshelves & Wall Art ──────────
+  buildArchitecturalPlanter(scene, -ROOM_W / 2 + 3.2, Z0 + 11.0, 3.0, 0.8, 0.75);
+  buildArchitecturalPlanter(scene,  ROOM_W / 2 - 3.2, Z0 + 11.0, 3.0, 0.8, 0.75);
+  buildBookshelfStorageUnit(scene, ROOM_W / 2 - 3.0, Z0 + 26.0, -Math.PI / 2);
+  buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.8, Z0 + 8.0, Math.PI / 2, 2.6, 3.2, 1);
 
   // Massive threat screen
   const threatMesh = new THREE.Mesh(
@@ -1199,7 +1882,7 @@ function buildFloor4AnomalyWing(scene) {
   buildServerRackGroup(scene,  ROOM_W / 2 - 1.2, Z0 + 22.5, red);
   buildServerRackGroup(scene,  ROOM_W / 2 - 1.2, Z0 + 16.5, P.blue);
 
-  // Hazard caution stripes (y = 0.018 to eliminate z-fighting)
+  // Hazard caution stripes
   const cautionMat = new THREE.MeshBasicMaterial({
     map: createCautionStripeTexture(), transparent: true, opacity: 0.8,
   });
@@ -1275,6 +1958,12 @@ function buildFloor5MysteryVault(scene) {
     registerFlickerLight(bl, 1.5);
   });
 
+  // ── Aesthetic Room Additions: Planters & Holographic Pedestals ──────────
+  buildArchitecturalPlanter(scene, -ROOM_W / 2 + 3.5, Z0 + 12.0, 3.8, 0.9, 0.85);
+  buildArchitecturalPlanter(scene,  ROOM_W / 2 - 3.5, Z0 + 12.0, 3.8, 0.9, 0.85);
+  buildHolographicPedestal(scene, -8.0, Z0 + 18.0);
+  buildHolographicPedestal(scene,  8.0, Z0 + 18.0);
+
   // Ceiling dome ring
   const domeRing = new THREE.Mesh(
     new THREE.TorusGeometry(7.0, 0.12, 16, 48),
@@ -1302,10 +1991,11 @@ function buildFloor5MysteryVault(scene) {
   mysteryInnerRing.position.set(0, 3.2, ZCore);
   scene.add(mysteryInnerRing);
 
-  // Ambient vault lights
-  const p1 = new THREE.PointLight(P.pink,  2.5, 30); p1.position.set(-8, 5.5, Z0 + 15); scene.add(p1); registerFlickerLight(p1, 2.5);
-  const p2 = new THREE.PointLight(P.blue,  2.5, 30); p2.position.set( 8, 5.5, Z0 + 15); scene.add(p2); registerFlickerLight(p2, 2.5);
-  const p3 = new THREE.PointLight(P.green, 2.0, 30); p3.position.set( 0, 6.2, Z0 + 35); scene.add(p3); registerFlickerLight(p3, 2.0);
+  // Vault ambient fill — near-neutral with the faintest colour tint so surfaces read as
+  // dark architecture, not neon rainbow panels. The mystery core IS the light source.
+  const p1 = new THREE.PointLight(0xf4e0f4, 0.65, 22); p1.position.set(-8, 5.5, Z0 + 15); scene.add(p1); registerFlickerLight(p1, 0.65);
+  const p2 = new THREE.PointLight(0xe0eeff, 0.65, 22); p2.position.set( 8, 5.5, Z0 + 15); scene.add(p2); registerFlickerLight(p2, 0.65);
+  const p3 = new THREE.PointLight(0xe0fff4, 0.55, 20); p3.position.set( 0, 6.2, Z0 + 35); scene.add(p3); registerFlickerLight(p3, 0.55);
 
   // Octagonal pedestal
   const pedMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.92, roughness: 0.14 });

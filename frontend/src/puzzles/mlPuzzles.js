@@ -5,54 +5,61 @@
 export const ML_PUZZLES = {
   classification: {
     doorType: "classification",
-    title: "Iris KNN Classifier Pipeline",
-    fileName: "knn_classifier.py",
+    title: "Employee Data Cleaning",
+    fileName: "clean_employee_data.py",
     level: 1,
-    difficulty: "LEVEL 1 — NOVICE (2 BUGS)",
-    problemStatement: "The security sub-routine failed because the KNN model was configured with string parameters instead of integers, and the pipeline attempted to evaluate predictions without training (fitting) the model first.",
-    brokenLines: [8, 14], // 1-indexed
+    difficulty: "LEVEL 1 — EASY (Data Cleaning)",
+    problemStatement: "The employee database export contains dirty records: some entries are None (missing), one salary is negative (data entry error), and several names have extra spaces. Clean the data so only valid records remain, fix the bad salary, strip whitespace from names, then print the count of clean records.",
+    brokenLines: [10, 17, 22],
     errorAnnotations: {
-      8: "TypeError: 'n_neighbors' must be an integer, but got string '5'",
-      14: "NotFittedError: This KNeighborsClassifier instance is not fitted yet. Call 'fit' before 'predict'."
+      10: "Bug: None values are not being filtered out — add a check so None rows are skipped",
+      17: "Bug: Negative salary -500 is invalid — it should be set to 0 when negative",
+      22: "Bug: name.strip() is commented out — names like '  Alice  ' still have spaces"
     },
     hints: [
-      "Check the type of 'n_neighbors' on line 8. It should be an integer, not a string.",
-      "You must call knn.fit(X_train, y_train) before evaluating or predicting."
+      "Line 10: Skip the row if it is None before doing anything with it.",
+      "Line 17: If salary is less than 0, set it to 0 instead.",
+      "Line 22: Remove the # so name.strip() actually runs and trims the spaces."
     ],
-    initialCode: `# BlackVault Security Subsystem — Classification Gate
-# Door 1: KNN Target Classifier
-import numpy as np
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score
+    initialCode: `# BlackVault Security Gate 1 — Employee Record Cleaner
+# Fix the 3 bugs so the data is clean and the count is correct.
 
-# 1. Load security iris dataset
-iris = load_iris()
-X_train, X_test, y_train, y_test = train_test_split(
-    iris.data, iris.target, test_size=0.3, random_state=42
-)
+raw_records = [
+    {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
+    None,
+    {"name": "Bob",       "salary": -500,  "dept": "Finance"},
+    {"name": "  Carol ",  "salary": 62000, "dept": "HR"},
+    None,
+    {"name": "Dave",      "salary": 91000, "dept": "Security"},
+]
 
-# 2. Instantiate KNN Model
-# BUG 1: n_neighbors is passed as a string instead of an int!
-knn = KNeighborsClassifier(n_neighbors="5", weights="uniform")
+clean_records = []
 
-# 3. Train the model
-# BUG 2: Missing fit step! (Model is used without training)
-# knn.fit(X_train, y_train)
+for row in raw_records:
+    # BUG 1: We never skip None rows — add: if row is None: continue
+    # if row is None:
+    #     continue
 
-# 4. Predict and evaluate
-y_pred = knn.predict(X_test)
-acc = accuracy_score(y_test, y_pred)
-print(f"[SECURITY CHECK] Model Accuracy: {acc:.4f}")
+    salary = row["salary"]
+    # BUG 2: Negative salary should be set to 0, not kept as-is
+    if salary < 0:
+        salary = salary   # FIX: should be 0, not salary
 
-if acc >= 0.90:
-    print("SUCCESS: Gate 1 Classification verified. Door unlocked.")
+    # BUG 3: strip() is commented out — names keep their whitespace
+    name = row["name"]  # FIX: should be row["name"].strip()
+
+    clean_records.append({"name": name, "salary": salary, "dept": row["dept"]})
+
+total_clean = len(clean_records)
+print(f"[SECURITY CHECK] Clean records: {total_clean}")
+
+if total_clean == 4:
+    print("SUCCESS: Gate 1 Data Check passed. Door unlocked.")
 else:
-    raise ValueError(f"Accuracy {acc:.2f} is below required threshold 0.90")
+    raise ValueError(f"Expected 4 clean records, got {total_clean}. Check for None rows.")
 `,
-    expectedVariables: ["acc"],
-    minAccuracy: 0.90
+    expectedVariables: ["total_clean"],
+    minAccuracy: null
   },
 
   regression: {

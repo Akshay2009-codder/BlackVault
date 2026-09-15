@@ -531,32 +531,65 @@ function fallbackVerification(code) {
   const doorType = activePuzzle?.door_type || "classification";
 
   if (currentStep === 1) {
-    // Step 1: Data Cleaning (drop_duplicates, fillna)
-    const hasDef = code.includes("def clean_data") || code.includes("def clean");
-    const hasDupes = code.includes("drop_duplicates");
-    const hasFill = code.includes("fillna") || code.includes("imputer") || code.includes("SimpleImputer");
+    // ── Classification door: Simple data cleaning (no functions, no pandas) ──
+    if (doorType === "classification") {
+      // Player needs to: skip None rows, fix negative salary, call .strip()
+      const fixedNone   = code.includes("if row is None") && code.includes("continue");
+      const fixedSalary = code.includes("salary = 0") || (code.includes("salary < 0") && code.includes("= 0"));
+      const fixedStrip  = code.includes(".strip()") && !code.match(/^.*\.strip\(\).*$/m)?.toString().includes("#");
+      // Also accept if the player just fixed all 3 bugs (count == 4 passes)
+      const hasPrint    = code.includes("total_clean") && code.includes("print");
 
-    if (hasDef && (hasDupes || hasFill)) {
-      const step2Data = getOfflineStepInfo(doorType, 2);
-      handleResult({
-        step_passed: true,
-        passed: true,
-        step: 1,
-        next_step: 2,
-        door_type: doorType,
-        attempts_remaining: attemptsRemaining - 1,
-        next_instructions: step2Data.instructions,
-        next_starter_code: step2Data.starter_code,
-      });
+      const passed = (fixedNone || code.includes("continue")) && hasPrint;
+      if (passed) {
+        handleResult({
+          step_passed: true,
+          passed: true,
+          step: 1,
+          score: 1.0,
+          target: 1.0,
+          door_type: doorType,
+          attempts_remaining: attemptsRemaining - 1,
+          stars: 3,
+        });
+      } else {
+        handleResult({
+          step_passed: false,
+          passed: false,
+          step: 1,
+          door_type: doorType,
+          attempts_remaining: attemptsRemaining - 1,
+          error_message: "Fix all 3 bugs: (1) add 'if row is None: continue', (2) set salary = 0 when negative, (3) use row[\"name\"].strip().",
+        });
+      }
     } else {
-      handleResult({
-        step_passed: false,
-        passed: false,
-        step: 1,
-        door_type: doorType,
-        attempts_remaining: attemptsRemaining - 1,
-        error_message: "Step 1 Requirement: Define def clean_data(df) calling df.drop_duplicates() and df.fillna(...).",
-      });
+      // ── Other doors: pandas clean_data() function pattern ──
+      const hasDef  = code.includes("def clean_data") || code.includes("def clean");
+      const hasDupes = code.includes("drop_duplicates");
+      const hasFill  = code.includes("fillna") || code.includes("imputer") || code.includes("SimpleImputer");
+
+      if (hasDef && (hasDupes || hasFill)) {
+        const step2Data = getOfflineStepInfo(doorType, 2);
+        handleResult({
+          step_passed: true,
+          passed: true,
+          step: 1,
+          next_step: 2,
+          door_type: doorType,
+          attempts_remaining: attemptsRemaining - 1,
+          next_instructions: step2Data.instructions,
+          next_starter_code: step2Data.starter_code,
+        });
+      } else {
+        handleResult({
+          step_passed: false,
+          passed: false,
+          step: 1,
+          door_type: doorType,
+          attempts_remaining: attemptsRemaining - 1,
+          error_message: "Step 1 Requirement: Define def clean_data(df) calling df.drop_duplicates() and df.fillna(...).",
+        });
+      }
     }
   } else if (currentStep === 2) {
     // Step 2: Feature Work & Scaling (pd.get_dummies, StandardScaler)
@@ -616,6 +649,66 @@ function fallbackVerification(code) {
 // ── Offline Step Templates & Instructions ─────────────────────────────
 function getOfflineStepInfo(doorType, step) {
   if (step === 1) {
+    // Classification door uses the simple data cleaning puzzle (no functions, no pandas)
+    if (doorType === "classification") {
+      return {
+        step: 1,
+        instructions: `SECURITY GATE: CLASSIFICATION // STEP 1: DATA CLEANING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The employee database export has 3 bugs. Fix them all to unlock the door.
+
+BUG 1 (line ~10): None rows are NOT being skipped — add:
+    if row is None:
+        continue
+
+BUG 2 (line ~17): Negative salary is kept as-is — fix:
+    if salary < 0:
+        salary = 0
+
+BUG 3 (line ~22): name.strip() is NOT called — fix:
+    name = row["name"].strip()
+
+When all 3 bugs are fixed, total_clean will equal 4 and the gate opens.`,
+        starter_code: `# BlackVault Security Gate 1 — Employee Record Cleaner
+# Fix the 3 bugs so the data is clean and the count is correct.
+
+raw_records = [
+    {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
+    None,
+    {"name": "Bob",       "salary": -500,  "dept": "Finance"},
+    {"name": "  Carol ",  "salary": 62000, "dept": "HR"},
+    None,
+    {"name": "Dave",      "salary": 91000, "dept": "Security"},
+]
+
+clean_records = []
+
+for row in raw_records:
+    # BUG 1: We never skip None rows — add: if row is None: continue
+    # if row is None:
+    #     continue
+
+    salary = row["salary"]
+    # BUG 2: Negative salary should be set to 0, not kept as-is
+    if salary < 0:
+        salary = salary   # FIX: should be 0, not salary
+
+    # BUG 3: strip() is commented out — names keep their whitespace
+    name = row["name"]  # FIX: should be row["name"].strip()
+
+    clean_records.append({"name": name, "salary": salary, "dept": row["dept"]})
+
+total_clean = len(clean_records)
+print(f"[SECURITY CHECK] Clean records: {total_clean}")
+
+if total_clean == 4:
+    print("SUCCESS: Gate 1 Data Check passed. Door unlocked.")
+else:
+    raise ValueError(f"Expected 4 clean records, got {total_clean}. Check for None rows.")
+`,
+      };
+    }
+
     return {
       step: 1,
       instructions: `SECURITY GATE: ${doorType.toUpperCase()} // STEP 1: DATA CLEANING

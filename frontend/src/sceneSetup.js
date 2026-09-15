@@ -23,10 +23,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Dark graphite architecture background
-  scene.background = new THREE.Color(0x0a0c10);
-  // Atmospheric tech fog — adds depth while preserving crisp neon light sources
-  scene.fog = new THREE.FogExp2(0x0c0e14, 0.0055);
+  // Warm dark background matching new silver-brown architectural palette
+  scene.background = new THREE.Color(0x221c18);
+  // Warm atmospheric fog — adds elegant depth
+  scene.fog = new THREE.FogExp2(0x261f1a, 0.0035);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -46,25 +46,23 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.12;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Moody dark graphite ambient fill — kept very low so real light sources do the work
-  const ambientLight = new THREE.AmbientLight(0x18202e, 0.35);
+  // Warm ambient fill for rich silver and walnut brown surfaces
+  const ambientLight = new THREE.AmbientLight(0xe8dcd0, 0.55);
   scene.add(ambientLight);
 
-  // Hemisphere fill: cool-white sky, near-black ground bounce
-  // Gives surfaces correct directionality (top vs bottom faces differ) without any
-  // colour cast — ceilings read lighter than floors, which is architecturally correct.
-  const hemiLight = new THREE.HemisphereLight(0xd4e8ff, 0x0a0c10, 0.30);
+  // Hemisphere fill: crisp warm silver-white sky, rich warm walnut brown floor bounce
+  const hemiLight = new THREE.HemisphereLight(0xfff6ec, 0x483424, 0.50);
   scene.add(hemiLight);
 
-  // Cool-white overhead directional light simulating recessed ceiling fixtures
-  const skyDirLight = new THREE.DirectionalLight(0xe8f4ff, 0.85);
-  skyDirLight.position.set(5, 28.0, 15);
+  // Warm-white overhead directional light simulating architectural recessed ceiling fixtures
+  const skyDirLight = new THREE.DirectionalLight(0xfff8ee, 1.10);
+  skyDirLight.position.set(6, 30.0, 18);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
   skyDirLight.shadow.mapSize.height = 2048;
@@ -78,19 +76,15 @@ export function initScene() {
   skyDirLight.shadow.camera.bottom = -45;
   scene.add(skyDirLight);
 
-  // NOTE: Global colour-wash directional lights were intentionally removed.
-  // Coloured accent lighting now comes only from local point/spot lights placed
-  // near actual LED strip objects, screens, and signage — not from scene-wide tints.
-
   // ── Post-Processing: Vivid Neon Bloom ─────────────────────────────
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.72,   // reduced strength — only true emissive surfaces (LEDs, screens) bloom
-    0.50,   // radius
-    0.55    // raised threshold — walls lit by point lights no longer bloom
+    0.68,   // calibrated strength
+    0.45,   // radius
+    0.52    // threshold — non-emissive silver/brown surfaces don't bloom
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());

@@ -1581,25 +1581,25 @@ export function createHolographicGlassTexture() {
   return texture;
 }
 
-/** Geometric 3D acoustic baffle wall pattern with pink/magenta back-glow */
+/** Geometric 3D acoustic baffle wall pattern with warm silver-slate panels & pink back-glow */
 export function createAcousticWallPanelTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Deep graphite base
-  ctx.fillStyle = "#161922";
+  // Warm architectural slate-silver base
+  ctx.fillStyle = "#525a66";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Diamond geometric grid with magenta neon backlit seams
+  // Diamond geometric grid with warm walnut-bronze and metallic highlights
   const step = 128;
   for (let x = 0; x < 1024; x += step) {
     for (let y = 0; y < 1024; y += step) {
       ctx.save();
       ctx.translate(x + step / 2, y + step / 2);
-      // Outer bevel
-      ctx.fillStyle = (x + y) % (step * 2) === 0 ? "#1c202b" : "#141720";
+      // Outer bevel facet
+      ctx.fillStyle = (x + y) % (step * 2) === 0 ? "#6c7684" : "#464d57";
       ctx.beginPath();
       ctx.moveTo(0, -step / 2 + 8);
       ctx.lineTo(step / 2 - 8, 0);
@@ -1608,11 +1608,29 @@ export function createAcousticWallPanelTexture() {
       ctx.closePath();
       ctx.fill();
 
+      // Metallic top-left highlight
+      ctx.strokeStyle = "rgba(230, 240, 255, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-step / 2 + 8, 0);
+      ctx.lineTo(0, -step / 2 + 8);
+      ctx.lineTo(step / 2 - 8, 0);
+      ctx.stroke();
+
+      // Warm bronze bottom-right shadow
+      ctx.strokeStyle = "rgba(60, 42, 30, 0.6)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(step / 2 - 8, 0);
+      ctx.lineTo(0, step / 2 - 8);
+      ctx.lineTo(-step / 2 + 8, 0);
+      ctx.stroke();
+
       // Neon magenta glowing border seam
       ctx.shadowColor = "#ff2e9a";
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = "rgba(255, 46, 154, 0.75)";
-      ctx.lineWidth = 2;
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = "rgba(255, 46, 154, 0.70)";
+      ctx.lineWidth = 1.8;
       ctx.stroke();
       ctx.restore();
     }
@@ -1624,70 +1642,281 @@ export function createAcousticWallPanelTexture() {
   return texture;
 }
 
-// ── Wall surface noise texture ─────────────────────────────────────────────
-// Gives graphite walls micro-grain and panel-seam variation so they read as
-// real concrete/composite panels rather than flat digital fill.
+// ── Wall surface noise texture (Brushed Warm Silver & Steel) ────────────────
 export function createWallNoiseTexture() {
   const W = 512, H = 512;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Base: dark graphite matching P.wallMain (#1A1D24)
-  ctx.fillStyle = "#1c2028";
+  // Base: rich brushed architectural silver-champagne (#8a8f98)
+  ctx.fillStyle = "#8a8f98";
   ctx.fillRect(0, 0, W, H);
 
-  // Pixel-level noise — subtle grain across the whole surface
+  // Brushed horizontal metal grain
   const imgData = ctx.getImageData(0, 0, W, H);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 18;
-    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
+    const noise = (Math.random() - 0.5) * 22;
+    data[i]     = Math.max(0, Math.min(255, data[i]     + noise * 1.05)); // subtle warm tint
     data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
-    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 1.1));
-    // data[i + 3] stays 255
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 0.95));
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Horizontal panel seams — concrete block / composite panel joints
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
+  // Horizontal architectural panel seams with bevel highlight/shadow
   for (let y = 128; y < H; y += 128) {
+    // Dark groove
+    ctx.strokeStyle = "rgba(35, 30, 25, 0.55)";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
     ctx.moveTo(0, y); ctx.lineTo(W, y);
-  }
-  ctx.stroke();
+    ctx.stroke();
 
-  // Faint secondary horizontal crack/grout
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  for (let y = 64; y < H; y += 128) {
-    ctx.moveTo(0, y); ctx.lineTo(W, y);
+    // Top edge silver highlight
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, y + 2); ctx.lineTo(W, y + 2);
+    ctx.stroke();
   }
-  ctx.stroke();
 
-  // Vertical panel joints (less frequent — wide panels)
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.30)";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
+  // Vertical panel joints
   for (let x = 256; x < W; x += 256) {
+    ctx.strokeStyle = "rgba(35, 30, 25, 0.45)";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
     ctx.moveTo(x, 0); ctx.lineTo(x, H);
-  }
-  ctx.stroke();
+    ctx.stroke();
 
-  // Subtle lighter edge highlight along panel top edges (like indirect light catching)
-  ctx.strokeStyle = "rgba(80, 90, 110, 0.12)";
-  ctx.lineWidth = 1.0;
-  ctx.beginPath();
-  for (let y = 128; y < H; y += 128) {
-    ctx.moveTo(0, y - 1); ctx.lineTo(W, y - 1);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, H);
+    ctx.stroke();
   }
-  ctx.stroke();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(4, 2);
+  return texture;
+}
+
+// ── Rich Walnut Timber Wood Slats Texture ────────────────────────────────────
+export function createWalnutWoodSlatTexture() {
+  const W = 512, H = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Deep shadow reveal backing
+  ctx.fillStyle = "#1e140d";
+  ctx.fillRect(0, 0, W, H);
+
+  const slatW = 24;
+  const gap = 8;
+  const total = slatW + gap;
+
+  for (let x = 4; x < W; x += total) {
+    // Walnut wood gradient on each slat
+    const grad = ctx.createLinearGradient(x, 0, x + slatW, 0);
+    grad.addColorStop(0, "#8a5836");
+    grad.addColorStop(0.2, "#a06842");
+    grad.addColorStop(0.7, "#885635");
+    grad.addColorStop(1, "#683e22");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, 0, slatW, H);
+
+    // Subtle wood grain lines
+    ctx.strokeStyle = "rgba(50, 25, 10, 0.25)";
+    ctx.lineWidth = 1.0;
+    for (let gy = 0; gy < H; gy += 16 + Math.random() * 20) {
+      ctx.beginPath();
+      ctx.moveTo(x, gy);
+      ctx.bezierCurveTo(x + 8, gy + (Math.random() - 0.5) * 8, x + 16, gy + (Math.random() - 0.5) * 8, x + slatW, gy);
+      ctx.stroke();
+    }
+
+    // Left edge light highlight
+    ctx.strokeStyle = "rgba(240, 200, 160, 0.35)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x + 1, 0); ctx.lineTo(x + 1, H);
+    ctx.stroke();
+
+    // Right edge bevel shadow
+    ctx.strokeStyle = "rgba(20, 10, 5, 0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + slatW - 1, 0); ctx.lineTo(x + slatW - 1, H);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(6, 2);
+  return texture;
+}
+
+// ── Brushed Silver Wall Cladding Texture ─────────────────────────────────────
+export function createBrushedSilverWallTexture() {
+  const W = 512, H = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Crisp metallic silver base
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#a8b2bc");
+  grad.addColorStop(0.5, "#9ca6b0");
+  grad.addColorStop(1, "#b2bcc6");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Fine metallic brush lines
+  const imgData = ctx.getImageData(0, 0, W, H);
+  const data = imgData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 16;
+    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 1.05));
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Anodized panel segmentation
+  ctx.strokeStyle = "rgba(40, 50, 60, 0.4)";
+  ctx.lineWidth = 2.0;
+  ctx.strokeRect(4, 4, W - 8, H - 8);
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.lineWidth = 1.0;
+  ctx.strokeRect(6, 6, W - 12, H - 12);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(3, 2);
+  return texture;
+}
+
+// ── Modern Abstract Wall Art Canvas ─────────────────────────────────────────
+export function createModernArtCanvasTexture(themeIndex = 0) {
+  const W = 512, H = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Minimalist warm gallery background
+  ctx.fillStyle = "#e8e2d8";
+  ctx.fillRect(0, 0, W, H);
+
+  // Geometric abstract forms in walnut brown, metallic silver, terracotta, brass
+  if (themeIndex === 0) {
+    // Large walnut brown circle
+    ctx.fillStyle = "#7a482b";
+    ctx.beginPath(); ctx.arc(220, 260, 150, 0, Math.PI * 2); ctx.fill();
+
+    // Brushed silver arch
+    ctx.fillStyle = "#96a2b0";
+    ctx.beginPath();
+    ctx.arc(320, 220, 110, Math.PI, Math.PI * 2);
+    ctx.lineTo(430, 420);
+    ctx.lineTo(210, 420);
+    ctx.closePath();
+    ctx.fill();
+
+    // Warm brass accent line
+    ctx.strokeStyle = "#d4af37";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(80, 120); ctx.lineTo(440, 120);
+    ctx.stroke();
+
+    // Terracotta crescent
+    ctx.fillStyle = "#b85c38";
+    ctx.beginPath(); ctx.arc(160, 360, 60, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Modern cybernetic Bauhaus
+    ctx.fillStyle = "#343c48";
+    ctx.fillRect(80, 80, 200, 360);
+
+    ctx.fillStyle = "#9a6642";
+    ctx.beginPath(); ctx.arc(340, 220, 100, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = "#c8d0da";
+    ctx.fillRect(240, 300, 200, 140);
+
+    ctx.strokeStyle = "#2fd1ff";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(40, 440); ctx.lineTo(480, 440); ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// ── Architectural Directory / Totem Display Texture ─────────────────────────
+export function createWallDirectoryTexture() {
+  const W = 512, H = 1024;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Brushed titanium & dark glass background
+  ctx.fillStyle = "#1e2229";
+  ctx.fillRect(0, 0, W, H);
+
+  // Metallic header bar
+  const hGrad = ctx.createLinearGradient(0, 0, W, 0);
+  hGrad.addColorStop(0, "#7c5438");
+  hGrad.addColorStop(0.5, "#a87850");
+  hGrad.addColorStop(1, "#7c5438");
+  ctx.fillStyle = hGrad;
+  ctx.fillRect(0, 0, W, 100);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 28px 'Inter', sans-serif";
+  ctx.fillText("BLACKVAULT TOWER", 40, 58);
+  ctx.font = "16px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#d8e4f0";
+  ctx.fillText("CORPORATE RESEARCH & ML HUB", 40, 85);
+
+  // Floor Directory list
+  const floors = [
+    { num: "5F", name: "MYSTERY CORE // QUANTUM VAULT", col: "#22f0a8" },
+    { num: "4F", name: "ANOMALY ISOLATION WING",       col: "#ff2e9a" },
+    { num: "3F", name: "CLUSTERING & NEURAL LAB",       col: "#2fd1ff" },
+    { num: "2F", name: "REGRESSION & COMPUTE FARM",     col: "#22f0a8" },
+    { num: "1F", name: "CLASSIFICATION & DATA LAB",     col: "#ff2e9a" },
+    { num: "G",  name: "SECURITY OPS // MAIN LOBBY",    col: "#2fd1ff", active: true },
+  ];
+
+  floors.forEach((f, idx) => {
+    const y = 140 + idx * 130;
+    ctx.fillStyle = f.active ? "rgba(47, 209, 255, 0.15)" : "rgba(255, 255, 255, 0.04)";
+    ctx.fillRect(24, y, W - 48, 110);
+    ctx.strokeStyle = f.active ? f.col : "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = f.active ? 2.5 : 1;
+    ctx.strokeRect(24, y, W - 48, 110);
+
+    // Number badge
+    ctx.fillStyle = f.col;
+    ctx.font = "bold 32px 'Inter', sans-serif";
+    ctx.fillText(f.num, 48, y + 65);
+
+    // Floor Name
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px 'Inter', sans-serif";
+    ctx.fillText(f.name, 115, y + 52);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.font = "14px 'JetBrains Mono', monospace";
+    ctx.fillText(f.active ? "CURRENT LOCATION // STATUS: SECURE" : "ACCESS RESTRICTED // CLEARANCE REQ.", 115, y + 80);
+  });
+
+  const texture = new THREE.CanvasTexture(canvas);
   return texture;
 }
