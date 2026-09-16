@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="BlackVault — Corporate Research Tower. Ascend 5 floors by writing real Python ML code to unlock each level." />
+  <meta name="description" content="BlackVault — Corporate Research Tower. Solve 5 rooms of ML puzzles to clear the vault." />
   <title>BlackVault — Corporate Research Tower</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,28 +36,13 @@
   <!-- Floor/Sector Cleared Notification -->
   <div id="sector-cleared-banner" class="hidden">
     <div class="cleared-content">
-      <span class="cleared-badge">FLOOR TERMINAL UNLOCKED</span>
-      <h2 id="cleared-title">Floor Cleared!</h2>
-      <p id="cleared-desc">Elevator is calling. Proceed to the next floor.</p>
+      <span class="cleared-badge">ROOM TERMINAL CLEARED</span>
+      <h2 id="cleared-title">Room Cleared!</h2>
+      <p id="cleared-desc">Door is open. Walk through to the next room.</p>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       ELEVATOR OVERLAY — Full-screen cinematic transition between floors
-       ═══════════════════════════════════════════════════════════════════ -->
-  <div id="elevator-overlay">
-    <!-- Bi-parting elevator doors -->
-    <div class="elevator-door-left"></div>
-    <div class="elevator-door-right"></div>
 
-    <!-- Central display (visible between doors) -->
-    <div class="elevator-content">
-      <div class="elevator-label">BLACKVAULT CORP · FLOOR</div>
-      <div class="elevator-floor-display">G</div>
-      <div class="elevator-bar"><div class="elevator-bar-fill"></div></div>
-      <div class="elevator-floor-name">Reception &amp; Lobby</div>
-    </div>
-  </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════
        FINALE / ROOFTOP REVEAL OVERLAY
@@ -69,7 +54,7 @@
       <div id="finale-tagline">— BLACKVAULT CORP —</div>
       <h1 id="finale-headline">You Made It Through.</h1>
       <p id="finale-sub">Five floors. Five puzzles. The whole tower — yours.</p>
-      <button id="finale-back-btn">↓ RIDE BACK DOWN</button>
+      <button id="finale-back-btn">✓ RETURN TO LOBBY</button>
     </div>
   </div>
 

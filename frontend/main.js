@@ -1,19 +1,18 @@
 // BlackVault frontend entrypoint — Corporate Research Tower edition.
-// Five floors connected by elevators. First-person / third-person player,
+// Five rooms connect directly door-to-door. First-person / third-person player,
 // ML puzzle terminals with real code editor.
 
 import * as THREE from "three";
 import { initScene, updateSceneEffects, updateAnimatables, getComposer } from "./src/sceneSetup.js";
-import { initWorld, updateWorldAnimations, getElevatorPositions } from "./src/world.js";
+import { initWorld, updateWorldAnimations } from "./src/world.js";
 import { initPlayer, updatePlayer, getPlayerPosition } from "./src/player.js";
 import { initInteractions, updateInteractions } from "./src/interactions.js";
 import { initTerminalUI, openTerminal } from "./src/puzzleTerminal.js";
 import { initLevelManager } from "./src/levelManager.js";
 import { initGuardVoice } from "./src/guardVoice.js";
 import { createPlayerCharacter, updatePlayerCharacter } from "./src/character.js";
-import { initElevator } from "./src/elevator.js";
 
-const BUILD_TAG = "blackvault-tower-v1";
+const BUILD_TAG = "blackvault-tower-v2-room2room";
 const tagEl = document.getElementById("build-tag");
 if (tagEl) tagEl.textContent = BUILD_TAG;
 console.log("[BlackVault] Initializing Corporate Research Tower:", BUILD_TAG);
@@ -25,6 +24,7 @@ export function setTimeDilation(scale) {
 export function getTimeDilation() {
   return timeDilation;
 }
+window.setTimeDilation = setTimeDilation;
 
 (async () => {
   // 1. Scene & Renderer
@@ -49,11 +49,11 @@ export function getTimeDilation() {
   initGuardVoice();
   initLevelManager({ level: 1 });
 
-  // 7. Elevator system — get positions registered during world build
-  const elevatorPositions = getElevatorPositions();
-  initElevator(elevatorPositions, null);  // onRideComplete handled inside levelManager
+  window.__scene = scene;
+  window.__camera = camera;
+  window.__renderer = renderer;
 
-  // 8. Animation Loop
+  // 7. Animation Loop
   const clock = new THREE.Clock();
   const composer = getComposer();
 

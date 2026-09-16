@@ -1533,49 +1533,41 @@ export function createControlConsoleScreenTextures() {
   return textures;
 }
 
-/** Holographic transparent glass HUD overlay with green diagnostics ("MAPPING SYSTEM ACTIVE") */
+/** Clean architectural frosted & smoked glass partition texture with subtle frosted grid */
 export function createHolographicGlassTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Transparent base with subtle glass gradient
+  // Clean smoked glass tint
   ctx.clearRect(0, 0, 1024, 1024);
-  ctx.fillStyle = "rgba(10, 24, 20, 0.35)";
+  ctx.fillStyle = "rgba(25, 32, 42, 0.42)";
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Outer frame
-  ctx.shadowColor = "#22f0a8";
-  ctx.shadowBlur = 10;
-  ctx.strokeStyle = "rgba(34, 240, 168, 0.85)";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(16, 16, 992, 992);
+  // Subtle frosted privacy grid band in middle
+  ctx.fillStyle = "rgba(220, 230, 245, 0.08)";
+  ctx.fillRect(32, 380, 960, 260);
 
-  // Top header bar
-  ctx.fillStyle = "rgba(34, 240, 168, 0.2)";
-  ctx.fillRect(16, 16, 992, 54);
-  ctx.font = "bold 24px 'JetBrains Mono', monospace";
-  ctx.fillStyle = "#22f0a8";
-  ctx.fillText("[ MAPPING SYSTEM ACTIVE // FACILITY HUD ]", 36, 52);
+  // Fine frosted horizontal lines
+  ctx.strokeStyle = "rgba(220, 230, 245, 0.18)";
+  ctx.lineWidth = 1.0;
+  for (let y = 390; y <= 630; y += 20) {
+    ctx.beginPath();
+    ctx.moveTo(32, y);
+    ctx.lineTo(992, y);
+    ctx.stroke();
+  }
 
-  // Center wireframe diagram & circular radar
-  const cx = 512, cy = 460;
-  ctx.strokeStyle = "rgba(34, 240, 168, 0.65)";
-  ctx.lineWidth = 2;
-  [80, 160, 240, 320].forEach(r => {
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-  });
-  // Crosshairs
-  ctx.beginPath(); ctx.moveTo(cx - 340, cy); ctx.lineTo(cx + 340, cy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy - 340); ctx.lineTo(cx, cy + 340); ctx.stroke();
+  // Subtle header text in cool white/silver
+  ctx.font = "14px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "rgba(220, 235, 250, 0.55)";
+  ctx.fillText("ARCHITECTURAL GLAZING // ZONE-01 PARTITION", 48, 64);
 
-  // Diagnostics readouts
-  ctx.font = "18px 'JetBrains Mono', monospace";
-  ctx.fillText("NODE STATUS: SECURE", 60, 840);
-  ctx.fillText("ENCRYPTION: AES-256-GCM", 60, 875);
-  ctx.fillText("UPLINK: ACTIVE // 100Gbps", 60, 910);
-  ctx.fillText("INTEGRITY: 99.98%", 60, 945);
+  // Thin outer glass bevel line
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(8, 8, 1008, 1008);
 
   const texture = new THREE.CanvasTexture(canvas);
   return texture;
@@ -1920,3 +1912,66 @@ export function createWallDirectoryTexture() {
   const texture = new THREE.CanvasTexture(canvas);
   return texture;
 }
+
+// Architectural ceiling texture with subtle graphite depth falloff & acoustic panel seams
+export function createArchitecturalCeilingTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  // Base dark graphite #2A2E36
+  ctx.fillStyle = "#2a2e36";
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Modular ceiling acoustic tiles / structural bays (4x4 grid of 256x256 tiles)
+  const tileSize = 256;
+  for (let x = 0; x < 1024; x += tileSize) {
+    for (let y = 0; y < 1024; y += tileSize) {
+      // Subtle depth gradient within each bay:
+      // Darker at highest center recess (#20232a), lighter towards beam mounting edges (#383d48)
+      const grad = ctx.createRadialGradient(
+        x + tileSize / 2, y + tileSize / 2, 8,
+        x + tileSize / 2, y + tileSize / 2, tileSize * 0.72
+      );
+      grad.addColorStop(0, "#20232a");   // Highest recessed point (darkest)
+      grad.addColorStop(0.55, "#2a2e36"); // Base graphite plane
+      grad.addColorStop(1, "#383d48");   // Slightly lighter near structural beam/light mounts
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+
+      // Fine structural beveled panel border (#181a20)
+      ctx.strokeStyle = "#181a20";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+
+      // Inner micro-bevel highlight on bottom-right edges
+      ctx.strokeStyle = "rgba(78, 88, 104, 0.35)";
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(x + tileSize - 3, y + 3);
+      ctx.lineTo(x + tileSize - 3, y + tileSize - 3);
+      ctx.lineTo(x + 3, y + tileSize - 3);
+      ctx.stroke();
+    }
+  }
+
+  // Fine tactile surface noise / micro-stippling for realistic PBR response
+  const imgData = ctx.getImageData(0, 0, 1024, 1024);
+  const data = imgData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 6;
+    data[i]     = Math.max(0, Math.min(255, data[i]     + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise * 1.05));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 1.15));
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(6, 32);
+  return texture;
+}
+

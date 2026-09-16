@@ -1,6 +1,6 @@
 // Three.js renderer, camera, and lighting setup for BlackVault.
-// Dusty Pink + Burgundy + Cream corporate tower aesthetic.
-// Warm ambient fill, cream-tinted directional light, golden dust motes.
+// Deep Ocean-Slate + Warm Brass corporate tower aesthetic.
+// Cool ambient fill, steel-blue hemisphere, champagne directional light.
 
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -23,10 +23,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Warm dark background matching new silver-brown architectural palette
-  scene.background = new THREE.Color(0x221c18);
-  // Warm atmospheric fog — adds elegant depth
-  scene.fog = new THREE.FogExp2(0x261f1a, 0.0035);
+  // Deep ocean-slate background matching new wall palette
+  scene.background = new THREE.Color(0x1a232c);
+  // Atmospheric depth fog in cool ocean-slate tones
+  scene.fog = new THREE.FogExp2(0x1a232c, 0.0018);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -46,23 +46,23 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Warm ambient fill for rich silver and walnut brown surfaces
-  const ambientLight = new THREE.AmbientLight(0xe8dcd0, 0.55);
+  // Luminous ambient fill — cool steel-blue for ocean-slate surfaces
+  const ambientLight = new THREE.AmbientLight(0xd0dce8, 0.72);
   scene.add(ambientLight);
 
-  // Hemisphere fill: crisp warm silver-white sky, rich warm walnut brown floor bounce
-  const hemiLight = new THREE.HemisphereLight(0xfff6ec, 0x483424, 0.50);
+  // Hemisphere fill: crisp cool-white sky, dark charcoal ground bounce
+  const hemiLight = new THREE.HemisphereLight(0xe0eaf8, 0x1a2030, 0.60);
   scene.add(hemiLight);
 
-  // Warm-white overhead directional light simulating architectural recessed ceiling fixtures
-  const skyDirLight = new THREE.DirectionalLight(0xfff8ee, 1.10);
-  skyDirLight.position.set(6, 30.0, 18);
+  // Warm champagne brass directional overhead light — simulates warm ceiling fixtures against cool walls
+  const skyDirLight = new THREE.DirectionalLight(0xfff0d0, 0.65);
+  skyDirLight.position.set(6, 20.0, 18);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
   skyDirLight.shadow.mapSize.height = 2048;
@@ -82,9 +82,9 @@ export function initScene() {
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.68,   // calibrated strength
-    0.45,   // radius
-    0.52    // threshold — non-emissive silver/brown surfaces don't bloom
+    0.35,   // subtle calibrated strength
+    0.30,   // radius
+    0.85    // high threshold — standard physical materials and metal chords never bloom
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
@@ -129,12 +129,10 @@ export function updateSceneEffects(delta) {
   if (!dustParticles) return;
   const positions = dustParticles.geometry.attributes.position.array;
   const count = positions.length / 3;
-  const time = performance.now() * 0.0005;
 
   for (let i = 0; i < count; i++) {
-    positions[i * 3 + 1] += 0.0003 + Math.sin(time + i) * 0.001;
-    positions[i * 3]     += Math.cos(time + i * 0.5) * 0.0005;
-    if (positions[i * 3 + 1] > 8.0) positions[i * 3 + 1] = 0.1;
+    positions[i * 3 + 1] += 0.004 * delta * 60.0;
+    if (positions[i * 3 + 1] > 8.0) positions[i * 3 + 1] = 0.3;
   }
   dustParticles.geometry.attributes.position.needsUpdate = true;
 }

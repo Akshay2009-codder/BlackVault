@@ -5,14 +5,13 @@ export const API_BASE = "http://localhost:8000";
 export const DOOR_TYPES = ["classification", "regression", "clustering", "anomaly"];
 export const BOSS_DOOR_TYPE = "mystery";
 
-// Floor labels for HUD and directory board
-export const FLOOR_LABELS = {
-  ground:         "G  — Reception & Lobby",
-  classification: "1F — Classification Lab",
-  regression:     "2F — Regression Lab",
-  clustering:     "3F — Clustering Hub",
-  anomaly:        "4F — Anomaly Wing",
-  mystery:        "5F — The Vault",
+// Room labels for HUD and directory board (room-to-room layout, no elevator)
+export const ROOM_LABELS = {
+  classification: "Room 1 — Classification Lab",
+  regression:     "Room 2 — Regression Lab",
+  clustering:     "Room 3 — Clustering Hub",
+  anomaly:        "Room 4 — Anomaly Wing",
+  mystery:        "Room 5 — The Vault",
 };
 
 export const DOOR_LABELS = {
@@ -37,17 +36,21 @@ export const BUILDING_PALETTE = {
   wallAlt:        0x161820,  // #161820 - secondary dark panel
   floorDark:      0x14161b,  // #14161B - glossy reflective dark floor
   floorGrout:     0x0d0f13,  // #0D0F13 - dark floor grid seam
-  ceilingDark:    0x0f1114,  // #0F1114 - dark exposed ceiling/trusses
+  ceilingDark:    0x2a2e36,  // #2A2E36 - dark graphite ceiling plane
+  trussMetal:     0x1c1f24,  // #1C1F24 - structural beam metal tone
+  ceilingCyan:    0x3fd8e8,  // #3FD8E8 - glowing cyan-teal beam strips
+  downlightWhite: 0xe8f4ff,  // #E8F4FF - soft cool-white recessed downlights
+  edgeMagenta:    0xff4fa3,  // #FF4FA3 - sparse magenta ceiling edge strips
   furniture:      0x101216,  // #101216 - dark console/chassis body
 };
 
-// Door identity colours — rotating accent per floor
+// Door identity colours — unified electric cyan/blue accent
 export const DOOR_COLORS = {
-  classification: 0xff2e9a, // 1F: Hot Pink
-  regression:     0x22f0a8, // 2F: Emerald Green
-  clustering:     0x2fd1ff, // 3F: Electric Blue
-  anomaly:        0xff2e9a, // 4F: Hot Pink & Cyan alert
-  mystery:        0x22f0a8, // 5F: Core Vault Climax (Tri-Accent)
+  classification: 0x2fd1ff, // 1F: Electric Cyan/Blue
+  regression:     0x2fd1ff, // 2F: Electric Cyan/Blue
+  clustering:     0x2fd1ff, // 3F: Electric Cyan/Blue
+  anomaly:        0x2fd1ff, // 4F: Electric Cyan/Blue
+  mystery:        0x2fd1ff, // 5F: Electric Cyan/Blue
 };
 
 // Status colours — reserved for locked / solved states ONLY (distinct from floor accents!)

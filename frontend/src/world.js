@@ -1,17 +1,16 @@
 // BlackVault 3D Corporate Tower — World Architecture
-// Floor-based building with elevator lobbies, distinct floor identities,
-// all sharing the Dusty Pink + Burgundy + Cream architectural palette.
+// Room-to-room layout: 5 puzzle rooms connected directly through corridor doors.
+// Deep Ocean-Slate + Warm Brass corporate palette.
 //
 // PALETTE:
-//   Walls:     Cream #F2E8DC / Secondary #EADFD0
-//   Floor:     Warm cream-grey #DCCFC0 with dark grout #2B1A1C
-//   Ceiling:   #F7F1E8
-//   Primary:   Burgundy #6B1F2A  (most used, building identity)
-//   Secondary: Dusty Pink #C98F8A (softer highlights, upholstery)
-//   Tertiary:  Brushed Gold #C9A66B (sparingly, trim, handles)
-//   Furniture: Deep burgundy-black #241417
-//   Danger:    #8C2635 (locked doors)
-//   Solved:    #7A9471 (sage green — solved state)
+//   Walls:     Deep ocean-slate #2C3A4A / Navy-midnight #243040
+//   Floor:     Charcoal dark #1A2028 with brass grout
+//   Ceiling:   Slate-navy #222D38
+//   Accent:    Warm champagne brass #E8C878 (trim, handles, reveals)
+//   Steel:     Steel-blue panels #3D5068
+//   Neon:      RGB accents per room (pink / green / blue / red / violet)
+//   Danger:    Electric amber #FF9900 (locked doors)
+//   Solved:    Ice cyan #00F0FF (solved state)
 
 import * as THREE from "three";
 import { BOSS_DOOR_TYPE, STATUS_COLORS } from "./config.js";
@@ -23,8 +22,6 @@ import {
   createWhiteboardTexture,
   createNeonSignTexture,
   createFloorDirectoryTexture,
-  createElevatorDoorTexture,
-  createElevatorFloorIndicatorTexture,
   createDeptPlaqueTexture,
   createRegressionChartTexture,
   createClusterTexture,
@@ -44,10 +41,10 @@ import {
   createBrushedSilverWallTexture,
   createModernArtCanvasTexture,
   createWallDirectoryTexture,
+  createArchitecturalCeilingTexture,
 } from "./textures.js";
 import { setMaxZBound } from "./player.js";
 import { registerFlickerLight } from "./sceneSetup.js";
-import { setTimeDilation } from "../main.js";
 
 // ── Collision Registry ────────────────────────────────────────────────────
 const collisionBoxes = [];
@@ -79,33 +76,44 @@ export function clearCollisionBoxes() {
   collisionBoxes.length = 0;
 }
 
-let worldCamera = null;
+var worldCamera = null;
 
-// ── Aesthetic Brushed Silver + Walnut Brown Corporate Palette ───────────────
+// ── Deep Ocean-Slate + Warm Brass Corporate Palette ─────────────────────────
+// Fresh, clearly distinct from: terracotta/rust-orange (prior), dusty-pink/burgundy,
+// and pale-blue-grey. Cool authoritative slate + warm brass accent reveals.
 const P = {
-  // Rich Silver + Architectural Walnut Brown Base
-  wallMain:    0x969ea8,   // Sleek architectural brushed silver-champagne
-  wallAlt:     0x745640,   // Rich warm walnut wood / architectural brown
-  wallSilver:  0xa8b2bc,   // Clean anodized silver composite panels
-  wallBrown:   0x7a563c,   // Warm walnut wood / cognac brown
-  wallBronze:  0x6a4a34,   // Deep bronze & brass accents
-  warmWood:    0x8a5c38,   // Natural warm teak / walnut timber
-  floor:       0x24201c,   // Polished warm espresso & charcoal floor
-  floorTrim:   0x483628,   // Warm walnut & bronze baseboard
-  ceiling:     0x2c2622,   // Deep architectural bronze-taupe ceiling
-  furniture:   0x282c36,   // Sleek titanium-slate furniture & server chassis
-  chrome:      0xbcc8d6,   // Bright brushed silver / chrome
-  gold:        0xd8b056,   // Brushed champagne brass / gold
-  leatherWarm: 0x8a5434,   // Rich cognac / caramel leather
-  fabricSlate: 0x586270,   // Slate silver acoustic fabric
+  // Architectural Wall Surfaces — Deep Ocean Slate family
+  // Lit by real scene lights (MeshStandardMaterial, NOT emissive)
+  wallMain:    0x2c3a4a,   // Deep ocean-slate — primary wall surface
+  wallAlt:     0x243040,   // Midnight navy — secondary / recessed panels
+  wallSilver:  0x3d5068,   // Steel-blue — composite upper panels
+  wallBrown:   0x1e2d3d,   // Dark navy — base wainscot
+  wallBronze:  0x4a6070,   // Slate-steel — accent panels & reveals
+  warmWood:    0x2e3f4f,   // Blue-grey — wainscot timber slats
+  floor:       0x1a2028,   // Charcoal dark — reflective floor plane
+  floorTrim:   0x2a3848,   // Slate baseboard / expansion joint
+  ceiling:     0x222d38,   // Slate-navy — ceiling plane
+  trussSteel:  0x1c2830,   // Dark steel — structural beams
 
-  // RGB Neon Accents (Vibrant Light Sources)
-  pink:      0xff2e9a,   // #FF2E9A - vibrant neon pink/magenta
-  blue:      0x2fd1ff,   // #2FD1FF - intense electric cyan/blue
-  green:     0x22f0a8,   // #22F0A8 - vivid data-center emerald green
-  white:     0xe6f8ff,   // #E6F8FF - cool white signage
+  // Ceiling light fixtures (NOT wall paint)
+  ceilingCyan:      0x3fd8e8,   // Glowing cyan-teal beam strips #3FD8E8
+  ceilingDownlight: 0xe8f4ff,   // Soft cool-white recessed downlights #E8F4FF
+  ceilingMagenta:   0xff4fa3,   // Sparse low-intensity edge magenta strips #FF4FA3
 
-  // Status — reserved for door locks (unmistakable from room accents!)
+  // Furniture & props
+  furniture:   0x111820,   // Very dark slate furniture chassis
+  chrome:      0xc8d4e0,   // Cool brushed steel / chrome
+  gold:        0xe8c878,   // Warm champagne brass — trim & reveals
+  leatherWarm: 0x2a3c50,   // Deep slate-blue leather
+  fabricSlate: 0x3a4e60,   // Slate acoustic fabric
+
+  // RGB Neon Accents (Vibrant light sources — per room)
+  pink:      0xff2e9a,   // #FF2E9A — neon pink/magenta
+  blue:      0x2fd1ff,   // #2FD1FF — electric cyan/blue
+  green:     0x22f0a8,   // #22F0A8 — vivid emerald green
+  white:     0xe6f8ff,   // #E6F8FF — cool white signage
+
+  // Status — reserved for door locks only
   danger:    0xff9900,   // Electric Security Amber (#FF9900)
   sage:      0x00f0ff,   // Brilliant Ice Cyan (#00F0FF)
 
@@ -130,16 +138,15 @@ let mysteryCoreMesh = null;
 let mysteryOuterRing = null;
 let mysteryInnerRing = null;
 
-// Elevator alcove positions exported for elevator.js
-const elevatorPositions = [];
+
 
 // Door accent colours (each floor leans on one accent)
 const doorColors = {
-  classification: P.pink,
-  regression:     P.green,
+  classification: P.blue,
+  regression:     P.blue,
   clustering:     P.blue,
-  anomaly:        P.pink,
-  mystery:        P.green,
+  anomaly:        P.blue,
+  mystery:        P.blue,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,20 +162,20 @@ export function initWorld(scene, cameraRef = null) {
     metalness: 0.25,
   });
 
-  // Upper Walls: Brushed Silver composite panels (non-emissive PBR with metallic sheen)
+  // Upper Walls: Warm terracotta composite panels
   const wallSilverMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0xffffff,
+    color: 0xd07848,
     roughness: 0.52,
-    metalness: 0.38,
+    metalness: 0.18,
   });
 
-  // Lower Walls & Wainscoting: Warm Walnut vertical timber slats
+  // Lower Walls & Wainscoting: Warm rust-orange timber slats
   const woodSlatMat = new THREE.MeshStandardMaterial({
     map: createWalnutWoodSlatTexture(),
-    color: 0xffffff,
-    roughness: 0.62,
-    metalness: 0.06,
+    color: 0xb86838,
+    roughness: 0.55,
+    metalness: 0.08,
   });
 
   const wallNoiseTex = createWallNoiseTexture();
@@ -185,7 +192,7 @@ export function initWorld(scene, cameraRef = null) {
     metalness: 0.12,
   });
 
-  const ceilMat = new THREE.MeshStandardMaterial({ color: P.ceiling,  roughness: 0.88, metalness: 0.04 });
+  const ceilMat = createAuroraCeilingMaterial();
   const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
   const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
 
@@ -216,6 +223,9 @@ export function initWorld(scene, cameraRef = null) {
   addCeiling(scene, 36.0, ROOM_H, 156.0,  ceilMat);
   // Floor 5 / Vault (Z: 174 → 226, H: 11.5)
   addCeiling(scene, 52.0, VAULT_H, 200.0, ceilMat);
+
+  // ── Industrial Ceiling Trusses, Beams & Practical Recessed Downlights ───
+  buildArchitecturalCeilingSystem(scene);
 
   // Step wall at vault entry (height bump 8.5→11.5 at Z=174)
   const transWall = new THREE.Mesh(
@@ -390,8 +400,8 @@ function buildGrandEntranceDoors(scene, x, z) {
   plaqueTrim.position.set(0, doorH + 0.28, 0.06);
   g.add(plaqueTrim);
 
-  // Overhead warm downlight fixture
-  const downlight = new THREE.PointLight(0xffecd0, 0.75, 6.0);
+  // Overhead cool cyan-white downlight fixture
+  const downlight = new THREE.PointLight(0xe8f0ff, 0.75, 6.0);
   downlight.position.set(0, doorH + 0.3, 0.6);
   g.add(downlight);
 
@@ -412,20 +422,19 @@ function buildGrandEntranceDoors(scene, x, z) {
   addCollisionBox(x - doorW / 2 - 0.5, x + doorW / 2 + 0.5, z - 0.4, z + 0.3, "entrance_doors");
 }
 
-/** Backlit BLACKVAULT billboard sign on far wall */
+/** Architectural BLACKVAULT billboard sign on far wall */
 function buildBacklitBlackvaultSign(scene, x, y, z) {
   const g = new THREE.Group();
   g.position.set(x, y, z);
 
   const signW = 22.0, signH = 3.8;
   const frameMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.85, roughness: 0.25 });
-  const haloMat  = new THREE.MeshBasicMaterial({ color: 0xe6f8ff });
-  const blueGlowMat = new THREE.MeshBasicMaterial({ color: P.blue });
+  const trimMat  = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
 
-  // Main backlit sign plane with shield emblem & typography
+  // Main sign plane with shield emblem & typography
   const signMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(signW, signH),
-    new THREE.MeshBasicMaterial({ map: createBacklitLogoTexture() })
+    new THREE.MeshStandardMaterial({ map: createBacklitLogoTexture(), roughness: 0.35, metalness: 0.4 })
   );
   signMesh.position.z = 0.05;
   g.add(signMesh);
@@ -435,21 +444,21 @@ function buildBacklitBlackvaultSign(scene, x, y, z) {
   backplate.position.z = -0.08;
   g.add(backplate);
 
-  // Luminous white/cyan halo border around the billboard
+  // Brushed gold / champagne trim border around the billboard
   const borderThickness = 0.06;
-  const bTop = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.72, borderThickness, 0.18), haloMat);
+  const bTop = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.72, borderThickness, 0.18), trimMat);
   bTop.position.set(0, (signH + 0.6) / 2, 0);
   g.add(bTop);
 
-  const bBot = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.72, borderThickness, 0.18), haloMat);
+  const bBot = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.72, borderThickness, 0.18), trimMat);
   bBot.position.set(0, -(signH + 0.6) / 2, 0);
   g.add(bBot);
 
-  const bLeft = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, signH + 0.6, 0.18), haloMat);
+  const bLeft = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, signH + 0.6, 0.18), trimMat);
   bLeft.position.set(-(signW + 0.6) / 2, 0, 0);
   g.add(bLeft);
 
-  const bRight = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, signH + 0.6, 0.18), haloMat);
+  const bRight = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, signH + 0.6, 0.18), trimMat);
   bRight.position.set((signW + 0.6) / 2, 0, 0);
   g.add(bRight);
 
@@ -458,70 +467,379 @@ function buildBacklitBlackvaultSign(scene, x, y, z) {
   beam.position.set(0, -signH / 2 - 0.45, 0.25);
   g.add(beam);
 
-  // Neon blue light strip on bottom of beam
-  const beamStrip = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.06, 0.06), blueGlowMat);
-  beamStrip.position.set(0, -signH / 2 - 0.65, 0.55);
-  g.add(beamStrip);
-
-  // Point lights casting radial bloom
-  const l1 = new THREE.PointLight(P.blue, 2.5, 18);
-  l1.position.set(-6.0, 0, 0.8);
-  g.add(l1);
-
-  const l2 = new THREE.PointLight(0xffffff, 2.0, 22);
-  l2.position.set(0, 0, 0.8);
-  g.add(l2);
-
-  const l3 = new THREE.PointLight(P.green, 2.2, 18);
-  l3.position.set(6.0, 0, 0.8);
-  g.add(l3);
-
   scene.add(g);
 }
 
-/** Industrial exposed steel ceiling roof trusses */
-function buildIndustrialCeilingTrusses(scene, zPositions) {
-  const steelMat = new THREE.MeshStandardMaterial({ color: 0x141822, metalness: 0.88, roughness: 0.3 });
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xe6f8ff });
+let auroraCeilingMaterial = null;
 
-  zPositions.forEach(z => {
-    const tg = new THREE.Group();
-    tg.position.set(0, 0, z);
+/**
+ * Animated Aurora Deep-Space Sky Shader Material
+ * - Base vertical gradient: deep indigo #151033 to near-black #0A0818
+ * - Sweeping aurora streaks: Cyan #4FF2E0, Magenta #FF3EC8, Violet #8B5CF6
+ * - Scattered twinkling star points: Cool White #E8F0FF, Pale Cyan #A8E8FF
+ * - Self-illuminated with calibrated HDR headroom (never washes out or strobes)
+ */
+export function createAuroraCeilingMaterial() {
+  const vertexShader = `
+    varying vec2 vUv;
+    varying vec3 vWorldPosition;
+    void main() {
+      vUv = uv;
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPosition = worldPos.xyz;
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
+    }
+  `;
 
-    // Top chord
-    const topChord = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.2, 0.18, 0.18), steelMat);
-    topChord.position.y = 8.35;
-    tg.add(topChord);
+  const fragmentShader = `
+    uniform float uTime;
+    varying vec2 vUv;
+    varying vec3 vWorldPosition;
 
-    // Bottom chord
-    const botChord = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.2, 0.18, 0.18), steelMat);
-    botChord.position.y = 7.45;
-    tg.add(botChord);
+    // Celestial Color Palette
+    const vec3 cDarkIndigo  = vec3(0.082, 0.063, 0.200); // #151033 - deep night sky indigo
+    const vec3 cNearBlack   = vec3(0.039, 0.031, 0.094); // #0A0818 - cosmic void center
+    const vec3 cCyan        = vec3(0.310, 0.949, 0.878); // #4FF2E0 - electric cyan streak
+    const vec3 cMagenta     = vec3(1.000, 0.243, 0.784); // #FF3EC8 - vibrant magenta streak
+    const vec3 cViolet      = vec3(0.545, 0.361, 0.965); // #8B5CF6 - soft violet transition
+    const vec3 cStarWhite   = vec3(0.910, 0.941, 1.000); // #E8F0FF
+    const vec3 cStarCyan    = vec3(0.659, 0.910, 1.000); // #A8E8FF
 
-    // Web struts
-    for (let x = -ROOM_W / 2 + 2.0; x <= ROOM_W / 2 - 2.0; x += 3.2) {
-      const vStrut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 0.12), steelMat);
-      vStrut.position.set(x, 7.90, 0);
-      tg.add(vStrut);
-
-      const dStrut = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.15, 0.10), steelMat);
-      dStrut.position.set(x + 1.6, 7.90, 0);
-      dStrut.rotation.z = 0.65;
-      tg.add(dStrut);
+    // Stable 2D hash (Shadertoy canonical hash12, robust to large coordinates)
+    float hash12(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
     }
 
-    // Suspended linear LED light fixture
-    const lightBar = new THREE.Mesh(new THREE.BoxGeometry(16.0, 0.08, 0.14), lightMat);
-    lightBar.position.set(0, 7.20, 0);
-    tg.add(lightBar);
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = hash12(i);
+      float b = hash12(i + vec2(1.0, 0.0));
+      float c = hash12(i + vec2(0.0, 1.0));
+      float d = hash12(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
 
-    // Downward cool white light
-    const downLight = new THREE.PointLight(0xdcf2ff, 1.0, 18);
-    downLight.position.set(0, 7.0, 0);
-    tg.add(downLight);
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      mat2 rot = mat2(0.877, 0.479, -0.479, 0.877);
+      for (int i = 0; i < 4; i++) {
+        v += a * noise(p);
+        p = rot * p * 2.02 + vec2(17.13, 23.47);
+        a *= 0.5;
+      }
+      return v;
+    }
 
-    scene.add(tg);
+    void main() {
+      // 1. Base Gradient: Deep cosmic indigo (#151033) at walls to near-black (#0A0818) center
+      float distFromCenter = abs(vUv.x - 0.5) * 2.0;
+      float edgeFalloff = smoothstep(0.15, 0.95, distFromCenter);
+      vec3 baseColor = mix(cNearBlack, cDarkIndigo, edgeFalloff * 0.85 + 0.15);
+
+      // Slow, majestic aurora drift
+      float t = uTime * 0.12;
+
+      // 2. Sweeping Aurora Ribbons / Curtains
+      // Ribbon 1: Vivid Cyan Streak (#4FF2E0)
+      vec2 p1 = vec2(vWorldPosition.x * 0.042, vWorldPosition.z * 0.024) + vec2(t * 0.45, sin(t * 0.3) * 0.4);
+      float n1 = fbm(p1);
+      float ridge1 = abs(sin(vWorldPosition.z * 0.048 + vWorldPosition.x * 0.028 + n1 * 3.0 + t * 0.7));
+      float streak1 = exp(-ridge1 * 6.0) * smoothstep(0.25, 0.75, n1);
+
+      // Ribbon 2: Sweeping Magenta Streak (#FF3EC8)
+      vec2 p2 = vec2(vWorldPosition.x * 0.036, vWorldPosition.z * 0.020) - vec2(t * 0.38, cos(t * 0.25) * 0.35);
+      float n2 = fbm(p2);
+      float ridge2 = abs(sin(vWorldPosition.z * 0.042 - vWorldPosition.x * 0.034 + n2 * 3.2 - t * 0.6));
+      float streak2 = exp(-ridge2 * 6.5) * smoothstep(0.28, 0.80, n2);
+
+      // Ribbon 3: Violet Transition Glow (#8B5CF6)
+      vec2 p3 = vec2(vWorldPosition.x * 0.028, vWorldPosition.z * 0.016) + vec2(sin(t * 0.2) * 0.5, t * 0.25);
+      float n3 = fbm(p3);
+      float ridge3 = abs(sin(vWorldPosition.z * 0.032 + n3 * 2.5 + t * 0.4));
+      float streak3 = exp(-ridge3 * 7.0) * smoothstep(0.3, 0.85, n3);
+
+      // Calibrated aurora composite — saturated, clearly defined colors that never blow out to white
+      vec3 auroraColor = (cCyan * (streak1 * 0.62)) +
+                         (cMagenta * (streak2 * 0.50)) +
+                         (cViolet * (streak3 * 0.30));
+
+      // 3. Crisp Scattered Celestial Stars (Anti-Aliased, Numerically Stable, Non-Flickering)
+      vec2 starGrid = vWorldPosition.xz * 0.85;
+      vec2 cellId = floor(starGrid);
+      vec2 cellUv = fract(starGrid) - 0.5;
+
+      float starVal = 0.0;
+      vec3 starCol = cStarWhite;
+
+      for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+          vec2 neighbor = vec2(float(x), float(y));
+          vec2 nId = cellId + neighbor;
+          float h = hash12(nId);
+
+          if (h > 0.72) {
+            vec2 offset = vec2(hash12(nId + vec2(1.23, 4.56)) - 0.5,
+                               hash12(nId + vec2(7.89, 2.34)) - 0.5) * 0.68;
+            vec2 p = cellUv - neighbor - offset;
+            float d = length(p);
+
+            // Gentle celestial twinkle: slow period, strictly controlled amplitude
+            float twinkle = 0.55 + 0.15 * sin(uTime * 0.8 + h * 6.28);
+            // Smooth Gaussian falloff: prevents subpixel jumping
+            float starRadius = 0.042;
+            float starIntensity = exp(-d * d / (starRadius * starRadius)) * twinkle;
+
+            if (starIntensity > starVal) {
+              starVal = starIntensity;
+              starCol = (h > 0.88) ? cStarCyan : cStarWhite;
+            }
+          }
+        }
+      }
+
+      // Safe star illumination: capped strictly below bloom threshold (0.85) to eliminate temporal strobing
+      vec3 stars = starCol * (starVal * 0.65);
+
+      // Final Color Composition: Rich, moody night sky with radiant colored aurora ribbons
+      vec3 finalColor = baseColor + auroraColor + stars;
+
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `;
+
+  auroraCeilingMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0.0 },
+    },
+    vertexShader,
+    fragmentShader,
+    side: THREE.DoubleSide,
+    depthWrite: true,
   });
+
+  return auroraCeilingMaterial;
+}
+
+/**
+ * Comprehensive Architectural Ceiling Structure & Downlight Illumination System
+ * Features:
+ * - Exposed structural steel trusses in dark metal tone #1C1F24 with subtle specular sheen
+ * - Rim-light highlights on top chord catching aurora glow
+ * - Continuous cyan-teal #3FD8E8 glowing trim strips along bottom chords and spine runner
+ * - Soft cool-white #E8F4FF recessed downlight panel fixtures with practical room downlighting
+ * - Sparse low-intensity magenta #FF4FA3 accent strips along ceiling perimeter edges
+ */
+function buildArchitecturalCeilingSystem(scene) {
+  const steelMat = new THREE.MeshStandardMaterial({
+    color: P.trussSteel,
+    metalness: 0.68,
+    roughness: 0.38,
+  });
+  const cyanGlowMat = new THREE.MeshBasicMaterial({ color: P.ceilingCyan });
+  const magentaGlowMat = new THREE.MeshBasicMaterial({ color: P.ceilingMagenta, transparent: true, opacity: 0.82 });
+  const downlightLensMat = new THREE.MeshStandardMaterial({
+    color: P.ceilingDownlight,
+    emissive: P.ceilingDownlight,
+    emissiveIntensity: 0.62,
+    roughness: 0.28,
+  });
+  const downlightBezelMat = new THREE.MeshStandardMaterial({ color: P.trussSteel, metalness: 0.70, roughness: 0.35 });
+  const rimHighlightMat = new THREE.MeshStandardMaterial({
+    color: 0x3fd8e8,
+    emissive: 0x3fd8e8,
+    emissiveIntensity: 0.58,
+    roughness: 0.25,
+    metalness: 0.6,
+  });
+
+  const zones = [
+    {
+      name: "Ground Lobby",
+      z0: -6.0, z1: 30.0, h: ROOM_H,
+      trusses: [-2.0, 5.0, 12.0, 19.0, 26.0],
+      downlights: [
+        { x: -6.5, z:  1.5 }, { x: 6.5, z:  1.5 },
+        { x: -6.5, z:  8.5 }, { x: 6.5, z:  8.5 },
+        { x: -6.5, z: 15.5 }, { x: 6.5, z: 15.5 },
+        { x: -6.5, z: 22.5 }, { x: 6.5, z: 22.5 },
+      ],
+      edgeMagenta: true,
+    },
+    {
+      name: "Floor 1 Classification",
+      z0: 30.0, z1: 66.0, h: ROOM_H,
+      trusses: [34.0, 41.0, 48.0, 55.0, 62.0],
+      downlights: [
+        { x: -6.5, z: 37.5 }, { x: 6.5, z: 37.5 },
+        { x: -6.5, z: 44.5 }, { x: 6.5, z: 44.5 },
+        { x: -6.5, z: 51.5 }, { x: 6.5, z: 51.5 },
+        { x: -6.5, z: 58.5 }, { x: 6.5, z: 58.5 },
+      ],
+      edgeMagenta: true,
+    },
+    {
+      name: "Floor 2 Regression",
+      z0: 66.0, z1: 102.0, h: DATA_H,
+      trusses: [70.0, 77.0, 84.0, 91.0, 98.0],
+      downlights: [
+        { x: -6.5, z: 73.5 }, { x: 6.5, z: 73.5 },
+        { x: -6.5, z: 80.5 }, { x: 6.5, z: 80.5 },
+        { x: -6.5, z: 87.5 }, { x: 6.5, z: 87.5 },
+        { x: -6.5, z: 94.5 }, { x: 6.5, z: 94.5 },
+      ],
+      edgeMagenta: true,
+    },
+    {
+      name: "Floor 3 Clustering",
+      z0: 102.0, z1: 138.0, h: ROOM_H,
+      trusses: [106.0, 113.0, 120.0, 127.0, 134.0],
+      downlights: [
+        { x: -6.5, z: 109.5 }, { x: 6.5, z: 109.5 },
+        { x: -6.5, z: 116.5 }, { x: 6.5, z: 116.5 },
+        { x: -6.5, z: 123.5 }, { x: 6.5, z: 123.5 },
+        { x: -6.5, z: 130.5 }, { x: 6.5, z: 130.5 },
+      ],
+      edgeMagenta: false,
+    },
+    {
+      name: "Floor 4 Anomaly Wing",
+      z0: 138.0, z1: 174.0, h: ROOM_H,
+      trusses: [142.0, 149.0, 156.0, 163.0, 170.0],
+      downlights: [
+        { x: -6.5, z: 145.5 }, { x: 6.5, z: 145.5 },
+        { x: -6.5, z: 152.5 }, { x: 6.5, z: 152.5 },
+        { x: -6.5, z: 159.5 }, { x: 6.5, z: 159.5 },
+        { x: -6.5, z: 166.5 }, { x: 6.5, z: 166.5 },
+      ],
+      edgeMagenta: true,
+    },
+    {
+      name: "Floor 5 Mystery Vault",
+      z0: 174.0, z1: 226.0, h: VAULT_H,
+      trusses: [179.0, 186.0, 193.0, 207.0, 214.0, 221.0],
+      downlights: [
+        { x: -8.0, z: 182.5 }, { x: 8.0, z: 182.5 },
+        { x: -8.0, z: 189.5 }, { x: 8.0, z: 189.5 },
+        { x: -8.0, z: 210.5 }, { x: 8.0, z: 210.5 },
+        { x: -8.0, z: 217.5 }, { x: 8.0, z: 217.5 },
+      ],
+      edgeMagenta: true,
+    },
+  ];
+
+  zones.forEach(zone => {
+    const { z0, z1, h, trusses, downlights, edgeMagenta } = zone;
+    const len = z1 - z0;
+    const midZ = (z0 + z1) / 2;
+
+    // 1. Longitudinal Spine Beams (running continuously along Z at X = -8.5, 0.0, +8.5)
+    [-8.5, 0.0, 8.5].forEach(lx => {
+      const runner = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, len), steelMat);
+      runner.position.set(lx, h - 0.45, midZ);
+      scene.add(runner);
+    });
+
+    // Center continuous cyan glow strip on underside of center runner
+    const centerGlow = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.02, len), cyanGlowMat);
+    centerGlow.position.set(0.0, h - 0.55, midZ);
+    scene.add(centerGlow);
+
+    // 2. Perimeter Conduits & Sparse Low-Intensity Magenta Strips near room edges
+    [-ROOM_W / 2 + 0.80, ROOM_W / 2 - 0.80].forEach(ex => {
+      const conduit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, len), steelMat);
+      conduit.position.set(ex, h - 0.08, midZ);
+      scene.add(conduit);
+
+      if (edgeMagenta) {
+        const magStrip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.02, len), magentaGlowMat);
+        magStrip.position.set(ex, h - 0.12, midZ);
+        scene.add(magStrip);
+      }
+    });
+
+    // 3. Exposed Transverse Structural Trusses
+    trusses.forEach(tz => {
+      const tg = new THREE.Group();
+      tg.position.set(0, 0, tz);
+
+      // Top chord
+      const topChord = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.2, 0.18, 0.18), steelMat);
+      topChord.position.y = h - 0.15;
+      tg.add(topChord);
+
+      // Aurora Rim Highlight on top edge of top chord
+      const rimHighlight = new THREE.Mesh(
+        new THREE.BoxGeometry(ROOM_W - 0.4, 0.025, 0.04),
+        rimHighlightMat
+      );
+      rimHighlight.position.set(0, h - 0.05, 0);
+      tg.add(rimHighlight);
+
+      // Bottom chord
+      const botChord = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.2, 0.18, 0.18), steelMat);
+      botChord.position.y = h - 0.95;
+      tg.add(botChord);
+
+      // Glowing Cyan-Teal Strip on bottom edge of truss
+      const cyanStrip = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.035, 0.06), cyanGlowMat);
+      cyanStrip.position.set(0, h - 1.05, 0);
+      tg.add(cyanStrip);
+
+      // Web struts
+      for (let x = -ROOM_W / 2 + 2.0; x <= ROOM_W / 2 - 2.0; x += 3.2) {
+        const vStrut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.12), steelMat);
+        vStrut.position.set(x, h - 0.55, 0);
+        tg.add(vStrut);
+
+        const dStrut = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.05, 0.10), steelMat);
+        dStrut.position.set(x + 1.6, h - 0.55, 0);
+        dStrut.rotation.z = 0.65;
+        tg.add(dStrut);
+      }
+
+      // Wall mounting gusset plates at truss ends
+      [-ROOM_W / 2 + 0.12, ROOM_W / 2 - 0.12].forEach(gx => {
+        const gusset = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.05, 0.28), steelMat);
+        gusset.position.set(gx, h - 0.55, 0);
+        tg.add(gusset);
+      });
+
+      scene.add(tg);
+    });
+
+    // 4. Soft Cool-White Recessed Downlight Panels with Practical Downlights
+    downlights.forEach(dl => {
+      const dg = new THREE.Group();
+      dg.position.set(dl.x, h, dl.z);
+
+      // Bezel casing (offset down from ceiling plane to eliminate z-fighting)
+      const bezel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.6), downlightBezelMat);
+      bezel.position.y = -0.05;
+      dg.add(bezel);
+
+      // Diffuser panel with steady calibrated emissive
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.02, 0.42), downlightLensMat);
+      lens.position.y = -0.08;
+      dg.add(lens);
+
+      scene.add(dg);
+
+      // Practical Downlight illuminating room from above
+      const pLight = new THREE.PointLight(P.ceilingDownlight, 0.72, 16, 1.8);
+      pLight.position.set(dl.x, h - 0.40, dl.z);
+      scene.add(pLight);
+      registerFlickerLight(pLight, 0.72);
+    });
+  });
+}
+
+function buildIndustrialCeilingTrusses(scene, zPositions) {
+  // Aliased into buildArchitecturalCeilingSystem
 }
 
 /** Architectural Pilaster column on perimeter wall with up/down warm LED sconce */
@@ -530,10 +848,16 @@ function buildWallPilasterColumn(scene, x, z, h, rotY) {
   g.position.set(x, 0, z);
   g.rotation.y = rotY;
 
-  const silverMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.85, roughness: 0.25 });
-  const woodMat   = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.6 });
-  const sconceMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
-  const glowMat   = new THREE.MeshBasicMaterial({ color: 0xffedd0 });
+  const silverMat   = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.85, roughness: 0.25 });
+  const woodMat     = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.6 });
+  const sconceMat   = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
+  const diffuserMat = new THREE.MeshStandardMaterial({
+    color: 0x4ff2e0,        // Vivid cyan #4FF2E0 diffuser matching aurora palette
+    emissive: 0x4ff2e0,
+    emissiveIntensity: 0.35,
+    roughness: 0.35,
+    metalness: 0.15,
+  });
 
   // Main pilaster column
   const col = new THREE.Mesh(new THREE.BoxGeometry(0.32, h, 0.45), silverMat);
@@ -550,17 +874,17 @@ function buildWallPilasterColumn(scene, x, z, h, rotY) {
   sconce.position.set(0, 2.8, 0.16);
   g.add(sconce);
 
-  // Top and bottom glowing light slits
-  const topSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), glowMat);
+  // Top and bottom diffuser slits — vivid cyan glow
+  const topSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), diffuserMat);
   topSlit.position.set(0, 3.02, 0.16);
   g.add(topSlit);
 
-  const botSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), glowMat);
+  const botSlit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.12), diffuserMat);
   botSlit.position.set(0, 2.58, 0.16);
   g.add(botSlit);
 
-  // Warm localized light casting subtle illumination up and down the pillar
-  const sl = new THREE.PointLight(0xffecd0, 0.45, 5.5);
+  // Bright magenta-pink sconce light at base — cyan-to-magenta gradient along pillar
+  const sl = new THREE.PointLight(0xff3ec8, 0.55, 5.5);
   sl.position.set(0, 2.8, 0.45);
   g.add(sl);
 
@@ -746,7 +1070,8 @@ function buildWayfindingTotem(scene, x, z, rotY = 0) {
 
   const frameMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
   const baseMat  = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 });
-  const screenMat = new THREE.MeshBasicMaterial({ map: createWallDirectoryTexture() });
+  const screenMat = new THREE.MeshStandardMaterial({ map: createWallDirectoryTexture(), roughness: 0.35, metalness: 0.25 });
+  const brassTrim = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.92, roughness: 0.2 });
 
   // Plinth Base
   const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.16, 0.6), baseMat);
@@ -758,7 +1083,7 @@ function buildWayfindingTotem(scene, x, z, rotY = 0) {
   frame.position.y = 1.36;
   g.add(frame);
 
-  // Glowing Screen Face (both sides)
+  // Screen Face (both sides)
   const screenFront = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.1), screenMat);
   screenFront.position.set(0, 1.36, 0.075);
   g.add(screenFront);
@@ -768,12 +1093,12 @@ function buildWayfindingTotem(scene, x, z, rotY = 0) {
   screenBack.rotation.y = Math.PI;
   g.add(screenBack);
 
-  // Cyan base glow accent
-  const baseGlow = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.04, 0.18), new THREE.MeshBasicMaterial({ color: P.blue }));
-  baseGlow.position.y = 0.22;
-  g.add(baseGlow);
+  // Brass base accent trim
+  const baseTrimMesh = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.04, 0.18), brassTrim);
+  baseTrimMesh.position.y = 0.22;
+  g.add(baseTrimMesh);
 
-  const pl = new THREE.PointLight(P.blue, 0.9, 4.0);
+  const pl = new THREE.PointLight(0xe8f4ff, 0.45, 3.5);
   pl.position.set(0, 1.4, 0.4);
   g.add(pl);
 
@@ -788,11 +1113,20 @@ function buildHolographicPedestal(scene, x, z) {
 
   const metalMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.92, roughness: 0.18 });
   const woodMat  = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.5 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x88d4f0, transparent: true, opacity: 0.35, roughness: 0.05 });
-  const cyanGlow = new THREE.MeshBasicMaterial({ color: P.blue, wireframe: true });
+  // Vivid cyan #4FF2E0 glass containment matching aurora/ceiling accent
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x4ff2e0, transparent: true, opacity: 0.4, roughness: 0.08, metalness: 0.8 });
+  const goldMat  = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.92, roughness: 0.2 });
+  // Bright magenta-pink #FF3EC8 base glow material
+  const baseMagentaMat = new THREE.MeshStandardMaterial({
+    color: 0xff3ec8,
+    emissive: 0xff3ec8,
+    emissiveIntensity: 0.45,
+    metalness: 0.85,
+    roughness: 0.25,
+  });
 
-  // Hexagonal Base
-  const base1 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 0.35, 6), metalMat);
+  // Hexagonal Base — magenta-pink glow at base
+  const base1 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 0.35, 6), baseMagentaMat);
   base1.position.y = 0.175;
   g.add(base1);
 
@@ -804,7 +1138,7 @@ function buildHolographicPedestal(scene, x, z) {
   topPlate.position.y = 0.85;
   g.add(topPlate);
 
-  // Glass containment cylinder
+  // Vivid cyan glass containment cylinder
   const glassCol = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.2, 16), glassMat);
   glassCol.position.y = 1.5;
   g.add(glassCol);
@@ -814,19 +1148,24 @@ function buildHolographicPedestal(scene, x, z) {
   topCap.position.y = 2.175;
   g.add(topCap);
 
-  // Floating Rotating Wireframe Hologram Core
-  const holoCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 1), cyanGlow);
+  // Floating Rotating Geometric Architectural Core
+  const holoCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 1), goldMat);
   holoCore.position.y = 1.5;
   g.add(holoCore);
 
-  const innerCube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: P.pink, wireframe: true }));
+  const innerCube = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), metalMat);
   innerCube.position.y = 1.5;
   g.add(innerCube);
 
-  // Point Light casting holographic cyan glow
-  const hLight = new THREE.PointLight(P.blue, 1.4, 5.5);
+  // Vivid cyan interior illumination #4FF2E0 matching ceiling aurora
+  const hLight = new THREE.PointLight(0x4ff2e0, 0.80, 5.0);
   hLight.position.y = 1.5;
   g.add(hLight);
+
+  // Magenta-pink base glow light #FF3EC8 for cyan-to-magenta gradient
+  const baseLight = new THREE.PointLight(0xff3ec8, 0.60, 3.5);
+  baseLight.position.y = 0.3;
+  g.add(baseLight);
 
   scene.add(g);
   addCollisionBox(x - 0.85, x + 0.85, z - 0.85, z + 0.85, "holo_pedestal");
@@ -980,9 +1319,7 @@ function buildDataCenterServerAisles(scene) {
   const rackMat = new THREE.MeshStandardMaterial({ color: 0x485260, metalness: 0.8, roughness: 0.25 });
   const trimMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.95, roughness: 0.15 });
   const faceMat = new THREE.MeshBasicMaterial({ map: createServerRackFaceTexture(), side: THREE.DoubleSide });
-  const blueGlow = new THREE.MeshBasicMaterial({ color: P.blue });
-  const pinkGlow = new THREE.MeshBasicMaterial({ color: P.pink });
-  const greenGlow = new THREE.MeshBasicMaterial({ color: P.green });
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x242e3a, roughness: 0.75, metalness: 0.2 });
 
   // 1. Left server corridor bank: X = -11.5, Z = 0.0 to 20.0 (clean side placement)
   for (let z = 0.0; z <= 20.0; z += 4.0) {
@@ -1007,23 +1344,20 @@ function buildDataCenterServerAisles(scene) {
     face.rotation.y = Math.PI / 2;
     rackG.add(face);
 
-    // Top glowing LED edge strip
-    const topStrip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.08, 3.4),
-      z % 8 === 0 ? blueGlow : pinkGlow
-    );
+    // Top brushed metal edge trim
+    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 3.4), trimMat);
     topStrip.position.set(0.82, 4.75, 0);
     rackG.add(topStrip);
 
-    // Top cable gantry with colorful cable bundle
+    // Top cable gantry with industrial cable conduit
     const tray = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.14, 3.5), rackMat);
     tray.position.set(0, 4.88, 0);
     rackG.add(tray);
 
-    const cable1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 3.5), blueGlow);
+    const cable1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 3.5), cableMat);
     cable1.position.set(-0.2, 4.96, 0);
     rackG.add(cable1);
-    const cable2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 3.5), pinkGlow);
+    const cable2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 3.5), cableMat);
     cable2.position.set(0.2, 4.96, 0);
     rackG.add(cable2);
 
@@ -1053,7 +1387,7 @@ function buildDataCenterServerAisles(scene) {
     face.rotation.y = Math.PI; // Face towards -Z (Player)
     rG.add(face);
 
-    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), greenGlow);
+    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), trimMat);
     topStrip.position.set(0, 4.75, -0.72);
     rG.add(topStrip);
 
@@ -1081,7 +1415,7 @@ function buildDataCenterServerAisles(scene) {
     face.rotation.y = Math.PI; // Face towards -Z (Player)
     rG.add(face);
 
-    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), blueGlow);
+    const topStrip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.08), trimMat);
     topStrip.position.set(0, 4.75, -0.72);
     rG.add(topStrip);
 
@@ -1210,7 +1544,7 @@ function buildCentralCommandStation(scene, x, z) {
   const consoleMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.25, metalness: 0.6 });
   const trimMat    = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.9, roughness: 0.2 });
   const woodTrim   = new THREE.MeshStandardMaterial({ color: P.wallBrown, roughness: 0.55 });
-  const glowMat    = new THREE.MeshBasicMaterial({ color: P.blue });
+  const brassTrim  = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
 
   // 1. Center main desk
   const centerDesk = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.08, 1.35), consoleMat);
@@ -1222,8 +1556,8 @@ function buildCentralCommandStation(scene, x, z) {
   frontWood.position.set(0, 0.74, -0.68);
   g.add(frontWood);
 
-  // Desk underglow line
-  const underGlow = new THREE.Mesh(new THREE.BoxGeometry(4.42, 0.03, 1.37), glowMat);
+  // Desk shadow reveal line
+  const underGlow = new THREE.Mesh(new THREE.BoxGeometry(4.42, 0.03, 1.37), brassTrim);
   underGlow.position.set(0, 0.70, 0);
   g.add(underGlow);
 
@@ -1245,7 +1579,7 @@ function buildCentralCommandStation(scene, x, z) {
     wingWood.rotation.y = angle;
     g.add(wingWood);
 
-    const wingGlow = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.03, 1.27), glowMat);
+    const wingGlow = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.03, 1.27), brassTrim);
     wingGlow.position.set(wx, 0.70, 0.22);
     wingGlow.rotation.y = angle;
     g.add(wingGlow);
@@ -1349,15 +1683,12 @@ function buildLeftAcousticBaffleWall(scene, z0, z1) {
   panelMesh.rotation.y = Math.PI / 2;
   scene.add(panelMesh);
 
-  // Vertical Hot Pink Neon Light Coves — 3 refined coves
+  // Vertical Architectural Dark Steel Trim Battens — 3 refined reveals
+  const battensMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.85, roughness: 0.25 });
   [z0 + 9.0, z0 + 21.0, z0 + 31.0].forEach(z => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, ROOM_H - 3.2, 0.06), pinkGlow);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, ROOM_H - 3.2, 0.06), battensMat);
     strip.position.set(wallX + 0.04, 2.4 + (ROOM_H - 2.4) / 2, z);
     scene.add(strip);
-
-    const pl = new THREE.PointLight(P.pink, 0.85, 6.0);
-    pl.position.set(wallX + 0.45, 2.4 + (ROOM_H - 2.4) / 2, z);
-    scene.add(pl);
   });
 
   // 3 Illuminated Holographic Technical Schematic Panels on Wall Standoffs
@@ -1383,9 +1714,12 @@ function buildLeftAcousticBaffleWall(scene, z0, z1) {
     frame.position.z = -0.03;
     scG.add(frame);
 
-    const bGlow = new THREE.Mesh(new THREE.BoxGeometry(3.74, 0.04, 0.05), blueGlow);
-    bGlow.position.y = 1.27;
-    scG.add(bGlow);
+    const bBezel = new THREE.Mesh(
+      new THREE.BoxGeometry(3.74, 0.04, 0.05),
+      new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 })
+    );
+    bBezel.position.y = 1.27;
+    scG.add(bBezel);
 
     scene.add(scG);
   });
@@ -1404,7 +1738,6 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
     side: THREE.DoubleSide,
   });
   const frameMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.9, roughness: 0.2 });
-  const greenGlow = new THREE.MeshBasicMaterial({ color: P.green });
 
   [z0 + 8.0, z0 + 18.0, z0 + 27.0].forEach(pz => {
     const gg = new THREE.Group();
@@ -1414,10 +1747,11 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
     const gMesh = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 4.8), glassMat);
     gg.add(gMesh);
 
-    const topF = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.12), greenGlow);
+    // Solid architectural dark steel framing around the glass partition
+    const topF = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.12), frameMat);
     topF.position.y = 2.46;
     gg.add(topF);
-    const botF = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.12), greenGlow);
+    const botF = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.12), frameMat);
     botF.position.y = -2.46;
     gg.add(botF);
     const leftF = new THREE.Mesh(new THREE.BoxGeometry(0.12, 5.0, 0.12), frameMat);
@@ -1426,10 +1760,6 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
     const rightF = new THREE.Mesh(new THREE.BoxGeometry(0.12, 5.0, 0.12), frameMat);
     rightF.position.x = 2.76;
     gg.add(rightF);
-
-    const hLight = new THREE.PointLight(P.green, 0.85, 5.5);
-    hLight.position.set(0, 0, 0.4);
-    gg.add(hLight);
 
     scene.add(gg);
   });
@@ -1441,10 +1771,7 @@ function buildGroundLobby(scene) {
   // 1. Far Wall Backlit BLACKVAULT Billboard Sign with Glowing Shield Emblem
   buildBacklitBlackvaultSign(scene, 0, 5.8, 29.5);
 
-  // 2. Industrial Ceiling Trusses & Overhead Linear LED Lighting
-  buildIndustrialCeilingTrusses(scene, [-2.0, 5.0, 12.0, 19.0, 26.0]);
-
-  // 3. Data Center Server Racks (Left continuous aisle & rear wall arrays)
+  // 2. Data Center Server Racks (Left continuous aisle & rear wall arrays)
   buildDataCenterServerAisles(scene);
 
   // 4. Center Command Workstation Island with 4 Panoramic Displays & Operators
@@ -1478,19 +1805,17 @@ function buildGroundLobby(scene) {
   // 12. Modern Espresso & Refreshment Station on Right Wall
   buildEspressoLoungeBar(scene, 12.5, 17.5, -Math.PI / 2);
 
-  // 13. Elevator Alcove on Right Wall (Leads to Floor 1)
-  buildElevatorAlcove(scene, 16.0, 24.0, "G", ROOM_H, P.blue);
-  elevatorPositions.push({ z: 24.0, label: "G", nextLabel: "1F", doorType: "classification" });
 
-  // 14. Floor guide strips — focal point near the door zone
-  floorStrip(scene, -1.8, 22.0, 30.0, new THREE.MeshBasicMaterial({ color: P.blue }));
-  floorStrip(scene,  1.8, 22.0, 30.0, new THREE.MeshBasicMaterial({ color: P.blue }));
+  // 13. Floor guide strips — architectural brass inlay expansion joints
+  const floorInlayMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.85, roughness: 0.25 });
+  floorStrip(scene, -1.8, 22.0, 30.0, floorInlayMat);
+  floorStrip(scene,  1.8, 22.0, 30.0, floorInlayMat);
 
-  // Main ambient room fill
-  const ambLight1 = new THREE.PointLight(0xfff0e2, 0.75, 24);
+  // Main ambient room fill — cool cyan-white #E8F0FF matching ceiling palette
+  const ambLight1 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
   ambLight1.position.set(-4.0, 6.8, 5.0);
   scene.add(ambLight1);
-  const ambLight2 = new THREE.PointLight(0xfff0e2, 0.75, 24);
+  const ambLight2 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
   ambLight2.position.set( 4.0, 6.8, 18.0);
   scene.add(ambLight2);
 }
@@ -1502,7 +1827,7 @@ function buildGroundLobby(scene) {
 function buildFloor1Classification(scene) {
   const Z0 = 30.0, Z1 = 66.0, ZMid = 48.0;
   const accent = P.pink;
-  const accentMat = new THREE.MeshBasicMaterial({ color: accent });
+  const metalTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
 
   floorPlaqueMesh(scene, "1F", "Classification Lab", P.pink, 0, ROOM_H - 0.75, Z0 + 1.0, 6.5);
   deptWallPlaque(scene, "DATA SCIENCE DIVISION", "Classification & Prediction Systems", Z0 + 0.08, ROOM_H / 2, P.pink);
@@ -1514,11 +1839,11 @@ function buildFloor1Classification(scene) {
   wain.rotation.y = Math.PI / 2;
   scene.add(wain);
 
-  // Accent strips: only at the far-wall door threshold and elevator alcove
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, accentMat, ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, accentMat, ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
+  // Architectural metal strips at door threshold
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, metalTrimMat, ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, metalTrimMat, ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, metalTrimMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, metalTrimMat);
 
   // Near-neutral architectural fill from ceiling — colour comes from cubicle monitors
   const rl = new THREE.PointLight(0xfff4f8, 0.50, 32);
@@ -1551,21 +1876,19 @@ function buildFloor1Classification(scene) {
   // ── Whiteboard on left wall ───────────────────────────────────────────────
   const wb = new THREE.Mesh(
     new THREE.PlaneGeometry(6.0, 3.0),
-    new THREE.MeshBasicMaterial({ map: createWhiteboardTexture() })
+    new THREE.MeshStandardMaterial({ map: createWhiteboardTexture(), roughness: 0.3, metalness: 0.1 })
   );
   wb.position.set(-ROOM_W / 2 + 0.08, 2.8, ZMid + 3.0);
   wb.rotation.y = Math.PI / 2;
   scene.add(wb);
-  const wbBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.4, 6.5), accentMat);
+  const wbBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.2, 6.2), metalTrimMat);
   wbBar.position.set(-ROOM_W / 2 + 0.03, 2.8, ZMid + 3.0);
   scene.add(wbBar);
 
   // ── Break corner (top right) ─────────────────────────────────────────────
   buildBreakCorner(scene, ROOM_W / 2 - 4.0, Z0 + 6.0);
 
-  // ── Elevator alcove on far wall ──────────────────────────────────────────
-  buildElevatorAlcove(scene, 16.0, Z1 - 2.5, "1F", ROOM_H, accent);
-  elevatorPositions.push({ z: Z1 - 2.5, label: "1F", nextLabel: "2F", doorType: "regression" });
+
 
   buildCCTVProp(scene, -ROOM_W / 2 + 0.6, ROOM_H - 0.2, Z0 + 26.0, 0.1);
   makeOfficePlant(scene, ROOM_W / 2 - 2.5, Z0 + 28.0);
@@ -1578,17 +1901,17 @@ function buildFloor1Classification(scene) {
 function buildFloor2Regression(scene) {
   const Z0 = 66.0, Z1 = 102.0, ZMid = 84.0;
   const accent = P.green;
-  const accentMat = new THREE.MeshBasicMaterial({ color: accent });
+  const metalTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
   const h = DATA_H;
 
   floorPlaqueMesh(scene, "2F", "Regression Lab", P.green, 0, h - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "DATA ENGINEERING FLOOR", "Server Infrastructure & Regression Systems", Z0 + 0.08, h / 2, P.green);
 
-  // Only accent strips near the elevator/door end — not full room perimeter
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, accentMat, h);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, accentMat, h);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
+  // Architectural metal strips near the corridor door end
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 6.0, Z1, metalTrimMat, h);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 6.0, Z1, metalTrimMat, h);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, metalTrimMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, metalTrimMat);
 
   // Near-neutral ceiling fill — green character comes from server rack LEDs and pendant lights
   const rl = new THREE.PointLight(0xf0fff6, 0.50, 28);
@@ -1596,7 +1919,7 @@ function buildFloor2Regression(scene) {
   scene.add(rl);
   registerFlickerLight(rl, 0.50);
 
-  // Dense server rack arrays — emerald green left, electric blue right
+  // Dense server rack arrays
   [Z0 + 6.0, Z0 + 14.0, Z0 + 22.0, Z0 + 29.0].forEach(rz => {
     buildServerRackGroup(scene, -ROOM_W / 2 + 1.2, rz, accent);
     buildServerRackGroup(scene,  ROOM_W / 2 - 1.2, rz, P.blue);
@@ -1610,7 +1933,7 @@ function buildFloor2Regression(scene) {
   pPanel.position.set(-ROOM_W / 2 + 0.04, h / 2, ZMid);
   pPanel.rotation.y = Math.PI / 2;
   scene.add(pPanel);
-  const pBorder = new THREE.Mesh(new THREE.BoxGeometry(0.06, h + 0.04, 12.08), accentMat);
+  const pBorder = new THREE.Mesh(new THREE.BoxGeometry(0.06, h + 0.04, 12.08), metalTrimMat);
   pBorder.position.set(-ROOM_W / 2 + 0.02, h / 2, ZMid);
   scene.add(pBorder);
 
@@ -1619,13 +1942,6 @@ function buildFloor2Regression(scene) {
   const cableTray = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 8.0, 0.18, Z1 - Z0), cabMat);
   cableTray.position.set(0, h - 0.35, ZMid);
   scene.add(cableTray);
-  // Green LED strip under tray
-  const trayLED = new THREE.Mesh(
-    new THREE.BoxGeometry(ROOM_W - 8.8, 0.06, Z1 - Z0 - 1.0),
-    accentMat
-  );
-  trayLED.position.set(0, h - 0.45, ZMid);
-  scene.add(trayLED);
 
   // ── Aesthetic Room Additions: Planters, Bookshelves & Wall Art ──────────
   buildBookshelfStorageUnit(scene, -ROOM_W / 2 + 3.0, Z0 + 10.0, Math.PI / 2);
@@ -1645,10 +1961,10 @@ function buildFloor2Regression(scene) {
     );
     shade.position.set(0, h - 1.35, pz);
     scene.add(shade);
-    const pl = new THREE.PointLight(accent, 1.4, 7);
+    const pl = new THREE.PointLight(0xdfffe8, 1.2, 6);
     pl.position.set(0, h - 1.55, pz);
     scene.add(pl);
-    registerFlickerLight(pl, 1.4);
+    registerFlickerLight(pl, 1.2);
   });
 
   // Solo analyst workstation in aisle
@@ -1662,16 +1978,14 @@ function buildFloor2Regression(scene) {
   // Regression chart on right wall
   const chartMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(5.5, 3.2),
-    new THREE.MeshBasicMaterial({ map: createRegressionChartTexture() })
+    new THREE.MeshStandardMaterial({ map: createRegressionChartTexture(), roughness: 0.4, metalness: 0.2 })
   );
   chartMesh.position.set(ROOM_W / 2 - 0.08, 2.8, Z0 + 14.0);
   chartMesh.rotation.y = -Math.PI / 2;
   scene.add(chartMesh);
 
-  // Elevator alcove
-  buildElevatorAlcove(scene, 16.0, Z1 - 2.5, "2F", h, accent);
-  elevatorPositions.push({ z: Z1 - 2.5, label: "2F", nextLabel: "3F", doorType: "clustering" });
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FLOOR 3 — CLUSTERING HUB
@@ -1680,21 +1994,10 @@ function buildFloor2Regression(scene) {
 function buildFloor3Clustering(scene) {
   const Z0 = 102.0, Z1 = 138.0, ZMid = 120.0;
   const accent = P.blue;
-  const accentMat = new THREE.MeshBasicMaterial({ color: accent });
+  const metalTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
 
   floorPlaqueMesh(scene, "3F", "Clustering Hub", P.blue, 0, ROOM_H - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "EXECUTIVE BOARDROOM", "Strategic Clustering & Analysis Division", Z0 + 0.08, ROOM_H / 2, P.blue);
-
-  // Feature wall at far end
-  const featWall = new THREE.Mesh(
-    new THREE.PlaneGeometry(ROOM_W, ROOM_H),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.75, metalness: 0.04 })
-  );
-  featWall.position.set(0, ROOM_H / 2, Z1 - 0.06);
-  scene.add(featWall);
-  const featBorder = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W + 0.04, 0.06, 0.08), accentMat);
-  featBorder.position.set(0, ROOM_H - 0.03, Z1 - 0.04);
-  scene.add(featBorder);
 
   // Drop ceiling inset over table area
   const dropMat = new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.88, metalness: 0.02 });
@@ -1715,18 +2018,18 @@ function buildFloor3Clustering(scene) {
     scene.add(corn);
   });
 
-  // Accent strips only at the far-end presentation screen focal point
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, accentMat, ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, accentMat, ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, accentMat);
-  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, accentMat);
+  // Architectural metal strips at presentation screen focal point
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, metalTrimMat, ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, metalTrimMat, ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, metalTrimMat);
+  floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, metalTrimMat);
 
   // Executive conference table
   const tableMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.18, metalness: 0.55 });
   const confTable = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.09, 16.0), tableMat);
   confTable.position.set(0, 0.78, ZMid);
   scene.add(confTable);
-  const tableEdge = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.035, 16.02), accentMat);
+  const tableEdge = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.035, 16.02), metalTrimMat);
   tableEdge.position.set(0, 0.83, ZMid);
   scene.add(tableEdge);
 
@@ -1760,23 +2063,23 @@ function buildFloor3Clustering(scene) {
     );
     shade.position.set(0, ROOM_H - 1.75, pz);
     scene.add(shade);
-    const pl = new THREE.PointLight(0xd4eaff, 1.8, 7);
+    const pl = new THREE.PointLight(0xd4eaff, 1.4, 7);
     pl.position.set(0, ROOM_H - 1.95, pz);
     scene.add(pl);
-    registerFlickerLight(pl, 1.8);
+    registerFlickerLight(pl, 1.4);
   });
 
   // Cluster presentation screen
   const presScreen = new THREE.Mesh(
     new THREE.PlaneGeometry(7.0, 3.8),
-    new THREE.MeshBasicMaterial({ map: createClusterTexture() })
+    new THREE.MeshStandardMaterial({ map: createClusterTexture(), roughness: 0.35, metalness: 0.25 })
   );
   presScreen.position.set(0, 2.7, Z1 - 2.5);
   scene.add(presScreen);
-  const scrLight = new THREE.PointLight(accent, 1.5, 11);
+  const scrLight = new THREE.PointLight(0xd4eaff, 1.2, 10);
   scrLight.position.set(0, 2.7, Z1 - 3.5);
   scene.add(scrLight);
-  registerFlickerLight(scrLight, 1.5);
+  registerFlickerLight(scrLight, 1.2);
 
   // Break room on side
   buildCoffeeStation(scene, ROOM_W / 2 - 2.5, Z0 + 4.5);
@@ -1791,10 +2094,8 @@ function buildFloor3Clustering(scene) {
   buildWallArtPiece(scene, -ROOM_W / 2 + 0.12, 3.8, Z0 + 17.0, Math.PI / 2, 3.0, 3.6, 0);
   buildWallArtPiece(scene,  ROOM_W / 2 - 0.12, 3.8, Z0 + 17.0, -Math.PI / 2, 3.0, 3.6, 1);
 
-  // Elevator alcove
-  buildElevatorAlcove(scene, 16.0, Z1 - 2.5, "3F", ROOM_H, accent);
-  elevatorPositions.push({ z: Z1 - 2.5, label: "3F", nextLabel: "4F", doorType: "anomaly" });
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FLOOR 4 — ANOMALY WING
@@ -1807,33 +2108,20 @@ function buildFloor4AnomalyWing(scene) {
   floorPlaqueMesh(scene, "4F", "Anomaly Wing", P.pink, 0, ROOM_H - 0.75, Z0 + 1.0, 5.5);
   deptWallPlaque(scene, "SECURITY OPERATIONS CENTER", "Anomaly Detection & Threat Monitoring", Z0 + 0.08, ROOM_H / 2, P.pink);
 
-  // Feature wall on left half — standard dark graphite, PBR non-emissive
-  const redPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(ROOM_W / 2 - 1.0, ROOM_H),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.75, metalness: 0.04 })
-  );
-  redPanel.position.set(-ROOM_W / 4 - 0.5, ROOM_H / 2, Z0 + 0.06);
-  scene.add(redPanel);
-  // Thin accent border at top
-  const redBorder = new THREE.Mesh(
-    new THREE.BoxGeometry(ROOM_W / 2 - 0.96, 0.06, 0.08),
-    new THREE.MeshBasicMaterial({ color: red })
-  );
-  redBorder.position.set(-ROOM_W / 4 - 0.5, ROOM_H - 0.03, Z0 + 0.04);
-  scene.add(redBorder);
-
   // THREAT LEVEL HIGH notice — printed sign on wall
-  const threatSign = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 0.7), new THREE.MeshBasicMaterial({
+  const threatSign = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 0.7), new THREE.MeshStandardMaterial({
     map: createNeonSignTexture("THREAT LEVEL: HIGH", "#FF2E9A", "#FF2E9A"),
+    roughness: 0.35, metalness: 0.3
   }));
   threatSign.position.set(ROOM_W / 2 - 0.08, ROOM_H - 1.0, Z0 + 12.0);
   threatSign.rotation.y = -Math.PI / 2;
   scene.add(threatSign);
 
-  // Accent strips only at threat screen focal wall
-  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, new THREE.MeshBasicMaterial({ color: red }), ROOM_H);
-  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, new THREE.MeshBasicMaterial({ color: red }), ROOM_H);
-  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, new THREE.MeshBasicMaterial({ color: red }));
+  // Architectural metal strips at threat screen focal wall
+  const metalTrimMat4 = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
+  ceilStrip(scene, -ROOM_W / 2 + 0.35, Z1 - 5.0, Z1, metalTrimMat4, ROOM_H);
+  ceilStrip(scene,  ROOM_W / 2 - 0.35, Z1 - 5.0, Z1, metalTrimMat4, ROOM_H);
+  floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, metalTrimMat4);
 
   // Near-neutral architectural fill
   const dl1 = new THREE.PointLight(0xfff2ee, 0.45, 30);
@@ -1867,7 +2155,7 @@ function buildFloor4AnomalyWing(scene) {
   // Massive threat screen
   const threatMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(13.0, 4.0),
-    new THREE.MeshBasicMaterial({ map: createThreatLevelTexture() })
+    new THREE.MeshStandardMaterial({ map: createThreatLevelTexture(), roughness: 0.35, metalness: 0.25 })
   );
   threatMesh.position.set(0, 2.8, Z1 - 2.2);
   scene.add(threatMesh);
@@ -1896,10 +2184,8 @@ function buildFloor4AnomalyWing(scene) {
   buildCCTVProp(scene, 0, ROOM_H - 0.2, Z0 + 2.5, 0);
   buildCCTVProp(scene, -ROOM_W / 2 + 0.6, ROOM_H - 0.2, Z0 + 22.0, 0.38);
 
-  // Elevator alcove
-  buildElevatorAlcove(scene, 16.0, Z1 - 2.5, "4F", ROOM_H, red);
-  elevatorPositions.push({ z: Z1 - 2.5, label: "4F", nextLabel: "5F", doorType: "mystery" });
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FLOOR 5 — THE VAULT (Mystery / Top Floor)
@@ -1911,26 +2197,10 @@ function buildFloor5MysteryVault(scene) {
 
   floorPlaqueMesh(scene, "5F", "The Vault — Restricted", P.pink, 0, vH - 0.95, Z0 + 2.5, 7.0);
 
-  // Vault entry wall
-  const vaultEntryPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(ROOM_W, vH),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.5, metalness: 0.1 })
-  );
-  vaultEntryPanel.position.set(0, vH / 2, Z0 + 0.08);
-  scene.add(vaultEntryPanel);
-
-  // Triple-stripe accent border: pink + blue + green
-  [[P.pink, 0.04], [P.blue, 0.022], [P.green, 0.01]].forEach(([col, yOff], i) => {
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(ROOM_W + 0.04, 0.05, 0.08),
-      new THREE.MeshBasicMaterial({ color: col })
-    );
-    stripe.position.set(0, vH - 0.03 - i * 0.06, Z0 + 0.05);
-    scene.add(stripe);
-  });
-
   // Grand entrance columns
   const colMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.88, roughness: 0.18 });
+  const brassRingMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.92, roughness: 0.18 });
+
   [[-6.0, Z0 + 5.0], [6.0, Z0 + 5.0]].forEach(([cx, cz]) => {
     const col = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, vH, 16), colMat);
     col.position.set(cx, vH / 2, cz);
@@ -1938,7 +2208,7 @@ function buildFloor5MysteryVault(scene) {
 
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.40, 0.06, 8, 16),
-      new THREE.MeshBasicMaterial({ color: P.blue })
+      brassRingMat
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.set(cx, 0.06, cz);
@@ -1946,16 +2216,16 @@ function buildFloor5MysteryVault(scene) {
 
     const topRing = new THREE.Mesh(
       new THREE.TorusGeometry(0.40, 0.06, 8, 16),
-      new THREE.MeshBasicMaterial({ color: P.pink })
+      brassRingMat
     );
     topRing.rotation.x = Math.PI / 2;
     topRing.position.set(cx, vH - 0.1, cz);
     scene.add(topRing);
 
-    const bl = new THREE.PointLight(P.blue, 1.5, 7.0);
+    const bl = new THREE.PointLight(0xddeeff, 1.2, 7.0);
     bl.position.set(cx, 0.5, cz);
     scene.add(bl);
-    registerFlickerLight(bl, 1.5);
+    registerFlickerLight(bl, 1.2);
   });
 
   // ── Aesthetic Room Additions: Planters & Holographic Pedestals ──────────
@@ -1967,32 +2237,31 @@ function buildFloor5MysteryVault(scene) {
   // Ceiling dome ring
   const domeRing = new THREE.Mesh(
     new THREE.TorusGeometry(7.0, 0.12, 16, 48),
-    new THREE.MeshBasicMaterial({ color: P.blue })
+    new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.85, roughness: 0.3 })
   );
   domeRing.rotation.x = Math.PI / 2;
   domeRing.position.set(0, vH - 0.6, ZCore);
   scene.add(domeRing);
 
-  // Spinning outer ring — pink
+  // Spinning outer ring — gold
   mysteryOuterRing = new THREE.Mesh(
     new THREE.TorusGeometry(8.5, 0.08, 12, 64),
-    new THREE.MeshBasicMaterial({ color: P.pink })
+    brassRingMat
   );
   mysteryOuterRing.rotation.x = Math.PI / 3;
   mysteryOuterRing.position.set(0, vH - 1.4, ZCore);
   scene.add(mysteryOuterRing);
 
-  // Inner ring — green
+  // Inner ring — chrome
   mysteryInnerRing = new THREE.Mesh(
     new THREE.TorusGeometry(5.2, 0.06, 12, 48),
-    new THREE.MeshBasicMaterial({ color: P.green })
+    colMat
   );
   mysteryInnerRing.rotation.x = -Math.PI / 4;
   mysteryInnerRing.position.set(0, 3.2, ZCore);
   scene.add(mysteryInnerRing);
 
-  // Vault ambient fill — near-neutral with the faintest colour tint so surfaces read as
-  // dark architecture, not neon rainbow panels. The mystery core IS the light source.
+  // Vault ambient fill
   const p1 = new THREE.PointLight(0xf4e0f4, 0.65, 22); p1.position.set(-8, 5.5, Z0 + 15); scene.add(p1); registerFlickerLight(p1, 0.65);
   const p2 = new THREE.PointLight(0xe0eeff, 0.65, 22); p2.position.set( 8, 5.5, Z0 + 15); scene.add(p2); registerFlickerLight(p2, 0.65);
   const p3 = new THREE.PointLight(0xe0fff4, 0.55, 20); p3.position.set( 0, 6.2, Z0 + 35); scene.add(p3); registerFlickerLight(p3, 0.55);
@@ -2005,7 +2274,7 @@ function buildFloor5MysteryVault(scene) {
 
   const pedRing = new THREE.Mesh(
     new THREE.TorusGeometry(4.3, 0.065, 16, 32),
-    new THREE.MeshBasicMaterial({ color: P.green })
+    brassRingMat
   );
   pedRing.rotation.x = Math.PI / 2;
   pedRing.position.set(0, 0.42, ZCore);
@@ -2020,7 +2289,7 @@ function buildFloor5MysteryVault(scene) {
   mysteryCoreMesh = new THREE.Mesh(
     new THREE.IcosahedronGeometry(1.1, 2),
     new THREE.MeshStandardMaterial({
-      color: P.blue, emissive: P.blue, emissiveIntensity: 2.0, wireframe: true
+      color: P.blue, emissive: P.blue, emissiveIntensity: 1.5, wireframe: true
     })
   );
   mysteryCoreMesh.position.set(0, 3.2, ZCore);
@@ -2029,7 +2298,7 @@ function buildFloor5MysteryVault(scene) {
   // Inner nucleus
   mysteryCoreMesh.add(new THREE.Mesh(
     new THREE.SphereGeometry(0.55, 16, 16),
-    new THREE.MeshStandardMaterial({ color: P.green, emissive: P.green, emissiveIntensity: 1.8 })
+    new THREE.MeshStandardMaterial({ color: P.green, emissive: P.green, emissiveIntensity: 1.4 })
   ));
 
   // Containment pillars
@@ -2037,7 +2306,6 @@ function buildFloor5MysteryVault(scene) {
     { x: -4.2, z: ZCore - 4.2 }, { x: 4.2, z: ZCore - 4.2 },
     { x: -4.2, z: ZCore + 4.2 }, { x: 4.2, z: ZCore + 4.2 },
   ].forEach(({ x, z }, i) => {
-    const col = i % 2 === 0 ? P.blue : P.pink;
     const pillar = new THREE.Mesh(
       new THREE.CylinderGeometry(0.28, 0.28, 7.8, 16),
       new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.88, roughness: 0.18 })
@@ -2048,29 +2316,12 @@ function buildFloor5MysteryVault(scene) {
     [[4.0], [0.06]].forEach(([yp]) => {
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.35, 0.05, 8, 16),
-        new THREE.MeshBasicMaterial({ color: col })
+        brassRingMat
       );
       ring.rotation.x = Math.PI / 2;
       ring.position.set(x, yp, z);
       scene.add(ring);
     });
-
-    const bl = new THREE.PointLight(col, 2.0, 8.0);
-    bl.position.set(x, 1.0, z);
-    scene.add(bl);
-    registerFlickerLight(bl, 2.0);
-
-    const topCap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.3, 0.14, 16),
-      new THREE.MeshBasicMaterial({ color: col })
-    );
-    topCap.position.set(x, 7.75, z);
-    scene.add(topCap);
-
-    const topLight = new THREE.PointLight(col, 1.5, 5.0);
-    topLight.position.set(x, 7.5, z);
-    scene.add(topLight);
-    registerFlickerLight(topLight, 1.5);
   });
 }
 
@@ -2078,43 +2329,121 @@ function buildFloor5MysteryVault(scene) {
 // DOOR STATION (Puzzle terminal + blast doors)
 // ─────────────────────────────────────────────────────────────────────────────
 function createDoorStation(scene, doorType, x, z, wallH) {
-  const color = doorColors[doorType] || P.burgundy;
+  const color = doorColors[doorType] || P.pink;
   const group = new THREE.Group();
   group.position.set(x, 0, z);
 
   const DOOR_OPENING_W = 4.8;
   const DOOR_HALF = DOOR_OPENING_W / 2;
-  const panelW = ROOM_W / 2 - DOOR_HALF;
+  const PORTAL_W = 5.2; // Width of the contrasting focal portal wall on each side
+  const panelW = Math.max(0, ROOM_W / 2 - DOOR_HALF - PORTAL_W); // Remaining outer room wall
 
-  const wallPanelMat = new THREE.MeshStandardMaterial({ color: P.wallMain, roughness: 0.48, metalness: 0.06 });
-  const frameMat    = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.88, roughness: 0.2 });
-  const skirtMat    = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.8,  roughness: 0.3 });
+  // Color calculations for dual-state door leaves
+  const hslColor = new THREE.Color(color);
+  const hsl = {};
+  hslColor.getHSL(hsl);
 
-  // Flanking wall panels
+  // Closed/Locked State: Darker, desaturated version of accent with low emissive intensity
+  const lockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.max(0.20, hsl.s * 0.40), 0.12);
+  const lockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.max(0.30, hsl.s * 0.50), 0.08);
+
+  // Unlocked/Open State: Bright, saturated version of accent with luminous emissive intensity
+  const unlockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.15), 0.45);
+  const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.35);
+
+  // Materials
+  const portalWallMat = new THREE.MeshStandardMaterial({
+    color: 0x8a5838, // Warm deep umber contrasting portal wall
+    roughness: 0.42,
+    metalness: 0.35,
+  });
+  const outerWallMat = new THREE.MeshStandardMaterial({
+    color: P.wallMain,
+    roughness: 0.52,
+    metalness: 0.15,
+  });
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x6e4830, // Warm bronze structural frame
+    metalness: 0.88,
+    roughness: 0.28,
+  });
+  const accentGlowMat = new THREE.MeshBasicMaterial({ color });
+  const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.90, roughness: 0.20 });
+
+  // 1. Contrasting Wall Section immediately framing the door (one door-width on each side)
   [-1, 1].forEach(side => {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(panelW, wallH, 0.55), wallPanelMat);
-    panel.position.set(side * (DOOR_HALF + panelW / 2), wallH / 2, 0);
-    group.add(panel);
-    const skirt = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.32, 0.58), skirtMat);
-    skirt.position.set(side * (DOOR_HALF + panelW / 2), 0.16, 0);
+    // Portal focal wall block
+    const portalPanel = new THREE.Mesh(new THREE.BoxGeometry(PORTAL_W, wallH, 0.55), portalWallMat);
+    portalPanel.position.set(side * (DOOR_HALF + PORTAL_W / 2), wallH / 2, 0);
+    group.add(portalPanel);
+
+    // Architectural vertical brass trim border separating portal wall from outer room wall
+    const vTrim = new THREE.Mesh(new THREE.BoxGeometry(0.08, wallH, 0.58), trimMat);
+    vTrim.position.set(side * (DOOR_HALF + PORTAL_W), wallH / 2, 0);
+    group.add(vTrim);
+
+    // Outer wall section
+    if (panelW > 0.1) {
+      const outerPanel = new THREE.Mesh(new THREE.BoxGeometry(panelW, wallH, 0.55), outerWallMat);
+      outerPanel.position.set(side * (DOOR_HALF + PORTAL_W + panelW / 2), wallH / 2, 0);
+      group.add(outerPanel);
+    }
+
+    // Baseboard skirt
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(PORTAL_W + panelW, 0.32, 0.58), frameMat);
+    skirt.position.set(side * (DOOR_HALF + (PORTAL_W + panelW) / 2), 0.16, 0);
     group.add(skirt);
   });
 
+  // Top header panel above door opening in portal material
+  const headerH = wallH - 4.6;
+  if (headerH > 0) {
+    const header = new THREE.Mesh(
+      new THREE.BoxGeometry(DOOR_OPENING_W + 0.72, headerH, 0.55),
+      portalWallMat
+    );
+    header.position.set(0, 4.6 + headerH / 2, 0);
+    group.add(header);
+  }
+
   // Top cornice
-  const fullCornice = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.22, 0.60), skirtMat);
+  const fullCornice = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.22, 0.60), frameMat);
   fullCornice.position.set(0, wallH - 0.11, 0);
   group.add(fullCornice);
 
-  // Door portal archway posts
+  // 2. Door Frame: Dark metal #1C1F24 with thin glowing accent trim lines
   const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.36, 4.6, 0.65), frameMat);
   leftPost.position.set(-2.58, 2.3, 0);
   group.add(leftPost);
+
   const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.36, 4.6, 0.65), frameMat);
   rightPost.position.set(2.58, 2.3, 0);
   group.add(rightPost);
+
   const topBeam = new THREE.Mesh(new THREE.BoxGeometry(5.52, 0.38, 0.65), frameMat);
   topBeam.position.set(0, 4.41, 0);
   group.add(topBeam);
+
+  // Thin glowing trim lines running along the door frame in floor accent color
+  const leftFrameGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 4.6, 0.04), accentGlowMat);
+  leftFrameGlow.position.set(-2.38, 2.3, 0.33);
+  group.add(leftFrameGlow);
+
+  const rightFrameGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 4.6, 0.04), accentGlowMat);
+  rightFrameGlow.position.set(2.38, 2.3, 0.33);
+  group.add(rightFrameGlow);
+
+  const topFrameGlow = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.04, 0.04), accentGlowMat);
+  topFrameGlow.position.set(0, 4.20, 0.33);
+  group.add(topFrameGlow);
+
+  // Outer glowing LED pillars flanking door
+  [-2.82, 2.82].forEach(px => {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.6, 0.68), accentGlowMat);
+    pillar.position.set(px, 2.3, 0.02);
+    group.add(pillar);
+  });
 
   // Hydraulic pistons
   [-1.6, 1.6].forEach(px => {
@@ -2126,55 +2455,42 @@ function createDoorStation(scene, doorType, x, z, wallH) {
     group.add(piston);
   });
 
-  // Header panel above door frame
-  const headerH = wallH - 4.6;
-  if (headerH > 0) {
-    const header = new THREE.Mesh(
-      new THREE.BoxGeometry(DOOR_OPENING_W + 0.72, headerH, 0.55), wallPanelMat
-    );
-    header.position.set(0, 4.6 + headerH / 2, 0);
-    group.add(header);
-  }
-
-  // Glowing LED bars flanking door — use room accent colour
-  const pillarMat = new THREE.MeshStandardMaterial({
-    color, emissive: color, emissiveIntensity: 0.85, roughness: 0.2,
-  });
-  [-2.78, 2.78].forEach(px => {
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.6, 0.68), pillarMat);
-    pillar.position.set(px, 2.3, 0.02);
-    group.add(pillar);
+  // 3. Door Panels: Darker desaturated accent color with low emissive intensity
+  const doorLeafMat = new THREE.MeshStandardMaterial({
+    color: lockedLeafColor,
+    emissive: lockedLeafEmissive,
+    emissiveIntensity: 0.25,
+    metalness: 0.85,
+    roughness: 0.30,
   });
 
-  // Bi-parting blast door leaves — deep furniture black
-  const doorMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.9, roughness: 0.18 });
-  const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
-
-  const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(2.65, 4.3, 0.28), doorMat);
+  const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(2.65, 4.3, 0.28), doorLeafMat);
   leftLeaf.position.set(-1.25, 2.15, 0);
   group.add(leftLeaf);
+
   for (let r = 0; r < 3; r++) {
-    const panel = new THREE.Mesh(
+    const inset = new THREE.Mesh(
       new THREE.BoxGeometry(2.3, 1.1, 0.04),
-      new THREE.MeshStandardMaterial({ color: P.floorTrim, metalness: 0.88, roughness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0x5e4430, metalness: 0.90, roughness: 0.35 })
     );
-    panel.position.set(-0.1, -1.2 + r * 1.3, 0.14);
-    leftLeaf.add(panel);
+    inset.position.set(-0.1, -1.2 + r * 1.3, 0.14);
+    leftLeaf.add(inset);
   }
   const leftEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.1, 0.32), seamGlowMat);
   leftEdgeGlow.position.set(1.30, 0, 0);
   leftLeaf.add(leftEdgeGlow);
 
-  const rightLeaf = new THREE.Mesh(new THREE.BoxGeometry(2.65, 4.3, 0.28), doorMat);
+  const rightLeaf = new THREE.Mesh(new THREE.BoxGeometry(2.65, 4.3, 0.28), doorLeafMat);
   rightLeaf.position.set(1.25, 2.15, 0);
   group.add(rightLeaf);
+
   for (let r = 0; r < 3; r++) {
-    const panel = new THREE.Mesh(
+    const inset = new THREE.Mesh(
       new THREE.BoxGeometry(2.3, 1.1, 0.04),
-      new THREE.MeshStandardMaterial({ color: P.floorTrim, metalness: 0.88, roughness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0x5e4430, metalness: 0.90, roughness: 0.35 })
     );
-    panel.position.set(0.1, -1.2 + r * 1.3, 0.14);
-    rightLeaf.add(panel);
+    inset.position.set(0.1, -1.2 + r * 1.3, 0.14);
+    rightLeaf.add(inset);
   }
   const rightEdgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.1, 0.32), seamGlowMat);
   rightEdgeGlow.position.set(-1.30, 0, 0);
@@ -2366,6 +2682,8 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   doorRegistry[doorType] = {
     position: new THREE.Vector3(x + 3.2, 1.5, z - 1.18),
     group, leftLeaf, rightLeaf, leftEdgeGlow, rightEdgeGlow,
+    doorLeafMat, lockedLeafColor, lockedLeafEmissive,
+    unlockedLeafColor, unlockedLeafEmissive, themeColor: color,
     glow, doorLight, termLight, screen, chairGroup,
     doorType, seatPosition, seatLookAt, barrierBox,
     zDoor: z, isUnlocked: false, isActive: false,
@@ -2542,7 +2860,7 @@ function buildCubicle(scene, x, z, rotY, accent) {
   g.rotation.y = rotY;
 
   const partMat = new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.7 });
-  const trimMat = new THREE.MeshBasicMaterial({ color: accent });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.88, roughness: 0.22 });
 
   // Back partition
   const back = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.4, 0.1), partMat);
@@ -2639,90 +2957,7 @@ function buildBreakCorner(scene, x, z) {
   });
 }
 
-/** Elevator alcove — two doors, floor indicator, call button */
-function buildElevatorAlcove(scene, x, z, floorLabel, wallH, accent) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z);
 
-  const alcoveMat = new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.6 });
-  const doorTex = createElevatorDoorTexture();
-  const doorMat = new THREE.MeshStandardMaterial({ map: doorTex, roughness: 0.35, metalness: 0.35 });
-  const goldMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
-
-  // Alcove recess depth
-  const recW = 5.2, recH = wallH, recD = 0.55;
-  const alcoveBack = new THREE.Mesh(new THREE.PlaneGeometry(recW, recH), alcoveMat);
-  alcoveBack.position.set(0, recH / 2, recD);
-  g.add(alcoveBack);
-
-  // Two elevator door leaves (left & right door)
-  const doorW = 2.4, doorH = 4.4;
-  const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.08), doorMat);
-  leftDoor.position.set(-1.25, doorH / 2, recD - 0.04);
-  g.add(leftDoor);
-  const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.08), doorMat);
-  rightDoor.position.set(1.25, doorH / 2, recD - 0.04);
-  g.add(rightDoor);
-
-  // Gold door frame
-  [[-2.48], [2.48]].forEach(([fx]) => {
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, doorH + 0.12, 0.12), goldMat);
-    frame.position.set(fx, doorH / 2, recD - 0.04);
-    g.add(frame);
-  });
-  const topFrame = new THREE.Mesh(new THREE.BoxGeometry(doorW * 2 + 0.36, 0.12, 0.12), goldMat);
-  topFrame.position.set(0, doorH + 0.06, recD - 0.04);
-  g.add(topFrame);
-
-  // Floor indicator display above doors
-  const indicTex = createElevatorFloorIndicatorTexture(floorLabel);
-  const indicator = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.8, 0.7),
-    new THREE.MeshBasicMaterial({ map: indicTex })
-  );
-  indicator.position.set(0, doorH + 0.55, recD + 0.01);
-  g.add(indicator);
-
-  // Call button panel on wall to the right of doors
-  const btnPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.5, 0.08),
-    new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.8 })
-  );
-  btnPanel.position.set(2.85, 1.5, 0.04);
-  g.add(btnPanel);
-  // Up button
-  const upBtn = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.055, 0.04, 12),
-    new THREE.MeshBasicMaterial({ color: accent })
-  );
-  upBtn.rotation.x = Math.PI / 2;
-  upBtn.position.set(2.85, 1.65, 0.1);
-  g.add(upBtn);
-
-  // Gold light seam between doors
-  const seam = new THREE.Mesh(new THREE.BoxGeometry(0.05, doorH, 0.06), new THREE.MeshBasicMaterial({ color: P.gold }));
-  seam.position.set(0, doorH / 2, recD - 0.01);
-  g.add(seam);
-
-  // Elevator ambient glow
-  const elLight = new THREE.PointLight(0xffe8d0, 0.8, 6);
-  elLight.position.set(0, 2.5, recD + 0.3);
-  g.add(elLight);
-
-  // Side trim panels flanking alcove
-  const trimMat2 = new THREE.MeshStandardMaterial({ color: P.wallMain, roughness: 0.55 });
-  [-1, 1].forEach(side => {
-    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.4, recH, 0.55), trimMat2);
-    sidePanel.position.set(side * (recW / 2 + 0.2), recH / 2, recD / 2);
-    g.add(sidePanel);
-    // Gold vertical trim strip
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, recH, 0.08), goldMat);
-    strip.position.set(side * recW / 2, recH / 2, 0.02);
-    g.add(strip);
-  });
-
-  scene.add(g);
-}
 
 /** Lounge seating area with cream sofa and coffee table */
 function buildLoungeArea(scene, x, z) {
@@ -2754,19 +2989,21 @@ function buildLoungeArea(scene, x, z) {
   scene.add(g);
 }
 
-/** Ceiling strip */
+/** Ceiling architectural metal conduit strip */
 function ceilStrip(scene, x, z0, z1, mat, h) {
   const len = z1 - z0;
-  const s = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, len), mat);
-  s.position.set(x, h - 0.1, (z0 + z1) / 2);
+  const standardMat = (mat && mat.isMeshStandardMaterial) ? mat : new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.85, roughness: 0.3 });
+  const s = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, len), standardMat);
+  s.position.set(x, h - 0.05, (z0 + z1) / 2);
   scene.add(s);
 }
 
-/** Floor-level guide strip */
+/** Floor-level architectural brass/metal inlay strip */
 function floorStrip(scene, x, z0, z1, mat) {
   const len = z1 - z0;
-  const s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, len), mat);
-  s.position.set(x, 0.04, (z0 + z1) / 2);
+  const standardMat = (mat && mat.isMeshStandardMaterial) ? mat : new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.85, roughness: 0.25 });
+  const s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, len), standardMat);
+  s.position.set(x, 0.02, (z0 + z1) / 2);
   scene.add(s);
 }
 
@@ -3032,7 +3269,7 @@ function buildWorkstationDesk(scene, config) {
   addCollisionBox(config.x - 1.5, config.x + 1.5, config.z - 0.75, config.z + 0.75, "workstation_desk");
 }
 
-/** Server rack tower with glowing LEDs */
+/** Server rack tower with physical chassis slots and metallic rails */
 function buildServerRackGroup(scene, x, z, accentColor) {
   const shelf = new THREE.Mesh(
     new THREE.BoxGeometry(1.2, 4.5, 3.5),
@@ -3041,13 +3278,23 @@ function buildServerRackGroup(scene, x, z, accentColor) {
   shelf.position.set(x, 2.25, z);
   scene.add(shelf);
 
+  const slotMat = new THREE.MeshStandardMaterial({ color: 0x1c2430, metalness: 0.75, roughness: 0.35 });
+  const railMat = new THREE.MeshStandardMaterial({ color: P.chrome, metalness: 0.92, roughness: 0.18 });
+
   for (let r = 0; r < 7; r++) {
-    const led = new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 0.04, 3.0),
-      new THREE.MeshBasicMaterial({ color: accentColor })
+    const slot = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.46, 3.1),
+      slotMat
     );
-    led.position.set(x + (x > 0 ? -0.62 : 0.62), 0.6 + r * 0.6, z);
-    scene.add(led);
+    slot.position.set(x + (x > 0 ? -0.61 : 0.61), 0.6 + r * 0.58, z);
+    scene.add(slot);
+
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.05, 0.03, 3.12),
+      railMat
+    );
+    rail.position.set(x + (x > 0 ? -0.62 : 0.62), 0.6 + r * 0.58 - 0.22, z);
+    scene.add(rail);
   }
 
   // Collision box for server rack
@@ -3211,28 +3458,43 @@ function animateDoorLeaves(entry, duration = 950, onDone) {
 
 export function getDoorRegistry() { return doorRegistry; }
 export function getExitDoor()     { return exitDoor; }
-export function getElevatorPositions() { return elevatorPositions; }
+
 
 export function setDoorActiveState(doorType, isActive, isUnlocked = false) {
   const entry = doorRegistry[doorType];
   if (!entry) return;
   entry.isActive = isActive;
   entry.isUnlocked = isUnlocked;
-  const themeColor = doorColors[doorType] || P.burgundy;
+  const themeColor = entry.themeColor || doorColors[doorType] || P.pink;
 
   if (isUnlocked) {
+    if (entry.doorLeafMat) {
+      entry.doorLeafMat.color.copy(entry.unlockedLeafColor);
+      entry.doorLeafMat.emissive.copy(entry.unlockedLeafEmissive);
+      entry.doorLeafMat.emissiveIntensity = 0.85;
+    }
     entry.glow.material.color.setHex(STATUS_COLORS.unlocked);
     entry.leftEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
     entry.rightEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
     if (entry.doorLight) { entry.doorLight.color.setHex(STATUS_COLORS.unlocked); entry.doorLight.intensity = 2.5; }
     if (entry.screen) entry.screen.material.color.setHex(STATUS_COLORS.unlocked);
   } else if (isActive) {
+    if (entry.doorLeafMat) {
+      entry.doorLeafMat.color.copy(entry.lockedLeafColor);
+      entry.doorLeafMat.emissive.copy(entry.lockedLeafEmissive);
+      entry.doorLeafMat.emissiveIntensity = 0.35;
+    }
     entry.glow.material.color.setHex(themeColor);
     entry.leftEdgeGlow.material.color.setHex(themeColor);
     entry.rightEdgeGlow.material.color.setHex(themeColor);
     if (entry.doorLight) { entry.doorLight.color.setHex(themeColor); entry.doorLight.intensity = 2.2; }
     if (entry.screen) entry.screen.material.color.setHex(themeColor);
   } else {
+    if (entry.doorLeafMat) {
+      entry.doorLeafMat.color.copy(entry.lockedLeafColor);
+      entry.doorLeafMat.emissive.copy(entry.lockedLeafEmissive);
+      entry.doorLeafMat.emissiveIntensity = 0.18;
+    }
     entry.glow.material.color.setHex(STATUS_COLORS.locked);
     entry.leftEdgeGlow.material.color.setHex(STATUS_COLORS.locked);
     entry.rightEdgeGlow.material.color.setHex(STATUS_COLORS.locked);
@@ -3369,6 +3631,9 @@ export function resetHubForNewLevel() {
 
 export function updateWorldAnimations(delta) {
   const t = performance.now() * 0.001;
+  if (auroraCeilingMaterial && auroraCeilingMaterial.uniforms) {
+    auroraCeilingMaterial.uniforms.uTime.value += delta;
+  }
   if (mysteryCoreMesh) {
     mysteryCoreMesh.rotation.y += delta * 0.6;
     mysteryCoreMesh.rotation.x += delta * 0.28;

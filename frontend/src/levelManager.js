@@ -1,53 +1,24 @@
-import { API_BASE, DOOR_TYPES, BOSS_DOOR_TYPE, FLOOR_LABELS } from "./config.js";
+import { API_BASE, DOOR_TYPES, BOSS_DOOR_TYPE } from "./config.js";
 import { renderHud } from "./hud.js";
-import { setDoorActiveState, setExitUnlocked, getElevatorPositions } from "./world.js";
-import { triggerElevatorRide } from "./elevator.js";
+import { setDoorActiveState, setExitUnlocked } from "./world.js";
 import { triggerFinale } from "./finale.js";
-import { setPlayerPosition, setMaxZBound } from "./player.js";
 
-// Sequential door order mirrors floor order
+// Sequential door order — each room connects directly to the next
 const SEQUENTIAL_DOORS = ["classification", "regression", "clustering", "anomaly", BOSS_DOOR_TYPE];
-
-// Map each door to its floor labels (from floor / to floor)
-const DOOR_FLOOR_MAP = {
-  classification: { from: "G",  to: "1F" },
-  regression:     { from: "1F", to: "2F" },
-  clustering:     { from: "2F", to: "3F" },
-  anomaly:        { from: "3F", to: "4F" },
-  mystery:        { from: "4F", to: "5F" },
-};
-
-export const FLOOR_CONFIGS = {
-  "G":  { entryZ: 0.0,   maxZ: 28.5  },
-  "1F": { entryZ: 33.5,  maxZ: 64.5  },
-  "2F": { entryZ: 69.5,  maxZ: 100.5 },
-  "3F": { entryZ: 105.5, maxZ: 136.5 },
-  "4F": { entryZ: 141.5, maxZ: 172.5 },
-  "5F": { entryZ: 177.5, maxZ: 224.5 },
-};
-
-// Map door index → floor label shown in HUD
-const FLOOR_LABEL_BY_INDEX = ["G", "1F", "2F", "3F", "4F", "5F"];
 
 let state = {
   currentSector: 1,
   activeDoorIndex: 0,
   doorsCleared: [],
   starsByDoor: {},
-  currentFloor: "G",
-  elevatorRiding: false,
+  currentRoom: "classification",
 };
-
-// Callback to extend the player's Z bound after an elevator ride
-let pendingZExtend = null;
-let onElevatorDoneCallback = null;
 
 export function initLevelManager({ level = 1 } = {}) {
   state.currentSector = level;
   state.activeDoorIndex = 0;
   state.doorsCleared = [];
-  state.currentFloor = "G";
-  state.elevatorRiding = false;
+  state.currentRoom = "classification";
 
   updateWorldDoorVisuals();
   renderHud(state);
@@ -88,6 +59,7 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
 
   if (sectorIndex >= state.currentSector && state.currentSector < 5) {
     state.currentSector = sectorIndex + 1;
+    state.currentRoom = SEQUENTIAL_DOORS[state.activeDoorIndex] || "mystery";
   }
 
   // Update door visuals immediately (door opens, glow goes green)
@@ -96,10 +68,10 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
 
   // ── Check finale ────────────────────────────────────────────────────────
   if (isLevelComplete()) {
-    // All 5 floors cleared — trigger finale after brief delay
+    // All 5 rooms cleared — trigger finale after brief delay
     setTimeout(() => {
       triggerFinale(() => {
-        // After ride back down → show level complete
+        // After reveal → show level complete
         import("./hud.js").then(({ showLevelComplete }) => {
           const totalStars = Object.values(state.starsByDoor).reduce((a, b) => a + b, 0);
           showLevelComplete(state.currentSector, totalStars, DOOR_TYPES.length * 3);
@@ -109,24 +81,8 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
     return;
   }
 
-  // ── Trigger elevator ride to next floor ──────────────────────────────────
-  const floorData = DOOR_FLOOR_MAP[doorType];
-  if (floorData) {
-    state.elevatorRiding = true;
-    // Small delay so player sees door open first
-    setTimeout(() => {
-      triggerElevatorRide(floorData.from, floorData.to, () => {
-        state.currentFloor = floorData.to;
-        state.elevatorRiding = false;
-        renderHud(state);
-        const cfg = FLOOR_CONFIGS[floorData.to];
-        if (cfg) {
-          setMaxZBound(cfg.maxZ);
-          setPlayerPosition(0, 1.0, cfg.entryZ, 0);
-        }
-      });
-    }, 1800);
-  }
+  // Door is now open — player walks through to the next room naturally.
+  // setMaxZBound is already extended by setDoorUnlocked() in world.js.
 }
 
 export function updateCurrentSector(sectorIndex) {
@@ -144,15 +100,11 @@ export function isLevelComplete() {
   return state.doorsCleared.length >= SEQUENTIAL_DOORS.length;
 }
 
-export function isElevatorRiding() {
-  return state.elevatorRiding;
-}
-
 export function advanceLevel() {
   state.currentSector = Math.min(5, (state.currentSector || 1) + 1);
   state.activeDoorIndex = 0;
   state.doorsCleared = [];
-  state.currentFloor = "G";
+  state.currentRoom = "classification";
   updateWorldDoorVisuals();
   renderHud(state);
 }

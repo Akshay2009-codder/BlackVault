@@ -39,7 +39,7 @@ let isGrounded = true;
 const BOUND_MIN_X = -18.2;
 const BOUND_MAX_X = 18.2;
 const BOUND_MIN_Z = -7.5;
-let BOUND_MAX_Z = 28.5; // Expands dynamically as security doors are unlocked or elevator rides complete
+let BOUND_MAX_Z = 28.5; // Expands dynamically as security doors are unlocked
 
 const PLAYER_RADIUS = 0.42;
 
