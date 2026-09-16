@@ -41,16 +41,17 @@ export function initScene() {
     canvas,
     antialias: true,
     powerPreference: "high-performance",
+    precision: "highp",
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   // Strong ambient fill so teal-slate walls are clearly visible
   const ambientLight = new THREE.AmbientLight(0xd8e8f0, 0.95);
@@ -64,42 +65,42 @@ export function initScene() {
   const skyDirLight = new THREE.DirectionalLight(0xfff0d0, 0.85);
   skyDirLight.position.set(6, 20.0, 18);
   skyDirLight.castShadow = true;
-  skyDirLight.shadow.mapSize.width = 2048;
-  skyDirLight.shadow.mapSize.height = 2048;
-  skyDirLight.shadow.bias = -0.00005;
-  skyDirLight.shadow.normalBias = 0.03; // cures shadow acne on walls and floors
+  skyDirLight.shadow.mapSize.width = 1024;
+  skyDirLight.shadow.mapSize.height = 1024;
+  skyDirLight.shadow.bias = -0.0001;
+  skyDirLight.shadow.normalBias = 0.02;
   skyDirLight.shadow.camera.near = 0.5;
-  skyDirLight.shadow.camera.far = 350;
-  skyDirLight.shadow.camera.left  = -45;
-  skyDirLight.shadow.camera.right  = 45;
-  skyDirLight.shadow.camera.top    = 45;
-  skyDirLight.shadow.camera.bottom = -45;
+  skyDirLight.shadow.camera.far = 280;
+  skyDirLight.shadow.camera.left  = -35;
+  skyDirLight.shadow.camera.right  = 35;
+  skyDirLight.shadow.camera.top    = 35;
+  skyDirLight.shadow.camera.bottom = -35;
   scene.add(skyDirLight);
 
-  // ── Post-Processing: Vivid Neon Bloom ─────────────────────────────
+  // ── Post-Processing: Fast High-Performance Bloom ─────────────────
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.35,   // subtle calibrated strength
-    0.30,   // radius
-    0.85    // high threshold — standard physical materials and metal chords never bloom
+    0.30,   // subtle calibrated strength
+    0.25,   // radius
+    0.85    // high threshold
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
 
-  // ── Atmospheric Data Motes — electric cyan ─────────────────────────
+  // ── Atmospheric Data Motes — electric cyan (GPU-friendly) ────────
   createDustMotes();
 
-  window.addEventListener("resize", onWindowResize);
+  window.addEventListener("resize", onWindowResize, { passive: true });
   scene.add(camera);
 
   return { scene, camera, renderer };
 }
 
 function createDustMotes() {
-  const particleCount = 650;
+  const particleCount = 450;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
 
@@ -127,24 +128,16 @@ function createDustMotes() {
 
 export function updateSceneEffects(delta) {
   if (!dustParticles) return;
-  const positions = dustParticles.geometry.attributes.position.array;
-  const count = positions.length / 3;
-
-  for (let i = 0; i < count; i++) {
-    positions[i * 3 + 1] += 0.004 * delta * 60.0;
-    if (positions[i * 3 + 1] > 8.0) positions[i * 3 + 1] = 0.3;
+  // Butter-smooth particle drift without CPU buffer re-allocation
+  dustParticles.position.y += 0.08 * delta;
+  if (dustParticles.position.y > 2.0) {
+    dustParticles.position.y = 0.0;
   }
-  dustParticles.geometry.attributes.position.needsUpdate = true;
 }
 
-// Stable ambient illumination — eliminates distracting scene-wide flickering
+// Stable ambient illumination
 export function updateAnimatables(delta) {
-  // Keep registered lights steady at their designed base intensity
-  for (const { light, baseIntensity } of flickerLights) {
-    if (light && light.intensity !== baseIntensity) {
-      light.intensity = baseIntensity;
-    }
-  }
+  // Empty - lights are static and stable for maximum frame rate
 }
 
 function onWindowResize() {

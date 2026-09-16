@@ -41,7 +41,7 @@ const BOUND_MAX_X = 18.2;
 const BOUND_MIN_Z = -7.5;
 let BOUND_MAX_Z = 28.5; // Expands dynamically as security doors are unlocked
 
-const PLAYER_RADIUS = 0.42;
+const PLAYER_RADIUS = 0.28;
 
 function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
   let nextX = currentX + deltaX;
@@ -54,10 +54,13 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
     return { x: nextX, z: nextZ };
   }
 
-  // 1. Resolve X movement against active collision boxes
+  // Filter nearby boxes within active interaction sphere
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b.active) continue;
+    if (Math.abs(b.minX - currentX) > 8.0 || Math.abs(b.minZ - currentZ) > 8.0) continue;
+
+    // 1. Resolve X movement against active collision boxes
     if (
       nextX + PLAYER_RADIUS > b.minX &&
       nextX - PLAYER_RADIUS < b.maxX &&
@@ -79,6 +82,8 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b.active) continue;
+    if (Math.abs(b.minX - currentX) > 8.0 || Math.abs(b.minZ - currentZ) > 8.0) continue;
+
     if (
       nextX + PLAYER_RADIUS > b.minX &&
       nextX - PLAYER_RADIUS < b.maxX &&

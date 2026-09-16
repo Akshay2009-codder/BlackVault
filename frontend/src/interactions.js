@@ -9,7 +9,7 @@ import { getPlayerPosition, getControls, sitAt } from "./player.js";
 import * as hud from "./hud.js";
 import * as levelManager from "./levelManager.js";
 
-const INTERACT_RANGE = 4.5;
+const INTERACT_RANGE = 5.5;
 const raycaster = new THREE.Raycaster();
 const forward = new THREE.Vector3();
 
@@ -66,7 +66,7 @@ export function updateInteractions() {
     if (dist > INTERACT_RANGE) continue;
     const toDoor = entry.position.clone().sub(camera.position).normalize();
     const angle = forward.angleTo(toDoor);
-    if (angle < 0.5 && dist < closest.dist) {
+    if (angle < 0.75 && dist < closest.dist) {
       closest = { dist, doorType, isExit: false };
     }
   }

@@ -31,17 +31,17 @@ export const BUILDING_PALETTE = {
   coolWhite:      0xe6f8ff,  // #E6F8FF - backlit signage white
   gold:           0xd4af37,  // #D4AF37 - metallic hardware trim
 
-  // Architectural Tech Palette (Bright, clean, non-black surfaces)
-  wallGraphite:   0x7292a6,  // #7292A6 - sleek silver-steel wall tone (bright & clear)
-  wallAlt:        0x5e7e92,  // #5E7E92 - secondary satin cyan-steel panel
-  floorDark:      0x243240,  // #243240 - rich slate-blue floor
-  floorGrout:     0x1c2834,  // #1C2834 - subtle floor grid seam
-  ceilingDark:    0x364c60,  // #364C60 - mid-tone architectural ceiling
-  trussMetal:     0x486478,  // #486478 - bright structural beam metal tone
+  // Dark Architectural Base
+  wallGraphite:   0x1a1d24,  // #1A1D24 - dark matte graphite walls
+  wallAlt:        0x161820,  // #161820 - secondary dark panel
+  floorDark:      0x14161b,  // #14161B - glossy reflective dark floor
+  floorGrout:     0x0d0f13,  // #0D0F13 - dark floor grid seam
+  ceilingDark:    0x2a2e36,  // #2A2E36 - dark graphite ceiling plane
+  trussMetal:     0x1c1f24,  // #1C1F24 - structural beam metal tone
   ceilingCyan:    0x3fd8e8,  // #3FD8E8 - glowing cyan-teal beam strips
   downlightWhite: 0xe8f4ff,  // #E8F4FF - soft cool-white recessed downlights
   edgeMagenta:    0xff4fa3,  // #FF4FA3 - sparse magenta ceiling edge strips
-  furniture:      0x344b5c,  // #344B5C - sleek steel console chassis
+  furniture:      0x101216,  // #101216 - dark console/chassis body
 };
 
 // Door identity colours — unified electric cyan/blue accent

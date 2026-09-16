@@ -78,19 +78,20 @@ export function clearCollisionBoxes() {
 
 var worldCamera = null;
 
-// ── Bright Architectural Corporate Palette (Clean, Non-Black Surfaces) ──────
+// ── Warm Steel-Teal Corporate Palette ───────────────────────────────────────
+// Clearly visible walls — warm teal-steel that reads as real lit architecture.
 const P = {
-  // Architectural Wall Surfaces — Bright titanium silver and warm teak/cyan steel (NOT black)
-  wallMain:    0x7a9cb0,   // Bright sleek silver-teal primary wall
-  wallAlt:     0x648a9e,   // Satin cyan-steel secondary panels
-  wallSilver:  0x9ec4dc,   // Bright brushed platinum-silver upper panels
-  wallBrown:   0xb47a52,   // Warm architectural copper/timber wainscot base
-  wallBronze:  0xd4a868,   // Warm champagne gold accent reveals
-  warmWood:    0xca8c5c,   // Warm timber slats
-  floor:       0x283848,   // Crisp reflective slate floor (contrast with bright walls)
-  floorTrim:   0x52768c,   // Bright steel baseboard / expansion joint
-  ceiling:     0x384e62,   // Mid-tone architectural ceiling
-  trussSteel:  0x48647c,   // Visible structural beams
+  // Architectural Wall Surfaces — Medium warm teal-steel
+  wallMain:    0x4e7080,   // Warm teal-slate — primary wall (clearly visible)
+  wallAlt:     0x3d6070,   // Slightly cooler teal — secondary panels
+  wallSilver:  0x6888a0,   // Steel-blue composite upper panels (bright)
+  wallBrown:   0x385868,   // Deep teal wainscot base
+  wallBronze:  0x5a7888,   // Warm steel-teal accent reveals
+  warmWood:    0x4a6472,   // Blue-grey wainscot timber slats (lighter)
+  floor:       0x202830,   // Dark charcoal floor — contrast with walls
+  floorTrim:   0x3a5060,   // Teal baseboard / expansion joint
+  ceiling:     0x2e4252,   // Mid-dark slate ceiling
+  trussSteel:  0x243848,   // Structural beams — visible
 
   // Ceiling light fixtures
   ceilingCyan:      0x3fd8e8,   // Glowing cyan-teal beam strips #3FD8E8
@@ -98,11 +99,11 @@ const P = {
   ceilingMagenta:   0xff4fa3,   // Sparse low-intensity edge magenta strips #FF4FA3
 
   // Furniture & props
-  furniture:   0x2e4458,   // Sleek steel chassis
-  chrome:      0xdde8f2,   // Bright brushed steel / chrome
-  gold:        0xf0c868,   // Luminous warm champagne brass
-  leatherWarm: 0x4a6a82,   // Teal-blue leather
-  fabricSlate: 0x5e788c,   // Clean acoustic fabric
+  furniture:   0x1a2838,   // Dark slate furniture chassis
+  chrome:      0xc8d4e0,   // Cool brushed steel / chrome
+  gold:        0xe8c878,   // Warm champagne brass — trim & reveals
+  leatherWarm: 0x3a5a70,   // Teal-blue leather
+  fabricSlate: 0x4a6070,   // Teal acoustic fabric
 
   // RGB Neon Accents (Vibrant light sources — per room)
   pink:      0xff2e9a,   // #FF2E9A — neon pink/magenta
@@ -159,39 +160,39 @@ export function initWorld(scene, cameraRef = null) {
     metalness: 0.25,
   });
 
-  // Upper Walls: Bright brushed platinum-silver composite panels
+  // Upper Walls: Warm terracotta composite panels
   const wallSilverMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0x9ec4dc,
-    roughness: 0.38,
-    metalness: 0.30,
+    color: 0xd07848,
+    roughness: 0.52,
+    metalness: 0.18,
   });
 
-  // Lower Walls & Wainscoting: Warm amber-copper timber slats
+  // Lower Walls & Wainscoting: Warm rust-orange timber slats
   const woodSlatMat = new THREE.MeshStandardMaterial({
     map: createWalnutWoodSlatTexture(),
-    color: 0xda8850,
-    roughness: 0.45,
-    metalness: 0.10,
+    color: 0xb86838,
+    roughness: 0.55,
+    metalness: 0.08,
   });
 
   const wallNoiseTex = createWallNoiseTexture();
   const wallMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallMain,
-    roughness: 0.50,
-    metalness: 0.20,
+    roughness: 0.70,
+    metalness: 0.22,
   });
   const wallAltMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallAlt,
-    roughness: 0.48,
-    metalness: 0.20,
+    roughness: 0.65,
+    metalness: 0.12,
   });
 
   const ceilMat = createAuroraCeilingMaterial();
-  const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.30, metalness: 0.55 });
-  const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.20, metalness: 0.90 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
+  const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
 
   // ── Global continuous reflective dark floor ──────────────────────────────
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, TOTAL_LEN), floorMat);
@@ -2350,19 +2351,21 @@ function createDoorStation(scene, doorType, x, z, wallH) {
 
   // Materials
   const portalWallMat = new THREE.MeshStandardMaterial({
-    color: 0x608aa2, // Bright satin cyan-steel contrasting portal wall
-    roughness: 0.38,
-    metalness: 0.30,
+    map: createWalnutWoodSlatTexture(),
+    color: 0xb86838,
+    roughness: 0.55,
+    metalness: 0.08,
   });
   const outerWallMat = new THREE.MeshStandardMaterial({
-    color: P.wallMain,
-    roughness: 0.48,
-    metalness: 0.20,
+    map: createBrushedSilverWallTexture(),
+    color: 0xd07848,
+    roughness: 0.52,
+    metalness: 0.18,
   });
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0x82a4be, // Bright brushed titanium-steel frame
+    color: 0x8a5838, // Warm bronze architectural frame
     metalness: 0.85,
-    roughness: 0.22,
+    roughness: 0.28,
   });
   const accentGlowMat = new THREE.MeshBasicMaterial({ color });
   const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
