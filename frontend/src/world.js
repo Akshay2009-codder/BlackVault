@@ -3223,50 +3223,35 @@ function buildWorkstationDesk(scene, config) {
     ws.add(leg);
   });
 
-  // Curved ultrawide display
-  const monGeo = new THREE.PlaneGeometry(2.1, 0.72, 32, 1);
-  const pa = monGeo.attributes.position;
-  for (let i = 0; i < pa.count; i++) pa.setZ(i, pa.getX(i) ** 2 * 0.18);
-  monGeo.computeVertexNormals();
-
-  const monScreen = new THREE.Mesh(
-    monGeo,
-    new THREE.MeshBasicMaterial({ map: config.screenTexture, side: THREE.DoubleSide })
-  );
-  monScreen.position.set(-0.25, 1.22, -0.15);
-  ws.add(monScreen);
-
-  const casCopy = monGeo.clone();
-  casCopy.translate(0, 0, -0.015);
-  const monCasing = new THREE.Mesh(casCopy,
-    new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.95, roughness: 0.25, side: THREE.DoubleSide })
-  );
-  monCasing.position.set(-0.25, 1.22, -0.15);
-  ws.add(monCasing);
-
-  const monGlow = config.monitorLight || new THREE.PointLight(config.accentColor, 2.0, 4.5);
-  monGlow.color.setHex(config.accentColor);
-  monGlow.position.set(-0.25, 1.22, 0.25);
-  ws.add(monGlow);
-
-  const deskPad = new THREE.Mesh(
-    new THREE.BoxGeometry(1.05, 0.005, 0.45),
-    new THREE.MeshStandardMaterial({ color: 0x1a0d0f, roughness: 0.7 })
-  );
-  deskPad.position.set(-0.15, 0.784, 0.22);
-  ws.add(deskPad);
-
-  const keyboard = new THREE.Mesh(
-    new THREE.BoxGeometry(0.62, 0.02, 0.24),
-    new THREE.MeshStandardMaterial({ map: createKeyboardTexture(), roughness: 0.35 })
-  );
-  keyboard.position.set(-0.25, 0.795, 0.22);
-  ws.add(keyboard);
-
   scene.add(ws);
-
-  // Collision box for workstation
   addCollisionBox(config.x - 1.5, config.x + 1.5, config.z - 0.75, config.z + 0.75, "workstation_desk");
+}
+
+/** Office plant */
+function makeOfficePlant(scene, x, z) {
+  const g = new THREE.Group();
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.26, 0.5, 16),
+    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.5 })
+  );
+  pot.position.y = 0.25;
+  pot.castShadow = true;
+  g.add(pot);
+
+  const foliage = [P.plant1, P.plant2, P.plant3];
+  for (let i = 0; i < 8; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.ConeGeometry(0.2, 0.8, 6),
+      new THREE.MeshStandardMaterial({ color: foliage[i % 3], roughness: 0.5 })
+    );
+    const a = (i / 8) * Math.PI * 2;
+    leaf.position.set(Math.cos(a) * 0.15, 0.9 + Math.random() * 0.15, Math.sin(a) * 0.15);
+    leaf.rotation.z = Math.cos(a) * 0.35;
+    leaf.rotation.x = Math.sin(a) * 0.35;
+    g.add(leaf);
+  }
+  g.position.set(x, 0, z);
+  scene.add(g);
 }
 
 /** Server rack tower with physical chassis slots and metallic rails */
@@ -3299,34 +3284,6 @@ function buildServerRackGroup(scene, x, z, accentColor) {
 
   // Collision box for server rack
   addCollisionBox(x - 0.7, x + 0.7, z - 1.85, z + 1.85, "server_rack");
-}
-
-
-/** Office plant */
-function makeOfficePlant(scene, x, z) {
-  const g = new THREE.Group();
-  const pot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.26, 0.5, 16),
-    new THREE.MeshStandardMaterial({ color: P.wallAlt, roughness: 0.5 })
-  );
-  pot.position.y = 0.25;
-  pot.castShadow = true;
-  g.add(pot);
-
-  const foliage = [P.plant1, P.plant2, P.plant3];
-  for (let i = 0; i < 8; i++) {
-    const leaf = new THREE.Mesh(
-      new THREE.ConeGeometry(0.2, 0.8, 6),
-      new THREE.MeshStandardMaterial({ color: foliage[i % 3], roughness: 0.5 })
-    );
-    const a = (i / 8) * Math.PI * 2;
-    leaf.position.set(Math.cos(a) * 0.15, 0.9 + Math.random() * 0.15, Math.sin(a) * 0.15);
-    leaf.rotation.z = Math.cos(a) * 0.35;
-    leaf.rotation.x = Math.sin(a) * 0.35;
-    g.add(leaf);
-  }
-  g.position.set(x, 0, z);
-  scene.add(g);
 }
 
 /** CCTV camera prop */
@@ -3421,35 +3378,117 @@ function playDoorUnlockSFX() {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     if (ctx.state === "suspended") ctx.resume();
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.45, ctx.sampleRate);
+
+    // 1. Chime - two bright rising tones
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12); // A5
+    oscGain.gain.setValueAtTime(0.18, ctx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.6);
+
+    // 2. Heavy pneumatic hiss + mechanical sub-bass servo
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 1.8, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const filt = ctx.createBiquadFilter();
-    filt.type = "lowpass";
-    filt.frequency.setValueAtTime(2200, ctx.currentTime);
-    filt.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.45);
+    filt.type = "bandpass";
+    filt.frequency.setValueAtTime(1400, ctx.currentTime);
+    filt.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 1.8);
+    filt.Q.setValueAtTime(2.5, ctx.currentTime);
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.8);
     src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
     src.start();
+
+    // 3. Sub-bass motor rumble
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = "triangle";
+    subOsc.frequency.setValueAtTime(58, ctx.currentTime);
+    subOsc.frequency.linearRampToValueAtTime(42, ctx.currentTime + 1.8);
+    subGain.gain.setValueAtTime(0.25, ctx.currentTime);
+    subGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.8);
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start();
+    subOsc.stop(ctx.currentTime + 1.8);
   } catch (e) {}
 }
 
-function animateDoorLeaves(entry, duration = 950, onDone) {
+export function playSecurityAlarmSFX() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") ctx.resume();
+
+    // Siren sweeps down and up
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.70);
+    osc.frequency.exponentialRampToValueAtTime(280, ctx.currentTime + 1.10);
+    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 1.3);
+  } catch (e) {}
+}
+
+export function playErrorBuzzerSFX() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") ctx.resume();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(140, ctx.currentTime);
+    osc.frequency.setValueAtTime(110, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.38);
+  } catch (e) {}
+}
+
+function animateDoorLeaves(entry, duration = 2000, onDone) {
   const start = performance.now();
   const lStart = entry.leftLeaf.position.x;
   const rStart = entry.rightLeaf.position.x;
-  const lTarget = -3.80, rTarget = 3.80;
+  const lTarget = -3.85, rTarget = 3.85;
+
   function step(now) {
     const t = Math.min(1, (now - start) / duration);
+    // Smooth cubic ease out
     const e = 1 - Math.pow(1 - t, 3);
     entry.leftLeaf.position.x  = lStart + (lTarget - lStart) * e;
     entry.rightLeaf.position.x = rStart + (rTarget - rStart) * e;
-    if (t < 1) requestAnimationFrame(step);
-    else if (onDone) onDone();
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      entry.leftLeaf.position.x = lTarget;
+      entry.rightLeaf.position.x = rTarget;
+      if (onDone) onDone();
+    }
   }
   requestAnimationFrame(step);
 }
@@ -3476,7 +3515,7 @@ export function setDoorActiveState(doorType, isActive, isUnlocked = false) {
     entry.glow.material.color.setHex(STATUS_COLORS.unlocked);
     entry.leftEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
     entry.rightEdgeGlow.material.color.setHex(STATUS_COLORS.unlocked);
-    if (entry.doorLight) { entry.doorLight.color.setHex(STATUS_COLORS.unlocked); entry.doorLight.intensity = 2.5; }
+    if (entry.doorLight) { entry.doorLight.color.setHex(STATUS_COLORS.unlocked); entry.doorLight.intensity = 2.8; }
     if (entry.screen) entry.screen.material.color.setHex(STATUS_COLORS.unlocked);
   } else if (isActive) {
     if (entry.doorLeafMat) {
@@ -3510,21 +3549,16 @@ export function setDoorUnlocked(doorType, onComplete) {
     return;
   }
 
-  // Deactivate physical door collision barrier
+  // Deactivate physical door collision barrier immediately
   if (entry.barrierBox) entry.barrierBox.active = false;
 
   // Set door status to unlocked (sage green colors)
   setDoorActiveState(doorType, true, true);
 
-  // Play audio
+  // Play rich synthesized pneumatic unlock sound
   playDoorUnlockSFX();
 
-  // 1. Slow down time: drop to 35% speed for ~1.8s
-  try {
-    if (typeof setTimeDilation === "function") setTimeDilation(0.35);
-  } catch (e) {}
-
-  // 2. Light flash: doorLight intensity bursts to 5.8 in sage green
+  // 1. Light flash: doorLight intensity bursts in sage green
   if (entry.doorLight) {
     entry.doorLight.color.setHex(STATUS_COLORS.unlocked);
     entry.doorLight.intensity = 5.8;
@@ -3537,11 +3571,11 @@ export function setDoorUnlocked(doorType, onComplete) {
     flashEl.style.opacity = "0.75";
     setTimeout(() => {
       flashEl.style.opacity = "0";
-      setTimeout(() => flashEl.classList.add("hidden"), 500);
-    }, 250);
+      setTimeout(() => flashEl.classList.add("hidden"), 400);
+    }, 200);
   }
 
-  // 3. Cinematic camera push-in towards the opening door
+  // 2. Cinematic camera shot: smooth camera glide to frame the blast door directly
   let camRunning = false;
   if (worldCamera) {
     camRunning = true;
@@ -3549,13 +3583,14 @@ export function setDoorUnlocked(doorType, onComplete) {
     const startQuat = worldCamera.quaternion.clone();
     const origFOV = worldCamera.fov;
 
-    const pushTargetPos = new THREE.Vector3(0, 2.3, entry.zDoor - 4.4);
-    const pushLookAt = new THREE.Vector3(0, 2.3, entry.zDoor);
+    // Direct framing in front of the door (centered at eye height looking into next sector)
+    const pushTargetPos = new THREE.Vector3(0, 1.85, entry.zDoor - 5.8);
+    const pushLookAt = new THREE.Vector3(0, 2.15, entry.zDoor + 2.0);
     const lookMat = new THREE.Matrix4().lookAt(pushTargetPos, pushLookAt, worldCamera.up);
     const pushQuat = new THREE.Quaternion().setFromRotationMatrix(lookMat);
 
     const pushStart = performance.now();
-    const pushDuration = 1200;
+    const pushDuration = 1000;
 
     function pushStep(now) {
       const t = Math.min(1, (now - pushStart) / pushDuration);
@@ -3563,50 +3598,43 @@ export function setDoorUnlocked(doorType, onComplete) {
 
       worldCamera.position.lerpVectors(startPos, pushTargetPos, eased);
       worldCamera.quaternion.slerpQuaternions(startQuat, pushQuat, eased);
-      worldCamera.fov = THREE.MathUtils.lerp(origFOV, 56, eased);
+      worldCamera.fov = THREE.MathUtils.lerp(origFOV, 58, eased);
       worldCamera.updateProjectionMatrix();
 
       if (t < 1) {
         requestAnimationFrame(pushStep);
       } else {
-        // Hold for 400ms then smoothly return
+        // Hold camera on the opening door for the full slide duration
         setTimeout(() => {
           const retStart = performance.now();
-          const retDuration = 650;
+          const retDuration = 700;
           function retStep(now2) {
             const t2 = Math.min(1, (now2 - retStart) / retDuration);
             const eased2 = 1 - Math.pow(1 - t2, 2);
 
             worldCamera.position.lerpVectors(pushTargetPos, startPos, eased2);
             worldCamera.quaternion.slerpQuaternions(pushQuat, startQuat, eased2);
-            worldCamera.fov = THREE.MathUtils.lerp(56, origFOV, eased2);
+            worldCamera.fov = THREE.MathUtils.lerp(58, origFOV, eased2);
             worldCamera.updateProjectionMatrix();
 
             if (t2 < 1) {
               requestAnimationFrame(retStep);
             } else {
-              // Resume normal time speed!
-              try {
-                if (typeof setTimeDilation === "function") setTimeDilation(1.0);
-              } catch (e) {}
               if (entry.doorLight) entry.doorLight.intensity = 2.4;
               if (onComplete) onComplete();
             }
           }
           requestAnimationFrame(retStep);
-        }, 450);
+        }, 1600);
       }
     }
     requestAnimationFrame(pushStep);
   }
 
-  // 4. Door leaves slide open in slow motion (takes 2200ms)
-  animateDoorLeaves(entry, 2200, () => {
+  // 3. Door leaves slide open smoothly
+  animateDoorLeaves(entry, 2100, () => {
     setMaxZBound(entry.zDoor + 20.8);
     if (!camRunning) {
-      try {
-        if (typeof setTimeDilation === "function") setTimeDilation(1.0);
-      } catch (e) {}
       if (entry.doorLight) entry.doorLight.intensity = 2.4;
       if (onComplete) onComplete();
     }

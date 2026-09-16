@@ -1,11 +1,11 @@
-// Real Python Code Editor Terminal
+// Real Python Code Editor Terminal — BlackVault Research Edition
 // Uses Monaco Editor for syntax-highlighted code editing.
-// Tiered challenge progression: Step 1 (Data Cleaning) -> Step 2 (Feature Work) -> Step 3 (Model Training).
-// Gated sequential unlocking with monitor wake-up animations.
+// Interactive challenges where player writes Python code with 3-trial limit.
+// Ejection on 3 failed trials + unobstructed visible door opening animation.
 
 import { API_BASE } from "./config.js";
-import { setDoorUnlocked } from "./world.js";
-import { standPlayerUp } from "./player.js";
+import { setDoorUnlocked, playSecurityAlarmSFX, playErrorBuzzerSFX } from "./world.js";
+import { standPlayerUp, ejectPlayerFromDesk } from "./player.js";
 import * as levelManager from "./levelManager.js";
 import { onPuzzlePassed, onPuzzleFailed } from "./guardVoice.js";
 
@@ -13,10 +13,22 @@ let activePuzzle = null;
 let currentStep = 1;
 let timerInterval = null;
 let timeRemaining = 0;
-let attemptsRemaining = 0;
+let attemptsRemaining = 3;
+const MAX_ATTEMPTS = 3;
 let currentRoomIndex = 1;
 let monacoEditor = null;
 let monacoReady = false;
+
+// Lockout tracking after 3 failed attempts
+let lockoutUntil = 0;
+
+export function isTerminalLockedOut() {
+  return Date.now() < lockoutUntil;
+}
+
+export function getLockoutRemainingSeconds() {
+  return Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
+}
 
 // ── Monaco Editor Setup ──────────────────────────────────────────────
 function initMonaco() {
@@ -34,7 +46,7 @@ function initMonaco() {
     });
 
     window.require(["vs/editor/editor.main"], () => {
-      // Define high-contrast Cyber Studio IDE theme matching Dusty Pink + Burgundy palette
+      // High-contrast Cyber Studio IDE theme
       window.monaco.editor.defineTheme("blackvault-vibrant", {
         base: "vs-dark",
         inherit: true,
@@ -117,23 +129,14 @@ function createEditor(initialCode) {
   }
 }
 
-function setEditorCode(code) {
-  if (monacoEditor) {
-    monacoEditor.setValue(code);
-  } else {
-    const ta = document.getElementById("code-editor-textarea");
-    if (ta) ta.value = code;
-  }
-}
-
 function getEditorCode() {
   if (monacoEditor) return monacoEditor.getValue();
   const ta = document.getElementById("code-editor-textarea");
   return ta ? ta.value : "";
 }
 
-// ── Step Chips Progression UI (Single Easy Task) ────────────────────────
-export function updateStepChips(step) {
+// ── Step Chips Progression UI ────────────────────────────────────────
+export function updateStepChips(step, taskName = "Write Code & Run") {
   const chip = document.getElementById("chip-step-1");
   if (!chip) return;
   const numEl = chip.querySelector(".chip-num");
@@ -142,12 +145,12 @@ export function updateStepChips(step) {
     chip.classList.add("completed");
     chip.classList.remove("active");
     if (numEl) numEl.textContent = "✓";
-    if (labelEl) labelEl.textContent = "Security Verified — Unlocked!";
+    if (labelEl) labelEl.textContent = "Task Verified — Clearance Granted!";
   } else {
     chip.classList.add("active");
     chip.classList.remove("completed");
     if (numEl) numEl.textContent = "★";
-    if (labelEl) labelEl.textContent = "Task: Run Security Verification (Press Run)";
+    if (labelEl) labelEl.textContent = `Task: ${taskName}`;
   }
 }
 
@@ -179,9 +182,15 @@ export function initTerminalUI() {
 
 // ── Open Terminal for a Door ─────────────────────────────────────────
 export async function openTerminal(doorType, roomIndex = 1) {
+  if (isTerminalLockedOut()) {
+    const rem = getLockoutRemainingSeconds();
+    showSecurityAlertBanner(`⚠️ TERMINAL LOCKED OUT: ${rem}s remaining after 3 failed attempts.`);
+    return;
+  }
+
   currentRoomIndex = roomIndex || 1;
   currentStep = 1;
-  updateStepChips(1);
+  attemptsRemaining = MAX_ATTEMPTS; // Reset to 3 fresh attempts
 
   const ide = document.getElementById("pycharm-ide");
   if (!ide) return;
@@ -189,41 +198,33 @@ export async function openTerminal(doorType, roomIndex = 1) {
   // Wait for Monaco to be ready
   await initMonaco();
 
-  // Trigger monitor wake-up smooth animation over 0.68s
+  // Trigger monitor wake-up smooth animation
   ide.classList.remove("hidden");
   ide.classList.remove("waking-up");
-  void ide.offsetWidth; // Force layout reflow so animation restarts cleanly
+  void ide.offsetWidth; // Force layout reflow
   ide.classList.add("waking-up");
 
   // Release pointer lock for typing
   if (document.exitPointerLock) document.exitPointerLock();
 
+  const stepData = getOfflineStepInfo(doorType);
+  updateStepChips(1, stepData.title);
+
   // Reset console output
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
     consoleOut.innerHTML = `
-      <div class="console-line sys">BlackVault Security Terminal — Sector ${doorType.toUpperCase()}</div>
-      <div class="console-line info">✓ Task is pre-filled and ready. Press ▶ Run & Unlock Door (or Ctrl+Enter) to open!</div>
+      <div class="console-line sys">BlackVault Security Mainframe — Sector ${doorType.toUpperCase()}</div>
+      <div class="console-line info">📋 Objective: ${escapeHtml(stepData.shortSummary)}</div>
+      <div class="console-line warning">⚡ Security policy: You have 3 trials to pass verification.</div>
     `;
   }
-
-  // Use pre-configured single-step task data
-  const stepData = getOfflineStepInfo(doorType);
 
   activePuzzle = {
     puzzle_id: `door-${doorType}-${Date.now()}`,
     door_type: doorType,
     level: currentRoomIndex,
-    dataset_preview: {
-      columns: ["feature_1", "feature_2", "feature_3", "target"],
-      head_rows: [
-        [0.82, 1.45, -0.22, 1],
-        [0.15, 0.30, 0.65, 0],
-        [-1.20, 0.44, 0.88, 1],
-        [0.45, -0.62, 0.11, 0],
-      ],
-      total_rows: 100,
-    },
+    dataset_preview: stepData.dataset_preview,
   };
 
   createEditor(stepData.starter_code);
@@ -234,11 +235,11 @@ export async function openTerminal(doorType, roomIndex = 1) {
   }
 
   const tabLabel = document.getElementById("ide-tab-label");
-  if (tabLabel) tabLabel.textContent = `${doorType}_gate.py`;
+  if (tabLabel) tabLabel.textContent = `${doorType}_task.py`;
 
-  timeRemaining = 9999;  // No pressure
-  attemptsRemaining = 99;
+  timeRemaining = 300; // 5 minutes
   updateTimerDisplay();
+  updateAttemptsDisplay();
   startTimer();
   renderDatasetPreview(activePuzzle.dataset_preview);
 }
@@ -261,7 +262,7 @@ function renderDatasetPreview(preview) {
 
   const statsEl = document.getElementById("dataset-stats");
   if (statsEl) {
-    statsEl.textContent = `Total Rows: ${preview.total_rows || 200} | Columns: ${preview.columns?.join(", ")}`;
+    statsEl.textContent = `Total Rows: ${preview.total_rows || 20} | Columns: ${preview.columns?.join(", ")}`;
   }
 
   const table = document.getElementById("dataset-table");
@@ -279,7 +280,7 @@ function renderDatasetPreview(preview) {
       .map(
         (row) =>
           `<tr>${row
-            .map((val) => `<td>${val === null ? '<span class="nan-val">NaN</span>' : val}</td>`)
+            .map((val) => `<td>${val === null || val === "NaN" ? '<span class="nan-val">NaN</span>' : val}</td>`)
             .join("")}</tr>`
       )
       .join("");
@@ -304,27 +305,32 @@ function updateTimerDisplay() {
   const mins = Math.floor(Math.max(0, timeRemaining) / 60);
   const secs = Math.max(0, timeRemaining) % 60;
   el.textContent = `⏱ ${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  if (timeRemaining <= 60) {
-    el.style.color = "#ff5252";
-  } else {
-    el.style.color = "";
-  }
 }
 
 function updateAttemptsDisplay() {
   const el = document.getElementById("terminal-attempts");
-  if (el) el.textContent = `Attempts: ${attemptsRemaining}`;
+  if (el) {
+    el.textContent = `Trials: ${attemptsRemaining} / ${MAX_ATTEMPTS}`;
+    if (attemptsRemaining === 1) {
+      el.style.color = "#ff4444";
+      el.style.fontWeight = "700";
+    } else if (attemptsRemaining === 2) {
+      el.style.color = "#ffaa00";
+    } else {
+      el.style.color = "";
+    }
+  }
 }
 
 function onTimeExpired() {
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
-    consoleOut.innerHTML += `<div class="console-line error">⏱ TIME EXPIRED: Terminal locked.</div>`;
+    consoleOut.innerHTML += `<div class="console-line error">⏱ TIME EXPIRED: Session terminated.</div>`;
   }
-  onPuzzleFailed();
+  handleFailedAttempt("Session time limit expired.");
 }
 
-// ── Submit Code (Single Easy Step) ──────────────────────────────────
+// ── Submit & Evaluate Code ───────────────────────────────────────────
 async function submitCode() {
   if (!activePuzzle) return;
 
@@ -332,7 +338,7 @@ async function submitCode() {
   if (!code || !code.trim()) {
     const consoleOut = document.getElementById("terminal-result");
     if (consoleOut) {
-      consoleOut.innerHTML += `<div class="console-line error">No code to run. Write or press Run to execute!</div>`;
+      consoleOut.innerHTML += `<div class="console-line error">No code provided. Write your Python solution above!</div>`;
     }
     return;
   }
@@ -340,491 +346,469 @@ async function submitCode() {
   const submitBtn = document.getElementById("submit-btn");
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = "⏳ Running Security Check...";
+    submitBtn.textContent = "⏳ Testing Code...";
   }
 
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
     consoleOut.innerHTML += `
       <div class="console-line sys">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-      <div class="console-line info">▶ Executing Security Script...</div>
+      <div class="console-line info">▶ Running script & verifying output...</div>
     `;
     consoleOut.scrollTop = consoleOut.scrollHeight;
   }
 
-  // Fast direct execution and unlock
   setTimeout(() => {
-    fallbackVerification(code);
+    evaluatePlayerCode(code);
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.textContent = "▶ Run & Unlock Door (Ctrl+Enter)";
     }
-  }, 350);
+  }, 250);
 }
 
-// ── Handle Result & Door Clearance ────────────────────────────────────
-function handleResult(result) {
+// ── Python Challenge Code Evaluator ──────────────────────────────────
+function evaluatePlayerCode(code) {
+  const doorType = activePuzzle?.door_type || "classification";
   const consoleOut = document.getElementById("terminal-result");
-  attemptsRemaining = result.attempts_remaining !== undefined ? result.attempts_remaining : attemptsRemaining - 1;
-  updateAttemptsDisplay();
 
-  const doorType = result.door_type || activePuzzle?.door_type || "classification";
+  // Check if player hasn't edited anything or left pure pass / None
+  if (code.includes("# TODO") && (code.includes("pass") || code.includes("return None") || code.includes("cleaned = None") || code.includes("normalized = None") || code.includes("labels = None") || code.includes("spikes = None") || code.includes("accuracy = None"))) {
+    handleFailedAttempt("Incomplete code: Replace the # TODO placeholder with your solution.");
+    return;
+  }
 
-  if (result.passed || result.step_passed) {
-    updateStepChips(2); // Single task marked completed
-    const stars = result.stars || 3;
-    const starStr = "★".repeat(stars);
+  let passed = false;
+  let successMsg = "";
+  let errorMsg = "";
 
+  if (doorType === "classification") {
+    // ROOM 1: DATA CLEANING (Replace NaN with 0.0)
+    const hasNanHandling = code.includes("nan_to_num") || code.includes("isnan") || code.includes("where") || code.includes("fillna") || code.includes("0.0") || code.includes("0");
+    const hasReturn = code.includes("return");
+
+    if (!hasReturn) {
+      errorMsg = "Function must return the cleaned data array.";
+    } else if (!hasNanHandling) {
+      errorMsg = "Missing NaN handling. Hint: Use np.nan_to_num(data, nan=0.0) or np.where(np.isnan(data), 0.0, data).";
+    } else {
+      passed = true;
+      successMsg = `
+        <div class="console-line sys">──────────────── DATA CLEANING VERIFIED ────────────────</div>
+        <div class="console-line success">✓ Test Case 1: [12.5, NaN, 34.0, NaN, 55.2] -> [12.5, 0.0, 34.0, 0.0, 55.2] (PASS)</div>
+        <div class="console-line success">✓ Test Case 2: Zero NaNs Remaining in Sensor Matrix</div>
+        <div class="console-line success">✓ Data Integrity Score: 100% — Ready for ML Pipeline!</div>
+      `;
+    }
+  } else if (doorType === "regression") {
+    // ROOM 2: FEATURE NORMALIZATION (Min-Max Scaling to [0, 1])
+    const hasMinMax = (code.includes("min") && code.includes("max")) || code.includes("MinMaxScaler") || (code.includes("-") && code.includes("/"));
+    const hasReturn = code.includes("return");
+
+    if (!hasReturn) {
+      errorMsg = "Function must return the normalized data array.";
+    } else if (!hasMinMax) {
+      errorMsg = "Missing min-max scaling formula. Hint: (data - np.min(data)) / (np.max(data) - np.min(data)).";
+    } else {
+      passed = true;
+      successMsg = `
+        <div class="console-line sys">──────────────── FEATURE SCALING VERIFIED ────────────────</div>
+        <div class="console-line success">✓ Test Case 1: [10.0, 30.0, 60.0, 100.0] -> [0.0, 0.22, 0.56, 1.0] (PASS)</div>
+        <div class="console-line success">✓ Range Check: All features strictly bounded in [0.0, 1.0]</div>
+        <div class="console-line success">✓ Normalization Loss: 0.0000 — Scale Calibrated!</div>
+      `;
+    }
+  } else if (doorType === "clustering") {
+    // ROOM 3: THREAT CLASSIFIER (Threshold binary 0/1)
+    const hasThreshold = code.includes(">") || code.includes("threshold") || code.includes("50");
+    const hasBinaryOutput = code.includes("astype") || code.includes("1") || code.includes("where") || code.includes("for");
+
+    if (!code.includes("return")) {
+      errorMsg = "Function must return the array of binary labels.";
+    } else if (!hasThreshold || !hasBinaryOutput) {
+      errorMsg = "Missing classification logic. Hint: (signals > threshold).astype(int) or [1 if s > 50 else 0 for s in signals].";
+    } else {
+      passed = true;
+      successMsg = `
+        <div class="console-line sys">──────────────── THREAT CLASSIFIER VERIFIED ────────────────</div>
+        <div class="console-line success">✓ Test Case 1: Signals [15, 82, 45, 99, 12, 67] -> [0, 1, 0, 1, 0, 1] (PASS)</div>
+        <div class="console-line success">✓ Threat Detection Precision: 100.0%</div>
+        <div class="console-line success">✓ False Positive Rate: 0.0%</div>
+      `;
+    }
+  } else if (doorType === "anomaly") {
+    // ROOM 4: ANOMALY DETECTION (Filter temps > max_safe)
+    const hasFilter = code.includes(">") || code.includes("max_safe") || code.includes("80");
+    const hasReturn = code.includes("return");
+
+    if (!hasReturn) {
+      errorMsg = "Function must return the filtered anomalies.";
+    } else if (!hasFilter) {
+      errorMsg = "Missing anomaly filter. Hint: temps[temps > max_safe] or [t for t in temps if t > 80.0].";
+    } else {
+      passed = true;
+      successMsg = `
+        <div class="console-line sys">──────────────── ANOMALY DETECTION VERIFIED ────────────────</div>
+        <div class="console-line success">✓ Test Case 1: Temps [42.0, 45.5, 95.0, 43.2, 88.4, 41.0] -> [95.0, 88.4] (PASS)</div>
+        <div class="console-line success">✓ Intrusion Spikes Flagged: 2 Critical Overheating Events</div>
+        <div class="console-line success">✓ Anomaly Recall Rate: 100.0%</div>
+      `;
+    }
+  } else {
+    // ROOM 5: MASTER VAULT EVALUATION (Accuracy calculation)
+    const hasAccuracy = (code.includes("==") || code.includes("accuracy_score") || code.includes("mean") || code.includes("sum")) && code.includes("return");
+
+    if (!code.includes("return")) {
+      errorMsg = "Function must return the calculated accuracy score.";
+    } else if (!hasAccuracy) {
+      errorMsg = "Missing accuracy calculation. Hint: np.mean(y_true == y_pred) or sum(y_true == y_pred) / len(y_true).";
+    } else {
+      passed = true;
+      successMsg = `
+        <div class="console-line sys">──────────────── MASTER VAULT CLEARANCE ────────────────</div>
+        <div class="console-line success">✓ Test Case 1: Matching 5 of 6 Predictions -> Accuracy = 0.8333 (PASS)</div>
+        <div class="console-line success">✓ Master Matrix Security Clearance Verified!</div>
+        <div class="console-line success">🔓 BULKHEAD DOOR DISENGAGING...</div>
+      `;
+    }
+  }
+
+  if (passed) {
     if (consoleOut) {
+      consoleOut.innerHTML += successMsg;
       consoleOut.innerHTML += `
-        <div class="console-line success">✓ GATE VERIFICATION PASSED: Security Clearance Granted!</div>
-        <div class="console-line success">★ Rating: ${starStr} (${stars} Stars)</div>
-        <div class="console-line success">🔓 BULKHEAD DOOR UNLOCKING IN SLOW MOTION...</div>
+        <div class="console-line success">✓ GATE VERIFICATION PASSED: Clearance Granted (3 Stars)!</div>
+        <div class="console-line success">🔓 BULKHEAD OPENING IN FULL VIEW...</div>
       `;
       consoleOut.scrollTop = consoleOut.scrollHeight;
     }
 
-    // Trigger cinematic slow-motion unlock
-    setDoorUnlocked(doorType);
+    updateStepChips(2);
+    const stars = 3;
     onPuzzlePassed(stars);
     levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex);
-
-    // Show cleared banner
     showSectorClearedBanner(doorType, stars);
 
     clearInterval(timerInterval);
 
-    // Auto-close terminal after 2.4 seconds to showcase the cinematic opening
-    setTimeout(() => closeTerminal(), 2400);
-    return;
-  }
+    // CRITICAL: Close IDE immediately (350ms delay) so player gets direct, unobstructed view of the door opening!
+    setTimeout(() => {
+      const ide = document.getElementById("pycharm-ide");
+      if (ide) {
+        ide.classList.add("hidden");
+        ide.classList.remove("waking-up");
+      }
+      // Stand up character cleanly and trigger smooth cinematic door animation
+      standPlayerUp(() => {
+        setDoorUnlocked(doorType);
+      });
+    }, 350);
 
-  // If failed
-  if (consoleOut) {
-    const errorMsg = result.error_message || `Code output did not satisfy requirements.`;
-    consoleOut.innerHTML += `
-      <div class="console-line error">❌ CHECK FAILED: ${escapeHtml(errorMsg)}</div>
-      <div class="console-line warning">Check code and press Run again. Attempts remaining: ${attemptsRemaining}</div>
-    `;
-    consoleOut.scrollTop = consoleOut.scrollHeight;
+  } else {
+    handleFailedAttempt(errorMsg);
   }
-  onPuzzleFailed();
 }
 
-// ── Fallback Verification & Educational ML Evaluation Engine ──────────
-function fallbackVerification(code) {
-  const doorType = activePuzzle?.door_type || "classification";
+// ── Handle Failed Attempt & 3-Trial Ejection ─────────────────────────
+function handleFailedAttempt(errorMsg) {
+  attemptsRemaining--;
+  updateAttemptsDisplay();
+  playErrorBuzzerSFX();
+  onPuzzleFailed();
+
   const consoleOut = document.getElementById("terminal-result");
 
-  if (!code || code.trim().length < 5) {
-    handleResult({
-      passed: false,
-      step_passed: false,
-      door_type: doorType,
-      error_message: "Please write your Python ML solution and press Run!",
-    });
-    return;
-  }
-
-  // Educational ML Validation per Sector
-  if (doorType === "classification") {
-    const hasFit = code.includes(".fit(") || code.includes("classify") || code.includes("model");
-    const hasPredict = code.includes(".predict(") || code.includes("predictions") || code.includes("return");
-
-    if (!hasFit && !hasPredict) {
-      handleResult({
-        passed: false,
-        step_passed: false,
-        door_type: doorType,
-        error_message: "Missing classifier fitting or prediction step. Use model.fit(X_train, y_train) and model.predict(X_test).",
-      });
-      return;
-    }
-
+  if (attemptsRemaining > 0) {
     if (consoleOut) {
       consoleOut.innerHTML += `
-        <div class="console-line sys">──────────────── ML EVALUATION METRICS ────────────────</div>
-        <div class="console-line info">Model: RandomForestClassifier(n_estimators=20)</div>
-        <div class="console-line info">Training Samples: 80 | Validation Samples: 20</div>
-        <div class="console-line success">✓ Training Accuracy: 100.0%</div>
-        <div class="console-line success">✓ Validation F1-Score: 0.9850 (Target >= 0.80)</div>
-        <div class="console-line info">Sample Predictions: [Safe, Threat, Safe, Safe, Threat, Safe, Threat...]</div>
-        <div class="console-line success">🎯 CLASSIFIER PASSED BENCHMARK CRITERIA!</div>
+        <div class="console-line error">❌ VERIFICATION FAILED: ${escapeHtml(errorMsg)}</div>
+        <div class="console-line warning">⚠️ Trials remaining: ${attemptsRemaining} / ${MAX_ATTEMPTS}. Check your code and try again.</div>
       `;
+      consoleOut.scrollTop = consoleOut.scrollHeight;
     }
-
-    handleResult({
-      passed: true,
-      step_passed: true,
-      score: 0.985,
-      target: 0.80,
-      door_type: doorType,
-      stars: 3,
-    });
-  } else if (doorType === "regression") {
-    const hasReg = code.includes("LinearRegression") || code.includes(".fit(") || code.includes("predict");
-
-    if (!hasReg) {
-      handleResult({
-        passed: false,
-        step_passed: false,
-        door_type: doorType,
-        error_message: "Regression pipeline incomplete. Fit the regressor on (X_train, y_train) and predict X_test.",
-      });
-      return;
-    }
-
-    if (consoleOut) {
-      consoleOut.innerHTML += `
-        <div class="console-line sys">──────────────── ML EVALUATION METRICS ────────────────</div>
-        <div class="console-line info">Model: LinearRegression()</div>
-        <div class="console-line info">Workload Features: [CPU Load, Active Connections, I/O Rate]</div>
-        <div class="console-line success">✓ R² Score: 0.9642 (Target >= 0.80)</div>
-        <div class="console-line success">✓ Mean Squared Error (MSE): 8.42 ms²</div>
-        <div class="console-line info">Predicted Response Times: [42.1ms, 98.4ms, 184.2ms, 23.8ms, 115.0ms...]</div>
-        <div class="console-line success">🎯 REGRESSION MODEL PASSED CALIBRATION!</div>
-      `;
-    }
-
-    handleResult({
-      passed: true,
-      step_passed: true,
-      score: 0.964,
-      target: 0.80,
-      door_type: doorType,
-      stars: 3,
-    });
-  } else if (doorType === "clustering") {
-    const hasCluster = code.includes("KMeans") || code.includes("cluster") || code.includes("fit_predict");
-
-    if (!hasCluster) {
-      handleResult({
-        passed: false,
-        step_passed: false,
-        door_type: doorType,
-        error_message: "Clustering pipeline incomplete. Initialize KMeans(n_clusters=3) and compute cluster labels.",
-      });
-      return;
-    }
-
-    if (consoleOut) {
-      consoleOut.innerHTML += `
-        <div class="console-line sys">──────────────── ML EVALUATION METRICS ────────────────</div>
-        <div class="console-line info">Model: KMeans(n_clusters=3)</div>
-        <div class="console-line info">Unlabeled Telemetry Points: 150</div>
-        <div class="console-line success">✓ Cluster Balance: [Cluster 0: 52, Cluster 1: 48, Cluster 2: 50]</div>
-        <div class="console-line success">✓ Silhouette Score: 0.6820 (Target >= 0.45)</div>
-        <div class="console-line success">🎯 OPTIMAL CLUSTER SEPARATION ACHIEVED!</div>
-      `;
-    }
-
-    handleResult({
-      passed: true,
-      step_passed: true,
-      score: 0.682,
-      target: 0.45,
-      door_type: doorType,
-      stars: 3,
-    });
-  } else if (doorType === "anomaly") {
-    const hasAnomaly = code.includes("IsolationForest") || code.includes("anomaly") || code.includes("detect");
-
-    if (!hasAnomaly) {
-      handleResult({
-        passed: false,
-        step_passed: false,
-        door_type: doorType,
-        error_message: "Anomaly detector incomplete. Use IsolationForest(contamination=0.08) to detect outliers.",
-      });
-      return;
-    }
-
-    if (consoleOut) {
-      consoleOut.innerHTML += `
-        <div class="console-line sys">──────────────── ML EVALUATION METRICS ────────────────</div>
-        <div class="console-line info">Model: IsolationForest(contamination=0.08)</div>
-        <div class="console-line info">Security Log Records: 200</div>
-        <div class="console-line success">✓ Anomalies Isolated: 16 suspicious intrusion spikes</div>
-        <div class="console-line success">✓ Detection Recall: 95.8% | Precision: 93.4%</div>
-        <div class="console-line success">🎯 THREAT SIGNATURE DETECTED AND CONTAINED!</div>
-      `;
-    }
-
-    handleResult({
-      passed: true,
-      step_passed: true,
-      score: 0.958,
-      target: 0.85,
-      door_type: doorType,
-      stars: 3,
-    });
   } else {
-    // Mystery Vault Master Challenge
+    // 3rd FAILURE: OUT THE PLAYER (EJECT & LOCKOUT)!
     if (consoleOut) {
       consoleOut.innerHTML += `
-        <div class="console-line sys">──────────────── MASTER VAULT CLEARANCE ────────────────</div>
-        <div class="console-line info">Pipeline: Master Ensemble Classifier</div>
-        <div class="console-line success">✓ Encryption Vector Match: 100.0%</div>
-        <div class="console-line success">✓ All 5 ML Disciplines Successfully Mastered!</div>
-        <div class="console-line success">🔓 MASTER VAULT ACCESS GRANTED. WELCOME ARCHITECT.</div>
+        <div class="console-line error">🚨 CRITICAL FAILURE: 3 Failed Trials Exhausted!</div>
+        <div class="console-line error">🚨 SECURITY VIOLATION: EJECTING USER FROM MAINFRAME...</div>
       `;
+      consoleOut.scrollTop = consoleOut.scrollHeight;
     }
 
-    handleResult({
-      passed: true,
-      step_passed: true,
-      score: 1.0,
-      target: 0.90,
-      door_type: doorType,
-      stars: 3,
-    });
+    // Play loud siren SFX
+    playSecurityAlarmSFX();
+
+    // Set 4-second lockout cooldown
+    lockoutUntil = Date.now() + 4000;
+
+    // Show prominent ejection alert banner
+    showSecurityAlertBanner("🚨 SECURITY BREACH: 3 Failed Trials! Ejected from terminal. Resetting in 4s...");
+
+    // Close terminal immediately and eject player backward from desk
+    setTimeout(() => {
+      const ide = document.getElementById("pycharm-ide");
+      if (ide) {
+        ide.classList.add("hidden");
+        ide.classList.remove("waking-up");
+      }
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      ejectPlayerFromDesk(() => {
+        console.log("[BlackVault] Player ejected after 3 failed trials.");
+      });
+    }, 450);
   }
 }
 
-// ── Educational ML Challenge Templates Per Sector ─────────────────────
+// ── Challenge Templates Per Sector ───────────────────────────────────
 function getOfflineStepInfo(doorType) {
   const TASKS = {
     classification: {
-      instructions: `ROOM 1 — CLASSIFICATION LAB
+      title: "Data Cleaning (Handling NaNs)",
+      shortSummary: "Replace missing sensor values (np.nan) with 0.0",
+      instructions: `ROOM 1 — DATA CLEANING & RECEPTION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 ML Concept: Supervised Binary Classification
-🎯 Objective: Train a classifier to identify Threat vs Safe network signals.
+📖 Concept: Data Cleaning (Handling Missing Values)
+🎯 Objective: Raw sensor logs contain corrupted missing readings (NaN).
+Write code to replace all NaN values with 0.0 so the dataset is clean for training.
 
-Given:
-• X_train: Matrix of signal features [frequency, entropy, amplitude]
-• y_train: Binary labels (0 = Safe, 1 = Threat)
-• X_test: Unlabeled incoming network signals
+Input:
+• raw_data: NumPy array with missing NaN values (e.g. [12.5, NaN, 34.0, NaN, 55.2])
 
 Your Task:
-1. Initialize a classifier (e.g. RandomForestClassifier)
-2. Fit the model on training data: model.fit(X_train, y_train)
-3. Return predictions for X_test: model.predict(X_test)`,
-      starter_code: `# ROOM 1: CLASSIFICATION CHALLENGE
-# Concept: Supervised Binary Classification (Predict discrete 0 or 1)
+1. Complete the 'clean_sensor_data' function
+2. Replace all NaN values with 0.0 (Hint: Use np.nan_to_num(data, nan=0.0) or np.where)
+3. Return the cleaned array`,
+      starter_code: `# ROOM 1: DATA CLEANING CHALLENGE
+# Concept: Clean raw corrupted sensor readings by replacing NaNs with 0.0
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 
-# Simulated training data: [Signal Frequency, Packet Entropy, Amplitude]
-X_train = np.array([
-    [1.2, 0.4, 12.5],  # Safe
-    [8.9, 0.9, 85.0],  # Threat
-    [1.5, 0.3, 15.2],  # Safe
-    [9.2, 0.8, 92.1],  # Threat
-    [2.1, 0.5, 18.0],  # Safe
-    [7.8, 0.9, 79.4],  # Threat
-])
-y_train = np.array([0, 1, 0, 1, 0, 1])
+# Raw corrupted telemetry readings from Reception Door
+raw_data = np.array([12.5, np.nan, 34.0, np.nan, 55.2])
 
-# Incoming test signals to classify
-X_test = np.array([
-    [1.4, 0.4, 14.0],  # Expect Safe (0)
-    [8.5, 0.9, 88.0],  # Expect Threat (1)
-])
-
-def classify_signals(X_train, y_train, X_test):
-    # Step 1: Initialize the Random Forest Classifier
-    model = RandomForestClassifier(n_estimators=20, random_state=42)
+def clean_sensor_data(data):
+    # TODO: Replace all NaN (missing) values in data with 0.0
+    # Hint: Use np.nan_to_num(data, nan=0.0)
+    cleaned = None  # Write your solution here
     
-    # Step 2: Fit model on training features & target labels
-    model.fit(X_train, y_train)
-    
-    # Step 3: Predict class labels for test signals
-    predictions = model.predict(X_test)
-    
-    print("✓ Model fitted! Predictions:", predictions)
-    return predictions
+    return cleaned
 
-# Execute classification
-predictions = classify_signals(X_train, y_train, X_test)
+# Run cleaner
+result = clean_sensor_data(raw_data)
+print("Cleaned Sensor Data:", result)
 `,
+      dataset_preview: {
+        columns: ["timestamp_ms", "sensor_voltage", "status"],
+        head_rows: [
+          [100, 12.5, "OK"],
+          [200, "NaN", "CORRUPTED"],
+          [300, 34.0, "OK"],
+          [400, "NaN", "CORRUPTED"],
+          [500, 55.2, "OK"],
+        ],
+        total_rows: 25,
+      },
     },
+
     regression: {
-      instructions: `ROOM 2 — REGRESSION LAB
+      title: "Feature Scaling & Normalization",
+      shortSummary: "Normalize raw numbers between 0.0 and 1.0 using Min-Max scaling",
+      instructions: `ROOM 2 — FEATURE NORMALIZATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 ML Concept: Continuous Value Regression
-🎯 Objective: Predict server latency (in milliseconds) from system load.
+📖 Concept: Min-Max Feature Scaling
+🎯 Objective: Machine learning models require scaled inputs between 0.0 and 1.0.
+Scale the raw network speed readings using the Min-Max formula:
+   normalized = (data - min) / (max - min)
 
-Given:
-• X_train: System metrics [CPU Load %, Active Connections, Memory GB]
-• y_train: Measured latency in milliseconds (continuous value)
-• X_test: Incoming server workload metrics
+Input:
+• raw_speeds: NumPy array of raw transfer rates (e.g. [10.0, 30.0, 60.0, 100.0])
 
 Your Task:
-1. Initialize a LinearRegression model
-2. Fit the regressor: model.fit(X_train, y_train)
-3. Predict and return continuous latency numbers: model.predict(X_test)`,
-      starter_code: `# ROOM 2: REGRESSION CHALLENGE
-# Concept: Continuous Value Prediction (Predict numeric millisecond latency)
+1. Complete 'normalize_features' function
+2. Calculate Min-Max normalized values in range [0.0, 1.0]
+3. Return the scaled array`,
+      starter_code: `# ROOM 2: FEATURE SCALING CHALLENGE
+# Concept: Scale data into [0.0, 1.0] range using (data - min) / (max - min)
 import numpy as np
-from sklearn.linear_model import LinearRegression
 
-# Training data: [CPU Load (0-1), Connections, Memory GB] -> Latency (ms)
-X_train = np.array([
-    [0.15,  25,  4.2],
-    [0.45,  95,  8.1],
-    [0.75, 210, 14.5],
-    [0.90, 380, 28.0],
-])
-y_train = np.array([24.5, 58.2, 122.0, 245.8])  # Target Latencies in ms
+# Raw transfer speeds in MB/s
+raw_speeds = np.array([10.0, 30.0, 60.0, 100.0])
 
-# Test server workload to predict
-X_test = np.array([
-    [0.30,  50,  6.0],
-    [0.80, 290, 20.0],
-])
-
-def predict_latency(X_train, y_train, X_test):
-    # Step 1: Initialize Linear Regression model
-    model = LinearRegression()
+def normalize_features(data):
+    # TODO: Calculate Min-Max scaled values between 0.0 and 1.0
+    # Hint: (data - np.min(data)) / (np.max(data) - np.min(data))
+    normalized = None  # Write your solution here
     
-    # Step 2: Fit on training data
-    model.fit(X_train, y_train)
-    
-    # Step 3: Predict continuous latency values
-    predicted_latency = model.predict(X_test)
-    
-    print("✓ Regression fitted! Predicted Latencies (ms):", [round(v, 2) for v in predicted_latency])
-    return predicted_latency
+    return normalized
 
-# Execute regression
-results = predict_latency(X_train, y_train, X_test)
+# Run normalization
+result = normalize_features(raw_speeds)
+print("Normalized Features (0-1):", result)
 `,
+      dataset_preview: {
+        columns: ["packet_id", "raw_speed_mbps", "scaled_target"],
+        head_rows: [
+          [1, 10.0, 0.0],
+          [2, 30.0, 0.22],
+          [3, 60.0, 0.56],
+          [4, 100.0, 1.0],
+        ],
+        total_rows: 30,
+      },
     },
+
     clustering: {
-      instructions: `ROOM 3 — CLUSTERING HUB
+      title: "Threat Classification (Thresholding)",
+      shortSummary: "Classify network signals: 1 if signal > 50, else 0",
+      instructions: `ROOM 3 — THREAT CLASSIFICATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 ML Concept: Unsupervised Learning (K-Means Clustering)
-🎯 Objective: Group unlabeled network traffic into k=3 distinct clusters.
+📖 Concept: Binary Classification via Decision Threshold
+🎯 Objective: Classify incoming network frequency signals.
+If signal strength > 50, classify as 1 (Threat).
+Otherwise, classify as 0 (Safe).
 
-Given:
-• X: Matrix of unlabeled packet statistics [Bytes, Packets/sec]
+Input:
+• signals: Array of signal intensities [15, 82, 45, 99, 12, 67]
+• threshold: Value 50
 
 Your Task:
-1. Initialize KMeans with n_clusters=3
-2. Fit and predict cluster labels: model.fit_predict(X)
-3. Return the integer cluster labels (0, 1, or 2)`,
-      starter_code: `# ROOM 3: CLUSTERING CHALLENGE
-# Concept: Unsupervised Learning (Discover 3 natural clusters without labels)
+1. Complete 'classify_threats' function
+2. Return binary array of 1s (threat) and 0s (safe)
+   Hint: (signals > threshold).astype(int) or list comprehension`,
+      starter_code: `# ROOM 3: THREAT CLASSIFICATION CHALLENGE
+# Concept: Classify signals into Threat (1) vs Safe (0) based on threshold
 import numpy as np
-from sklearn.cluster import KMeans
 
-# Unlabeled network telemetry: [Packet Size (KB), Packets / Second]
-X = np.array([
-    [0.2,   5],   # Low traffic cluster
-    [0.3,   8],
-    [5.5, 120],   # Medium traffic cluster
-    [6.1, 140],
-    [45.0, 850],  # High traffic cluster
-    [52.0, 920],
-])
+signals = np.array([15, 82, 45, 99, 12, 67])
+THRESHOLD = 50
 
-def cluster_traffic(X):
-    # Step 1: Initialize KMeans with 3 clusters
-    model = KMeans(n_clusters=3, random_state=42, n_init=10)
+def classify_threats(signals, threshold=50):
+    # TODO: Return array where elements > threshold become 1, else 0
+    # Hint: (signals > threshold).astype(int)
+    labels = None  # Write your solution here
     
-    # Step 2: Fit and compute cluster assignments
-    cluster_labels = model.fit_predict(X)
-    
-    print("✓ KMeans fitted! Cluster assignments:", cluster_labels)
-    return cluster_labels
+    return labels
 
-# Execute clustering
-labels = cluster_traffic(X)
+# Run classifier
+threat_flags = classify_threats(signals, THRESHOLD)
+print("Classified Threat Labels:", threat_flags)
 `,
+      dataset_preview: {
+        columns: ["signal_id", "frequency_ghz", "label_class"],
+        head_rows: [
+          [101, 15, 0],
+          [102, 82, 1],
+          [103, 45, 0],
+          [104, 99, 1],
+          [105, 12, 0],
+          [106, 67, 1],
+        ],
+        total_rows: 50,
+      },
     },
+
     anomaly: {
-      instructions: `ROOM 4 — ANOMALY WING
+      title: "Anomaly & Outlier Detection",
+      shortSummary: "Filter and return server temperature spikes exceeding 80.0 °C",
+      instructions: `ROOM 4 — ANOMALY DETECTION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 ML Concept: Unsupervised Anomaly / Outlier Detection
-🎯 Objective: Detect rare intrusion spikes in server sensor logs.
+📖 Concept: Outlier & Sensor Anomaly Detection
+🎯 Objective: Identify overheating server hardware by filtering temperatures
+that exceed the maximum safe threshold of 80.0 °C.
 
-Given:
-• X: Sensor telemetry readings [CPU Temperature, Fan RPM, Voltage Spikes]
+Input:
+• temps: NumPy array of temperatures [42.0, 45.5, 95.0, 43.2, 88.4, 41.0]
+• max_safe: Threshold 80.0
 
 Your Task:
-1. Initialize an IsolationForest with contamination=0.08
-2. Fit and predict outliers: raw_preds = model.fit_predict(X)
-3. Format output: 1 for anomaly (raw -1), 0 for normal (raw 1)`,
+1. Complete 'detect_temperature_spikes' function
+2. Return only the anomalous temperature readings (> max_safe)
+   Hint: temps[temps > max_safe]`,
       starter_code: `# ROOM 4: ANOMALY DETECTION CHALLENGE
-# Concept: Outlier & Intrusion Detection using Isolation Forest
+# Concept: Filter out abnormal readings that exceed safe operating limits
 import numpy as np
-from sklearn.ensemble import IsolationForest
 
-# Telemetry logs: [CPU Temp °C, Fan RPM, Voltage Ripple]
-X = np.array([
-    [42.0, 1800, 0.02],  # Normal
-    [43.5, 1850, 0.03],  # Normal
-    [41.8, 1790, 0.02],  # Normal
-    [98.5, 4500, 0.85],  # INTRUSION SPIKE (Anomaly!)
-    [44.0, 1820, 0.02],  # Normal
-])
+# Sensor temperatures in degrees Celsius
+temps = np.array([42.0, 45.5, 95.0, 43.2, 88.4, 41.0])
+MAX_SAFE = 80.0
 
-def detect_intrusions(X):
-    # Step 1: Initialize Isolation Forest with expected ~8% contamination
-    detector = IsolationForest(contamination=0.08, random_state=42)
+def detect_temperature_spikes(temps, max_safe=80.0):
+    # TODO: Return array containing only temperatures > max_safe
+    # Hint: temps[temps > max_safe]
+    spikes = None  # Write your solution here
     
-    # Step 2: Fit and detect outliers (-1 = Anomaly, 1 = Normal)
-    raw_preds = detector.fit_predict(X)
-    
-    # Step 3: Convert to binary flags: 1 for anomaly, 0 for normal
-    anomalies = [1 if p == -1 else 0 for p in raw_preds]
-    
-    print("✓ Anomaly scan finished! Flagged anomalies:", anomalies)
-    return anomalies
+    return spikes
 
-# Execute anomaly detector
-flags = detect_intrusions(X)
+# Run anomaly detector
+anomalies = detect_temperature_spikes(temps, MAX_SAFE)
+print("Detected Overheating Spikes:", anomalies)
 `,
+      dataset_preview: {
+        columns: ["sensor_id", "temp_celsius", "is_anomaly"],
+        head_rows: [
+          ["S1", 42.0, "NORMAL"],
+          ["S2", 45.5, "NORMAL"],
+          ["S3", 95.0, "ANOMALY!"],
+          ["S4", 43.2, "NORMAL"],
+          ["S5", 88.4, "ANOMALY!"],
+        ],
+        total_rows: 40,
+      },
     },
-    mystery: {
-      instructions: `ROOM 5 — THE CORE VAULT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 ML Concept: Master Machine Learning Pipeline
-🎯 Objective: Train the Master Security Classifier to decode the Vault Matrix.
 
-Given:
-• X_train, y_train: Multi-feature encryption vectors & clearance tiers
-• X_test: Core Vault master access query
+    mystery: {
+      title: "Master Model Accuracy Metric",
+      shortSummary: "Calculate model prediction accuracy: np.mean(y_true == y_pred)",
+      instructions: `ROOM 5 — MASTER VAULT CORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📖 Concept: Model Evaluation & Accuracy Score
+🎯 Objective: Calculate the final model accuracy to unlock the Master Core Vault.
+Accuracy is the proportion of predictions that match actual ground-truth labels.
+
+Formula:
+   accuracy = sum(y_true == y_pred) / total_samples
+
+Input:
+• y_true: Ground truth labels [1, 0, 1, 1, 0, 1]
+• y_pred: Model predictions [1, 0, 1, 0, 0, 1]
 
 Your Task:
-1. Initialize an ensemble RandomForestClassifier with n_estimators=30
-2. Fit the model: model.fit(X_train, y_train)
-3. Return predictions for X_test to unlock the final bulkhead`,
-      starter_code: `# ROOM 5: THE CORE VAULT MASTER CHALLENGE
-# Concept: Master Multi-Feature Ensemble Pipeline
+1. Complete 'calculate_accuracy' function
+2. Return the accuracy score as a float
+   Hint: np.mean(y_true == y_pred)`,
+      starter_code: `# ROOM 5: MASTER VAULT EVALUATION
+# Concept: Compute accuracy metric to verify model clearance for master vault
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 
-# Master Vault Encryption Vectors
-X_train = np.array([
-    [10.2, 0.85, 3.4, 1],
-    [24.5, 0.12, 1.2, 0],
-    [11.0, 0.90, 3.8, 1],
-    [22.8, 0.15, 1.0, 0],
-])
-y_train = np.array([1, 0, 1, 0])  # Clearance Granted (1) vs Denied (0)
+# Actual security clearances vs model predictions
+y_true = np.array([1, 0, 1, 1, 0, 1])
+y_pred = np.array([1, 0, 1, 0, 0, 1])
 
-X_test = np.array([
-    [10.8, 0.88, 3.6, 1],  # Master Key Query
-])
-
-def unlock_core_vault(X_train, y_train, X_test):
-    # Step 1: Initialize Master Ensemble Classifier
-    master_model = RandomForestClassifier(n_estimators=30, random_state=42)
+def calculate_accuracy(y_true, y_pred):
+    # TODO: Calculate fraction of matching predictions
+    # Hint: np.mean(y_true == y_pred)
+    accuracy = None  # Write your solution here
     
-    # Step 2: Fit on Vault Encryption Matrix
-    master_model.fit(X_train, y_train)
-    
-    # Step 3: Decode test clearance
-    clearance = master_model.predict(X_test)
-    
-    print("✓ Vault Verification Matrix: 100% Validated!")
-    print("Master Clearance:", clearance)
-    return clearance
+    return accuracy
 
-# Execute final unlock
-access = unlock_core_vault(X_train, y_train, X_test)
+# Run evaluation
+score = calculate_accuracy(y_true, y_pred)
+print("Master Model Accuracy:", score)
 `,
+      dataset_preview: {
+        columns: ["sample_id", "y_true", "y_pred", "match"],
+        head_rows: [
+          [1, 1, 1, "MATCH"],
+          [2, 0, 0, "MATCH"],
+          [3, 1, 1, "MATCH"],
+          [4, 1, 0, "DIFF"],
+          [5, 0, 0, "MATCH"],
+          [6, 1, 1, "MATCH"],
+        ],
+        total_rows: 50,
+      },
     },
   };
 
@@ -838,17 +822,35 @@ function showSectorClearedBanner(doorType, stars) {
 
   if (!banner) return;
 
-  if (title) title.textContent = `${doorType.toUpperCase()} Door Cleared! (${"★".repeat(stars)})`;
-  if (desc) desc.textContent = `Security bulkhead opened in slow motion. Walk through to proceed.`;
+  if (title) title.textContent = `${doorType.toUpperCase()} Sector Cleared! (${"★".repeat(stars)})`;
+  if (desc) desc.textContent = `Bulkhead doors fully open. Walk through the doorway to enter next sector.`;
 
   banner.classList.remove("hidden");
   setTimeout(() => {
     banner.classList.add("hidden");
-  }, 5000);
+  }, 6000);
+}
+
+function showSecurityAlertBanner(text) {
+  let alertEl = document.getElementById("security-eject-alert");
+  if (!alertEl) {
+    alertEl = document.createElement("div");
+    alertEl.id = "security-eject-alert";
+    alertEl.className = "security-eject-alert";
+    document.body.appendChild(alertEl);
+  }
+  alertEl.textContent = text;
+  alertEl.classList.remove("hidden");
+  alertEl.classList.add("visible");
+
+  setTimeout(() => {
+    alertEl.classList.remove("visible");
+    setTimeout(() => alertEl.classList.add("hidden"), 400);
+  }, 4000);
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

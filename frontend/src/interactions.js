@@ -8,6 +8,7 @@ import { getDoorRegistry, getExitDoor } from "./world.js";
 import { getPlayerPosition, getControls, sitAt } from "./player.js";
 import * as hud from "./hud.js";
 import * as levelManager from "./levelManager.js";
+import { isTerminalLockedOut, getLockoutRemainingSeconds } from "./puzzleTerminal.js";
 
 const INTERACT_RANGE = 5.5;
 const raycaster = new THREE.Raycaster();
@@ -33,6 +34,9 @@ function onKeyDown(e) {
       if (levelManager.advanceLevel) levelManager.advanceLevel();
     }
   } else {
+    if (isTerminalLockedOut && isTerminalLockedOut()) {
+      return;
+    }
     if (levelManager.isDoorActive && !levelManager.isDoorActive(targetedDoorType)) {
       return;
     }
@@ -93,12 +97,17 @@ export function updateInteractions() {
         hud.showInteractPrompt("DOOR LOCKED — Complete all 5 sector terminals first");
       }
     } else {
-      const isActive = levelManager.isDoorActive ? levelManager.isDoorActive(closest.doorType) : true;
-      if (isActive) {
-        hud.showInteractPrompt(`Press E to access ${closest.doorType} terminal`);
+      if (isTerminalLockedOut && isTerminalLockedOut()) {
+        const rem = getLockoutRemainingSeconds ? getLockoutRemainingSeconds() : 3;
+        hud.showInteractPrompt(`⚠️ LOCKOUT ACTIVE — Retry in ${rem}s`);
       } else {
-        const activeDoor = levelManager.getActiveDoor ? levelManager.getActiveDoor() : "active";
-        hud.showInteractPrompt(`DOOR LOCKED — Complete active ${activeDoor} door terminal first`);
+        const isActive = levelManager.isDoorActive ? levelManager.isDoorActive(closest.doorType) : true;
+        if (isActive) {
+          hud.showInteractPrompt(`Press E to access ${closest.doorType} terminal`);
+        } else {
+          const activeDoor = levelManager.getActiveDoor ? levelManager.getActiveDoor() : "active";
+          hud.showInteractPrompt(`DOOR LOCKED — Complete active ${activeDoor} door terminal first`);
+        }
       }
     }
   }

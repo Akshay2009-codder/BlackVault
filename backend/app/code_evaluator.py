@@ -34,44 +34,74 @@ def evaluate_python_puzzle(door_type: str, level: int, code: str, attempts: int 
 
         # Check door-specific passing condition and variables
         if door_type == "classification":
-            acc = sandbox_globals.get("acc", 0.0)
-            metric_score = float(acc)
-            if metric_score >= 0.90:
+            result = sandbox_globals.get("result", None)
+            clean_func = sandbox_globals.get("clean_sensor_data", None)
+            if clean_func or result is not None:
                 passed = True
+                metric_score = 1.0
             else:
-                error_msg = f"AssertionError: Model accuracy {metric_score:.4f} is below 0.90 threshold."
+                acc = sandbox_globals.get("acc", 0.0)
+                metric_score = float(acc)
+                if metric_score >= 0.80:
+                    passed = True
+                else:
+                    error_msg = f"AssertionError: Model accuracy {metric_score:.4f} is below 0.80 threshold."
 
         elif door_type == "regression":
-            score = sandbox_globals.get("score", 0.0)
-            metric_score = float(score)
-            if metric_score >= 0.50:
+            norm_func = sandbox_globals.get("normalize_features", None)
+            result = sandbox_globals.get("result", None)
+            if norm_func or result is not None:
                 passed = True
+                metric_score = 1.0
             else:
-                error_msg = f"AssertionError: R^2 calibration score {metric_score:.4f} is below 0.50 threshold."
+                score = sandbox_globals.get("score", 0.0)
+                metric_score = float(score)
+                if metric_score >= 0.50:
+                    passed = True
+                else:
+                    error_msg = f"AssertionError: R^2 calibration score {metric_score:.4f} is below 0.50 threshold."
 
         elif door_type == "clustering":
-            sil_score = sandbox_globals.get("sil_score", 0.0)
-            metric_score = float(sil_score)
-            if metric_score >= 0.60:
+            class_func = sandbox_globals.get("classify_threats", None)
+            threats = sandbox_globals.get("threat_flags", None)
+            if class_func or threats is not None:
                 passed = True
+                metric_score = 1.0
             else:
-                error_msg = f"AssertionError: Silhouette separation score {metric_score:.4f} is below 0.60 threshold."
+                sil_score = sandbox_globals.get("sil_score", 0.0)
+                metric_score = float(sil_score)
+                if metric_score >= 0.60:
+                    passed = True
+                else:
+                    error_msg = f"AssertionError: Silhouette separation score {metric_score:.4f} is below 0.60 threshold."
 
         elif door_type == "anomaly":
-            detected_outliers = sandbox_globals.get("detected_outliers", 0)
-            metric_score = float(detected_outliers)
-            if 15 <= detected_outliers <= 25:
+            detect_func = sandbox_globals.get("detect_temperature_spikes", None)
+            anomalies = sandbox_globals.get("anomalies", None)
+            if detect_func or anomalies is not None:
                 passed = True
+                metric_score = 1.0
             else:
-                error_msg = f"AssertionError: Detected outliers count ({detected_outliers}) must match expected ~20 anomalies."
+                detected_outliers = sandbox_globals.get("detected_outliers", 0)
+                metric_score = float(detected_outliers)
+                if 15 <= detected_outliers <= 25:
+                    passed = True
+                else:
+                    error_msg = f"AssertionError: Detected outliers count ({detected_outliers}) must match expected ~20 anomalies."
 
         elif door_type == "mystery":
-            final_acc = sandbox_globals.get("final_acc", 0.0)
-            metric_score = float(final_acc)
-            if metric_score >= 0.85:
+            calc_func = sandbox_globals.get("calculate_accuracy", None)
+            score = sandbox_globals.get("score", None)
+            if calc_func or score is not None:
                 passed = True
+                metric_score = 1.0
             else:
-                error_msg = f"AssertionError: Master neural accuracy {metric_score:.4f} is below 0.85 threshold."
+                final_acc = sandbox_globals.get("final_acc", 0.0)
+                metric_score = float(final_acc)
+                if metric_score >= 0.80:
+                    passed = True
+                else:
+                    error_msg = f"AssertionError: Master accuracy {metric_score:.4f} is below 0.80 threshold."
 
         else:
             passed = True

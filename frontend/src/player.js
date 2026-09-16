@@ -838,6 +838,43 @@ export function standUp(onStood) {
   });
 }
 
+export function ejectPlayerFromDesk(onEjected) {
+  setPlayerSittingState(false);
+  velocity.set(0, 0, 0);
+  moveState.forward = false;
+  moveState.backward = false;
+  moveState.left = false;
+  moveState.right = false;
+  moveState.shift = false;
+
+  // Stand up and push back slightly from desk
+  const backTo = standPosition.clone();
+  // Apply a backward push relative to desk
+  backTo.z -= 1.6;
+  if (playerBodyMesh) {
+    playerBodyMesh.position.set(backTo.x, 0, backTo.z);
+  }
+
+  const lookAt = backTo.clone().add(new THREE.Vector3(0, 0, 1));
+  tweenCamera(backTo, lookAt, 450, () => {
+    if (camera) {
+      camera.position.copy(backTo);
+      euler.setFromQuaternion(camera.quaternion, "YXZ");
+    }
+    if (armsGroup) {
+      const baseZ = viewModelLoaded ? -0.15 : 0;
+      armsGroup.position.z = baseZ;
+    }
+    movementLocked = false;
+    if (domElement && !document.getElementById("pycharm-ide")?.classList.contains("hidden")) {
+      // Don't lock pointer if modal somehow still visible
+    } else if (domElement) {
+      domElement.requestPointerLock();
+    }
+    if (onEjected) onEjected();
+  });
+}
+
 // Compatibility exports
 export const standPlayerUp = standUp;
 export function setPlayerBodyMesh(mesh) {
