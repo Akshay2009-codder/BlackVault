@@ -23,10 +23,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Deep ocean-slate background matching new wall palette
-  scene.background = new THREE.Color(0x1a232c);
-  // Atmospheric depth fog in cool ocean-slate tones
-  scene.fog = new THREE.FogExp2(0x1a232c, 0.0018);
+  // Warm teal-slate background — matches new wall palette, clearly not black
+  scene.background = new THREE.Color(0x2a3e4e);
+  // Atmospheric depth fog in warm teal-slate
+  scene.fog = new THREE.FogExp2(0x2a3e4e, 0.0016);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -52,16 +52,16 @@ export function initScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Luminous ambient fill — cool steel-blue for ocean-slate surfaces
-  const ambientLight = new THREE.AmbientLight(0xd0dce8, 0.72);
+  // Strong ambient fill so teal-slate walls are clearly visible
+  const ambientLight = new THREE.AmbientLight(0xd8e8f0, 0.95);
   scene.add(ambientLight);
 
-  // Hemisphere fill: crisp cool-white sky, dark charcoal ground bounce
-  const hemiLight = new THREE.HemisphereLight(0xe0eaf8, 0x1a2030, 0.60);
+  // Hemisphere fill: bright cool-white sky, teal ground bounce
+  const hemiLight = new THREE.HemisphereLight(0xe8f2ff, 0x2a4050, 0.80);
   scene.add(hemiLight);
 
-  // Warm champagne brass directional overhead light — simulates warm ceiling fixtures against cool walls
-  const skyDirLight = new THREE.DirectionalLight(0xfff0d0, 0.65);
+  // Warm champagne directional — key light that hits the teal walls
+  const skyDirLight = new THREE.DirectionalLight(0xfff0d0, 0.85);
   skyDirLight.position.set(6, 20.0, 18);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;

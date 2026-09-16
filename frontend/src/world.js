@@ -78,34 +78,31 @@ export function clearCollisionBoxes() {
 
 var worldCamera = null;
 
-// ── Deep Ocean-Slate + Warm Brass Corporate Palette ─────────────────────────
-// Fresh, clearly distinct from: terracotta/rust-orange (prior), dusty-pink/burgundy,
-// and pale-blue-grey. Cool authoritative slate + warm brass accent reveals.
+// ── Bright Architectural Corporate Palette (Clean, Non-Black Surfaces) ──────
 const P = {
-  // Architectural Wall Surfaces — Deep Ocean Slate family
-  // Lit by real scene lights (MeshStandardMaterial, NOT emissive)
-  wallMain:    0x2c3a4a,   // Deep ocean-slate — primary wall surface
-  wallAlt:     0x243040,   // Midnight navy — secondary / recessed panels
-  wallSilver:  0x3d5068,   // Steel-blue — composite upper panels
-  wallBrown:   0x1e2d3d,   // Dark navy — base wainscot
-  wallBronze:  0x4a6070,   // Slate-steel — accent panels & reveals
-  warmWood:    0x2e3f4f,   // Blue-grey — wainscot timber slats
-  floor:       0x1a2028,   // Charcoal dark — reflective floor plane
-  floorTrim:   0x2a3848,   // Slate baseboard / expansion joint
-  ceiling:     0x222d38,   // Slate-navy — ceiling plane
-  trussSteel:  0x1c2830,   // Dark steel — structural beams
+  // Architectural Wall Surfaces — Bright titanium silver and warm teak/cyan steel (NOT black)
+  wallMain:    0x7a9cb0,   // Bright sleek silver-teal primary wall
+  wallAlt:     0x648a9e,   // Satin cyan-steel secondary panels
+  wallSilver:  0x9ec4dc,   // Bright brushed platinum-silver upper panels
+  wallBrown:   0xb47a52,   // Warm architectural copper/timber wainscot base
+  wallBronze:  0xd4a868,   // Warm champagne gold accent reveals
+  warmWood:    0xca8c5c,   // Warm timber slats
+  floor:       0x283848,   // Crisp reflective slate floor (contrast with bright walls)
+  floorTrim:   0x52768c,   // Bright steel baseboard / expansion joint
+  ceiling:     0x384e62,   // Mid-tone architectural ceiling
+  trussSteel:  0x48647c,   // Visible structural beams
 
-  // Ceiling light fixtures (NOT wall paint)
+  // Ceiling light fixtures
   ceilingCyan:      0x3fd8e8,   // Glowing cyan-teal beam strips #3FD8E8
   ceilingDownlight: 0xe8f4ff,   // Soft cool-white recessed downlights #E8F4FF
   ceilingMagenta:   0xff4fa3,   // Sparse low-intensity edge magenta strips #FF4FA3
 
   // Furniture & props
-  furniture:   0x111820,   // Very dark slate furniture chassis
-  chrome:      0xc8d4e0,   // Cool brushed steel / chrome
-  gold:        0xe8c878,   // Warm champagne brass — trim & reveals
-  leatherWarm: 0x2a3c50,   // Deep slate-blue leather
-  fabricSlate: 0x3a4e60,   // Slate acoustic fabric
+  furniture:   0x2e4458,   // Sleek steel chassis
+  chrome:      0xdde8f2,   // Bright brushed steel / chrome
+  gold:        0xf0c868,   // Luminous warm champagne brass
+  leatherWarm: 0x4a6a82,   // Teal-blue leather
+  fabricSlate: 0x5e788c,   // Clean acoustic fabric
 
   // RGB Neon Accents (Vibrant light sources — per room)
   pink:      0xff2e9a,   // #FF2E9A — neon pink/magenta
@@ -162,39 +159,39 @@ export function initWorld(scene, cameraRef = null) {
     metalness: 0.25,
   });
 
-  // Upper Walls: Warm terracotta composite panels
+  // Upper Walls: Bright brushed platinum-silver composite panels
   const wallSilverMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0xd07848,
-    roughness: 0.52,
-    metalness: 0.18,
+    color: 0x9ec4dc,
+    roughness: 0.38,
+    metalness: 0.30,
   });
 
-  // Lower Walls & Wainscoting: Warm rust-orange timber slats
+  // Lower Walls & Wainscoting: Warm amber-copper timber slats
   const woodSlatMat = new THREE.MeshStandardMaterial({
     map: createWalnutWoodSlatTexture(),
-    color: 0xb86838,
-    roughness: 0.55,
-    metalness: 0.08,
+    color: 0xda8850,
+    roughness: 0.45,
+    metalness: 0.10,
   });
 
   const wallNoiseTex = createWallNoiseTexture();
   const wallMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallMain,
-    roughness: 0.70,
-    metalness: 0.22,
+    roughness: 0.50,
+    metalness: 0.20,
   });
   const wallAltMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallAlt,
-    roughness: 0.65,
-    metalness: 0.12,
+    roughness: 0.48,
+    metalness: 0.20,
   });
 
   const ceilMat = createAuroraCeilingMaterial();
-  const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
-  const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.30, metalness: 0.55 });
+  const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.20, metalness: 0.90 });
 
   // ── Global continuous reflective dark floor ──────────────────────────────
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, TOTAL_LEN), floorMat);
@@ -428,18 +425,18 @@ function buildBacklitBlackvaultSign(scene, x, y, z) {
   g.position.set(x, y, z);
 
   const signW = 22.0, signH = 3.8;
-  const frameMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.85, roughness: 0.25 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a9cb0, metalness: 0.85, roughness: 0.25 });
   const trimMat  = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.9, roughness: 0.2 });
 
   // Main sign plane with shield emblem & typography
   const signMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(signW, signH),
-    new THREE.MeshStandardMaterial({ map: createBacklitLogoTexture(), roughness: 0.35, metalness: 0.4 })
+    new THREE.MeshBasicMaterial({ map: createBacklitLogoTexture() })
   );
   signMesh.position.z = 0.05;
   g.add(signMesh);
 
-  // Extruded dark backplate
+  // Extruded bright silver backplate
   const backplate = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.6, signH + 0.6, 0.16), frameMat);
   backplate.position.z = -0.08;
   g.add(backplate);
@@ -462,7 +459,7 @@ function buildBacklitBlackvaultSign(scene, x, y, z) {
   bRight.position.set((signW + 0.6) / 2, 0, 0);
   g.add(bRight);
 
-  // Lower structural mezzanine beam
+  // Lower structural mezzanine beam (bright metal)
   const beam = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.40, 0.75), frameMat);
   beam.position.set(0, -signH / 2 - 0.45, 0.25);
   g.add(beam);
@@ -2343,29 +2340,29 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   const hsl = {};
   hslColor.getHSL(hsl);
 
-  // Closed/Locked State: Darker, desaturated version of accent with low emissive intensity
-  const lockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.max(0.20, hsl.s * 0.40), 0.12);
-  const lockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.max(0.30, hsl.s * 0.50), 0.08);
+  // Closed/Locked State: Saturated accent with rich emissive glow
+  const lockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.max(0.60, hsl.s), 0.45);
+  const lockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.max(0.60, hsl.s), 0.28);
 
   // Unlocked/Open State: Bright, saturated version of accent with luminous emissive intensity
-  const unlockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.15), 0.45);
-  const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.35);
+  const unlockedLeafColor = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.15), 0.65);
+  const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.45);
 
   // Materials
   const portalWallMat = new THREE.MeshStandardMaterial({
-    color: 0x8a5838, // Warm deep umber contrasting portal wall
-    roughness: 0.42,
-    metalness: 0.35,
+    color: 0x608aa2, // Bright satin cyan-steel contrasting portal wall
+    roughness: 0.38,
+    metalness: 0.30,
   });
   const outerWallMat = new THREE.MeshStandardMaterial({
     color: P.wallMain,
-    roughness: 0.52,
-    metalness: 0.15,
+    roughness: 0.48,
+    metalness: 0.20,
   });
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0x6e4830, // Warm bronze structural frame
-    metalness: 0.88,
-    roughness: 0.28,
+    color: 0x82a4be, // Bright brushed titanium-steel frame
+    metalness: 0.85,
+    roughness: 0.22,
   });
   const accentGlowMat = new THREE.MeshBasicMaterial({ color });
   const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
@@ -2412,7 +2409,7 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   fullCornice.position.set(0, wallH - 0.11, 0);
   group.add(fullCornice);
 
-  // 2. Door Frame: Dark metal #1C1F24 with thin glowing accent trim lines
+  // 2. Door Frame: Bright metal with thin glowing accent trim lines
   const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.36, 4.6, 0.65), frameMat);
   leftPost.position.set(-2.58, 2.3, 0);
   group.add(leftPost);
@@ -2455,13 +2452,13 @@ function createDoorStation(scene, doorType, x, z, wallH) {
     group.add(piston);
   });
 
-  // 3. Door Panels: Darker desaturated accent color with low emissive intensity
+  // 3. Door Panels: High-tech luminous accent panels
   const doorLeafMat = new THREE.MeshStandardMaterial({
     color: lockedLeafColor,
     emissive: lockedLeafEmissive,
-    emissiveIntensity: 0.25,
-    metalness: 0.85,
-    roughness: 0.30,
+    emissiveIntensity: 0.35,
+    metalness: 0.75,
+    roughness: 0.25,
   });
 
   const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(2.65, 4.3, 0.28), doorLeafMat);
@@ -2471,7 +2468,7 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   for (let r = 0; r < 3; r++) {
     const inset = new THREE.Mesh(
       new THREE.BoxGeometry(2.3, 1.1, 0.04),
-      new THREE.MeshStandardMaterial({ color: 0x5e4430, metalness: 0.90, roughness: 0.35 })
+      new THREE.MeshStandardMaterial({ color: 0x547890, metalness: 0.85, roughness: 0.25 })
     );
     inset.position.set(-0.1, -1.2 + r * 1.3, 0.14);
     leftLeaf.add(inset);
@@ -2487,7 +2484,7 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   for (let r = 0; r < 3; r++) {
     const inset = new THREE.Mesh(
       new THREE.BoxGeometry(2.3, 1.1, 0.04),
-      new THREE.MeshStandardMaterial({ color: 0x5e4430, metalness: 0.90, roughness: 0.35 })
+      new THREE.MeshStandardMaterial({ color: 0x547890, metalness: 0.85, roughness: 0.25 })
     );
     inset.position.set(0.1, -1.2 + r * 1.3, 0.14);
     rightLeaf.add(inset);

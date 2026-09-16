@@ -1125,12 +1125,16 @@ export function createBacklitLogoTexture() {
   canvas.height = 512;
   const ctx = canvas.getContext("2d");
 
-  // Dark brushed titanium panel base
-  ctx.fillStyle = "#0e1117";
+  // Sleek bright brushed titanium and satin steel base
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, "#2c4860");
+  grad.addColorStop(0.5, "#3b5d7a");
+  grad.addColorStop(1, "#243c52");
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 2048, 512);
 
   // Metallic horizontal grain
-  ctx.fillStyle = "rgba(255, 255, 255, 0.025)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
   for (let y = 0; y < 512; y += 3) {
     ctx.fillRect(0, y, 2048, 1);
   }
@@ -1163,7 +1167,7 @@ export function createBacklitLogoTexture() {
   ctx.lineTo(cx - 75, cy + 45);
   ctx.lineTo(cx - 85, cy - 90);
   ctx.closePath();
-  ctx.fillStyle = "#141822";
+  ctx.fillStyle = "#345570";
   ctx.fill();
   ctx.strokeStyle = "#2fd1ff";
   ctx.lineWidth = 9;

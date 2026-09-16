@@ -132,23 +132,22 @@ function getEditorCode() {
   return ta ? ta.value : "";
 }
 
-// ── Step Chips Progression UI ─────────────────────────────────────────
+// ── Step Chips Progression UI (Single Easy Task) ────────────────────────
 export function updateStepChips(step) {
-  for (let i = 1; i <= 3; i++) {
-    const chip = document.getElementById(`chip-step-${i}`);
-    if (!chip) continue;
-    chip.classList.remove("active", "completed", "locked");
-    const numEl = chip.querySelector(".chip-num");
-    if (i < step) {
-      chip.classList.add("completed");
-      if (numEl) numEl.textContent = "✓";
-    } else if (i === step) {
-      chip.classList.add("active");
-      if (numEl) numEl.textContent = String(i);
-    } else {
-      chip.classList.add("locked");
-      if (numEl) numEl.textContent = String(i);
-    }
+  const chip = document.getElementById("chip-step-1");
+  if (!chip) return;
+  const numEl = chip.querySelector(".chip-num");
+  const labelEl = chip.querySelector(".chip-label");
+  if (step >= 2) {
+    chip.classList.add("completed");
+    chip.classList.remove("active");
+    if (numEl) numEl.textContent = "✓";
+    if (labelEl) labelEl.textContent = "Security Verified — Unlocked!";
+  } else {
+    chip.classList.add("active");
+    chip.classList.remove("completed");
+    if (numEl) numEl.textContent = "★";
+    if (labelEl) labelEl.textContent = "Task: Run Security Verification (Press Run)";
   }
 }
 
@@ -203,95 +202,45 @@ export async function openTerminal(doorType, roomIndex = 1) {
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
     consoleOut.innerHTML = `
-      <div class="console-line sys">Connecting to BlackVault Terminal Engine...</div>
-      <div class="console-line info">Sector: ${doorType.toUpperCase()} // Initializing Step 1 (Data Cleaning)...</div>
+      <div class="console-line sys">BlackVault Security Terminal — Sector ${doorType.toUpperCase()}</div>
+      <div class="console-line info">✓ Task is pre-filled and ready. Press ▶ Run & Unlock Door (or Ctrl+Enter) to open!</div>
     `;
   }
 
-  // Request puzzle from backend
-  try {
-    const res = await fetch(`${API_BASE}/api/door/open`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ level: currentRoomIndex, door_type: doorType }),
-    });
+  // Use pre-configured single-step task data
+  const stepData = getOfflineStepInfo(doorType);
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    }
+  activePuzzle = {
+    puzzle_id: `door-${doorType}-${Date.now()}`,
+    door_type: doorType,
+    level: currentRoomIndex,
+    dataset_preview: {
+      columns: ["feature_1", "feature_2", "feature_3", "target"],
+      head_rows: [
+        [0.82, 1.45, -0.22, 1],
+        [0.15, 0.30, 0.65, 0],
+        [-1.20, 0.44, 0.88, 1],
+        [0.45, -0.62, 0.11, 0],
+      ],
+      total_rows: 100,
+    },
+  };
 
-    const data = await res.json();
-    activePuzzle = data;
-    timeRemaining = data.time_limit_seconds || 300;
-    attemptsRemaining = data.max_attempts_remaining || 5;
+  createEditor(stepData.starter_code);
 
-    // Display Step 1 problem statement
-    const problemEl = document.getElementById("problem-statement");
-    if (problemEl) {
-      problemEl.textContent = data.problem_statement || getOfflineStepInfo(doorType, 1).instructions;
-    }
-
-    // Set tab label
-    const tabLabel = document.getElementById("ide-tab-label");
-    if (tabLabel) tabLabel.textContent = `step1_clean_${doorType}.py`;
-
-    // Create Monaco Editor with Step 1 starter code
-    createEditor(data.starter_code || getOfflineStepInfo(doorType, 1).starter_code);
-
-    // Render dataset preview
-    renderDatasetPreview(data.dataset_preview);
-
-    updateTimerDisplay();
-    updateAttemptsDisplay();
-    startTimer();
-
-    if (consoleOut) {
-      consoleOut.innerHTML += `
-        <div class="console-line success">Dataset loaded: ${data.dataset_preview?.total_rows || 200} samples, ${data.dataset_preview?.columns?.length || 5} features</div>
-        <div class="console-line warning">💡 Step 1: Clean missing values & duplicates. Press ▶ Run (Ctrl+Enter) to evaluate.</div>
-      `;
-    }
-  } catch (err) {
-    console.warn("[Terminal] Using offline tiered mode:", err.message);
-    if (consoleOut) {
-      consoleOut.innerHTML += `<div class="console-line success">Connected in Offline Mode. Step 1 starter code ready!</div>`;
-    }
-
-    // Offline tiered setup
-    activePuzzle = {
-      puzzle_id: `offline-${doorType}-${Date.now()}`,
-      door_type: doorType,
-      level: currentRoomIndex,
-      dataset_preview: {
-        columns: ["feature_1", "feature_2", "feature_3", "target"],
-        head_rows: [
-          [0.82, 1.45, -0.22, 1],
-          [0.15, null, 0.65, 0],
-          [-1.20, 0.44, 0.88, 1],
-          [0.82, 1.45, -0.22, 1], // Duplicate row to clean!
-          [0.45, -0.62, null, 0],
-        ],
-        total_rows: 300,
-      },
-    };
-
-    const step1Data = getOfflineStepInfo(doorType, 1);
-    createEditor(step1Data.starter_code);
-
-    const problemEl = document.getElementById("problem-statement");
-    if (problemEl) {
-      problemEl.textContent = step1Data.instructions;
-    }
-
-    const tabLabel = document.getElementById("ide-tab-label");
-    if (tabLabel) tabLabel.textContent = `step1_clean_${doorType}.py`;
-
-    timeRemaining = 450;
-    attemptsRemaining = 10;
-    updateTimerDisplay();
-    startTimer();
-    renderDatasetPreview(activePuzzle.dataset_preview);
+  const problemEl = document.getElementById("problem-statement");
+  if (problemEl) {
+    problemEl.textContent = stepData.instructions;
   }
+
+  const tabLabel = document.getElementById("ide-tab-label");
+  if (tabLabel) tabLabel.textContent = `${doorType}_gate.py`;
+
+  timeRemaining = 9999;  // No pressure
+  attemptsRemaining = 99;
+  updateTimerDisplay();
+  startTimer();
+  renderDatasetPreview(activePuzzle.dataset_preview);
 }
 
 export function closeTerminal() {
@@ -375,7 +324,7 @@ function onTimeExpired() {
   onPuzzleFailed();
 }
 
-// ── Submit Code (Gated Step-by-Step) ─────────────────────────────────
+// ── Submit Code (Single Easy Step) ──────────────────────────────────
 async function submitCode() {
   if (!activePuzzle) return;
 
@@ -383,7 +332,7 @@ async function submitCode() {
   if (!code || !code.trim()) {
     const consoleOut = document.getElementById("terminal-result");
     if (consoleOut) {
-      consoleOut.innerHTML += `<div class="console-line error">No code to run. Write your solution first!</div>`;
+      consoleOut.innerHTML += `<div class="console-line error">No code to run. Write or press Run to execute!</div>`;
     }
     return;
   }
@@ -391,49 +340,29 @@ async function submitCode() {
   const submitBtn = document.getElementById("submit-btn");
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = "⏳ Running Step " + currentStep + "...";
+    submitBtn.textContent = "⏳ Running Security Check...";
   }
 
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
     consoleOut.innerHTML += `
       <div class="console-line sys">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-      <div class="console-line info">▶ Validating Step ${currentStep} in ML Sandbox...</div>
+      <div class="console-line info">▶ Executing Security Script...</div>
     `;
     consoleOut.scrollTop = consoleOut.scrollHeight;
   }
 
-  try {
-    const res = await fetch(`${API_BASE}/api/door/submit_code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        puzzle_id: activePuzzle.puzzle_id,
-        code: code,
-        time_remaining_seconds: timeRemaining,
-        step: currentStep,
-      }),
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || `Server error ${res.status}`);
-    }
-
-    const data = await res.json();
-    handleResult(data);
-  } catch (err) {
-    console.warn("[Terminal] Falling back to offline tiered verification:", err);
+  // Fast direct execution and unlock
+  setTimeout(() => {
     fallbackVerification(code);
-  } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.textContent = "▶ Run & Submit (Ctrl+Enter)";
+      submitBtn.textContent = "▶ Run & Unlock Door (Ctrl+Enter)";
     }
-  }
+  }, 350);
 }
 
-// ── Handle Result & Gated Transitions ─────────────────────────────────
+// ── Handle Result & Door Clearance ────────────────────────────────────
 function handleResult(result) {
   const consoleOut = document.getElementById("terminal-result");
   attemptsRemaining = result.attempts_remaining !== undefined ? result.attempts_remaining : attemptsRemaining - 1;
@@ -441,440 +370,220 @@ function handleResult(result) {
 
   const doorType = result.door_type || activePuzzle?.door_type || "classification";
 
-  if (result.step_passed) {
-    // Check if there is a next gated step (e.g., Step 1 -> 2, Step 2 -> 3)
-    if (result.next_step && result.next_step > currentStep) {
-      const passedStep = currentStep;
-      currentStep = result.next_step;
-      updateStepChips(currentStep);
+  if (result.passed || result.step_passed) {
+    updateStepChips(2); // Single task marked completed
+    const stars = result.stars || 3;
+    const starStr = "★".repeat(stars);
 
-      const stepTitles = {
-        1: "Data Cleaning (Duplicate Removal & Median Imputation)",
-        2: "Feature Engineering & Scaling (One-Hot & Scaler)",
-        3: "Model Training & Evaluation",
-      };
-
-      if (consoleOut) {
-        consoleOut.innerHTML += `
-          <div class="console-line success">✓ STEP ${passedStep} PASSED: ${stepTitles[passedStep]}!</div>
-          <div class="console-line info">🔓 UNLOCKED STEP ${currentStep}: ${stepTitles[currentStep]}</div>
-          <div class="console-line warning">💡 Editor template updated for Step ${currentStep}. Review instructions and proceed!</div>
-        `;
-        consoleOut.scrollTop = consoleOut.scrollHeight;
-      }
-
-      // Update Tab Label
-      const tabLabel = document.getElementById("ide-tab-label");
-      if (tabLabel) {
-        tabLabel.textContent = `step${currentStep}_${doorType}.py`;
-      }
-
-      // Update problem statement
-      if (result.next_instructions) {
-        const problemEl = document.getElementById("problem-statement");
-        if (problemEl) problemEl.textContent = result.next_instructions;
-      }
-
-      // Update editor code with new starter template
-      if (result.next_starter_code) {
-        setEditorCode(result.next_starter_code);
-      }
-
-      return;
+    if (consoleOut) {
+      consoleOut.innerHTML += `
+        <div class="console-line success">✓ GATE VERIFICATION PASSED: Security Clearance Granted!</div>
+        <div class="console-line success">★ Rating: ${starStr} (${stars} Stars)</div>
+        <div class="console-line success">🔓 BULKHEAD DOOR UNLOCKING IN SLOW MOTION...</div>
+      `;
+      consoleOut.scrollTop = consoleOut.scrollHeight;
     }
 
-    // All steps passed! (Step 3 completed successfully)
-    if (result.passed) {
-      updateStepChips(4); // All 3 chips marked completed
-      const stars = result.stars || 3;
-      const starStr = "★".repeat(stars) + "☆".repeat(3 - stars);
+    // Trigger cinematic slow-motion unlock
+    setDoorUnlocked(doorType);
+    onPuzzlePassed(stars);
+    levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex);
 
-      if (consoleOut) {
-        consoleOut.innerHTML += `
-          <div class="console-line success">✓ ALL 3 STEPS COMPLETED! Score = ${Number(result.score || 1.0).toFixed(4)} (Target: ${Number(result.target || 0.75).toFixed(4)})</div>
-          <div class="console-line success">★ Rating: ${starStr} (${stars} Stars)</div>
-          <div class="console-line success">🔓 BULKHEAD DOOR UNLOCKING IN SLOW MOTION...</div>
-        `;
-        consoleOut.scrollTop = consoleOut.scrollHeight;
-      }
+    // Show cleared banner
+    showSectorClearedBanner(doorType, stars);
 
-      // Trigger cinematic slow-motion unlock
-      setDoorUnlocked(doorType);
-      onPuzzlePassed(stars);
-      levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex);
+    clearInterval(timerInterval);
 
-      // Show cleared banner
-      showSectorClearedBanner(doorType, stars);
-
-      clearInterval(timerInterval);
-
-      // Auto-close terminal after 2.8 seconds to showcase the cinematic opening
-      setTimeout(() => closeTerminal(), 2800);
-      return;
-    }
+    // Auto-close terminal after 2.4 seconds to showcase the cinematic opening
+    setTimeout(() => closeTerminal(), 2400);
+    return;
   }
 
   // If failed
   if (consoleOut) {
-    const errorMsg = result.error_message || `Code output did not satisfy requirements for Step ${currentStep}.`;
+    const errorMsg = result.error_message || `Code output did not satisfy requirements.`;
     consoleOut.innerHTML += `
-      <div class="console-line error">❌ STEP ${currentStep} FAILED: ${escapeHtml(errorMsg)}</div>
-      <div class="console-line warning">Check requirements and try again. Attempts remaining: ${attemptsRemaining}</div>
+      <div class="console-line error">❌ CHECK FAILED: ${escapeHtml(errorMsg)}</div>
+      <div class="console-line warning">Check code and press Run again. Attempts remaining: ${attemptsRemaining}</div>
     `;
     consoleOut.scrollTop = consoleOut.scrollHeight;
   }
   onPuzzleFailed();
 }
 
-// ── Offline Tiered Fallback Verification ──────────────────────────────
+// ── Fallback Verification — SINGLE EASY STEP ─────────────────────────
+// Any code submission passes immediately. One click unlocks the door.
 function fallbackVerification(code) {
   const doorType = activePuzzle?.door_type || "classification";
 
-  if (currentStep === 1) {
-    // ── Classification door: Simple data cleaning (no functions, no pandas) ──
-    if (doorType === "classification") {
-      // Player needs to: skip None rows, fix negative salary, call .strip()
-      const fixedNone   = code.includes("if row is None") && code.includes("continue");
-      const fixedSalary = code.includes("salary = 0") || (code.includes("salary < 0") && code.includes("= 0"));
-      const fixedStrip  = code.includes(".strip()") && !code.match(/^.*\.strip\(\).*$/m)?.toString().includes("#");
-      // Also accept if the player just fixed all 3 bugs (count == 4 passes)
-      const hasPrint    = code.includes("total_clean") && code.includes("print");
+  // Pass as long as there is some code (don't make the player struggle)
+  const hasCode = code && code.trim().length > 5;
 
-      const passed = (fixedNone || code.includes("continue")) && hasPrint;
-      if (passed) {
-        handleResult({
-          step_passed: true,
-          passed: true,
-          step: 1,
-          score: 1.0,
-          target: 1.0,
-          door_type: doorType,
-          attempts_remaining: attemptsRemaining - 1,
-          stars: 3,
-        });
-      } else {
-        handleResult({
-          step_passed: false,
-          passed: false,
-          step: 1,
-          door_type: doorType,
-          attempts_remaining: attemptsRemaining - 1,
-          error_message: "Fix all 3 bugs: (1) add 'if row is None: continue', (2) set salary = 0 when negative, (3) use row[\"name\"].strip().",
-        });
-      }
-    } else {
-      // ── Other doors: pandas clean_data() function pattern ──
-      const hasDef  = code.includes("def clean_data") || code.includes("def clean");
-      const hasDupes = code.includes("drop_duplicates");
-      const hasFill  = code.includes("fillna") || code.includes("imputer") || code.includes("SimpleImputer");
-
-      if (hasDef && (hasDupes || hasFill)) {
-        const step2Data = getOfflineStepInfo(doorType, 2);
-        handleResult({
-          step_passed: true,
-          passed: true,
-          step: 1,
-          next_step: 2,
-          door_type: doorType,
-          attempts_remaining: attemptsRemaining - 1,
-          next_instructions: step2Data.instructions,
-          next_starter_code: step2Data.starter_code,
-        });
-      } else {
-        handleResult({
-          step_passed: false,
-          passed: false,
-          step: 1,
-          door_type: doorType,
-          attempts_remaining: attemptsRemaining - 1,
-          error_message: "Step 1 Requirement: Define def clean_data(df) calling df.drop_duplicates() and df.fillna(...).",
-        });
-      }
-    }
-  } else if (currentStep === 2) {
-    // Step 2: Feature Work & Scaling (pd.get_dummies, StandardScaler)
-    const hasDef = code.includes("def preprocess_features") || code.includes("def preprocess");
-    const hasDummies = code.includes("get_dummies") || code.includes("OneHotEncoder");
-    const hasScaler = code.includes("StandardScaler") || code.includes("MinMaxScaler") || code.includes("scaler");
-
-    if (hasDef && (hasDummies || hasScaler)) {
-      const step3Data = getOfflineStepInfo(doorType, 3);
-      handleResult({
-        step_passed: true,
-        passed: true,
-        step: 2,
-        next_step: 3,
-        door_type: doorType,
-        attempts_remaining: attemptsRemaining - 1,
-        next_instructions: step3Data.instructions,
-        next_starter_code: step3Data.starter_code,
-      });
-    } else {
-      handleResult({
-        step_passed: false,
-        passed: false,
-        step: 2,
-        door_type: doorType,
-        attempts_remaining: attemptsRemaining - 1,
-        error_message: "Step 2 Requirement: Define def preprocess_features(df) using pd.get_dummies() and StandardScaler.",
-      });
-    }
-  } else {
-    // Step 3: Model Training
-    let passed = false;
-    if (doorType === "clustering") {
-      passed = (code.includes("def cluster") || code.includes("KMeans")) && (code.includes("fit_predict") || code.includes(".fit("));
-    } else if (doorType === "anomaly") {
-      passed = (code.includes("def detect") || code.includes("IsolationForest")) && code.includes("fit");
-    } else {
-      passed = (code.includes("def predict") || code.includes("Classifier") || code.includes("Regressor")) && (code.includes(".fit(") || code.includes("fit_predict"));
-    }
-
+  if (hasCode) {
     handleResult({
-      step_passed: passed,
-      passed: passed,
-      step: 3,
-      score: passed ? 0.91 : 0.42,
-      target: 0.70,
-      higher_is_better: true,
-      attempts_used: 1,
-      attempts_remaining: attemptsRemaining - 1,
+      step_passed: true,
+      passed: true,
+      step: 1,
+      score: 1.0,
+      target: 0.5,
       door_type: doorType,
-      stars: passed ? 3 : null,
-      error_message: passed ? null : "Step 3 Requirement: Train your model using .fit() and return predictions.",
+      attempts_remaining: attemptsRemaining,
+      stars: 3,
+    });
+  } else {
+    handleResult({
+      step_passed: false,
+      passed: false,
+      step: 1,
+      door_type: doorType,
+      attempts_remaining: attemptsRemaining - 1,
+      error_message: "Write at least one line of code, then press Run!",
     });
   }
 }
 
-// ── Offline Step Templates & Instructions ─────────────────────────────
-function getOfflineStepInfo(doorType, step) {
-  if (step === 1) {
-    // Classification door uses the simple data cleaning puzzle (no functions, no pandas)
-    if (doorType === "classification") {
-      return {
-        step: 1,
-        instructions: `SECURITY GATE: CLASSIFICATION // STEP 1: DATA CLEANING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The employee database export has 3 bugs. Fix them all to unlock the door.
+// ── Offline Step Templates — Simple Single-Step Per Room ────────────────
+function getOfflineStepInfo(doorType) {
+  const TASKS = {
+    classification: {
+      instructions: `SECURITY GATE: CLASSIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ The code is ready to run. Press ▶ Run to open the door!
 
-BUG 1 (line ~10): None rows are NOT being skipped — add:
-    if row is None:
-        continue
+Task: Classify data into two groups (0 or 1).
+The solution is already written for you — just run it!`,
+      starter_code: `# CLASSIFICATION GATE — Press Run to unlock!
+# Task: Classify employee security clearance levels.
 
-BUG 2 (line ~17): Negative salary is kept as-is — fix:
-    if salary < 0:
-        salary = 0
-
-BUG 3 (line ~22): name.strip() is NOT called — fix:
-    name = row["name"].strip()
-
-When all 3 bugs are fixed, total_clean will equal 4 and the gate opens.`,
-        starter_code: `# BlackVault Security Gate 1 — Employee Record Cleaner
-# Fix the 3 bugs so the data is clean and the count is correct.
-
-raw_records = [
-    {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
-    None,
-    {"name": "Bob",       "salary": -500,  "dept": "Finance"},
-    {"name": "  Carol ",  "salary": 62000, "dept": "HR"},
-    None,
-    {"name": "Dave",      "salary": 91000, "dept": "Security"},
+data = [
+    {"name": "Alice",   "score": 92, "years": 5},
+    {"name": "Bob",     "score": 45, "years": 1},
+    {"name": "Carol",   "score": 88, "years": 8},
+    {"name": "Dave",    "score": 31, "years": 0},
 ]
 
-clean_records = []
+# Classify: score >= 70 and years >= 2 => cleared (1), else not (0)
+clearance = [
+    1 if row["score"] >= 70 and row["years"] >= 2 else 0
+    for row in data
+]
 
-for row in raw_records:
-    # BUG 1: We never skip None rows — add: if row is None: continue
-    # if row is None:
-    #     continue
-
-    salary = row["salary"]
-    # BUG 2: Negative salary should be set to 0, not kept as-is
-    if salary < 0:
-        salary = salary   # FIX: should be 0, not salary
-
-    # BUG 3: strip() is commented out — names keep their whitespace
-    name = row["name"]  # FIX: should be row["name"].strip()
-
-    clean_records.append({"name": name, "salary": salary, "dept": row["dept"]})
-
-total_clean = len(clean_records)
-print(f"[SECURITY CHECK] Clean records: {total_clean}")
-
-if total_clean == 4:
-    print("SUCCESS: Gate 1 Data Check passed. Door unlocked.")
-else:
-    raise ValueError(f"Expected 4 clean records, got {total_clean}. Check for None rows.")
+print("Clearance results:", clearance)
+print("Cleared:", sum(clearance), "/ Total:", len(clearance))
+print("Gate check: PASSED ✓")
 `,
-      };
-    }
+    },
+    regression: {
+      instructions: `SECURITY GATE: REGRESSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ The code is ready to run. Press ▶ Run to open the door!
 
-    return {
-      step: 1,
-      instructions: `SECURITY GATE: ${doorType.toUpperCase()} // STEP 1: DATA CLEANING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The incoming sensor dataset is dirty: it contains duplicate rows and missing values.
-Your objective for Step 1 is simple: CLEAN THE DATA.
+Task: Predict a numeric value from input features.
+The solution is already written for you — just run it!`,
+      starter_code: `# REGRESSION GATE — Press Run to unlock!
+# Task: Predict server response time from load.
 
-Define a function clean_data(df) that:
-  1. Removes duplicate records (df.drop_duplicates())
-  2. Fills missing values with column median/mean (df.fillna(...))
-  3. Returns the cleaned DataFrame.
+data_points = [
+    {"cpu_load": 0.2, "connections": 10},
+    {"cpu_load": 0.5, "connections": 50},
+    {"cpu_load": 0.8, "connections": 200},
+    {"cpu_load": 0.9, "connections": 500},
+]
 
-✓ Only data cleaning is required to pass Step 1!
-  Feature engineering and model training will unlock in Step 2.`,
-      starter_code: `import numpy as np
-import pandas as pd
+# Simple linear prediction: response = 50 + 300 * cpu_load + 0.1 * connections
+predictions = [
+    round(50 + 300 * p["cpu_load"] + 0.1 * p["connections"], 1)
+    for p in data_points
+]
 
-def clean_data(df):
-    """
-    Step 1: Data Cleaning
-    - Remove duplicate rows
-    - Fill missing values with numeric median or mean
-    Return the cleaned DataFrame.
-    """
-    # 1. Remove duplicate records
-    df_clean = df.drop_duplicates()
-
-    # 2. Impute missing values
-    df_clean = df_clean.fillna(df_clean.median(numeric_only=True))
-
-    return df_clean
+print("Predicted response times (ms):", predictions)
+print("Gate check: PASSED ✓")
 `,
-    };
-  } else if (step === 2) {
-    return {
-      step: 2,
-      instructions: `SECURITY GATE: ${doorType.toUpperCase()} // STEP 2: FEATURE ENGINEERING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Step 1 Complete! Now prepare the features for machine learning.
-Goal: Write preprocess_features(df) to:
-  1. Encode categorical columns (pd.get_dummies(df, drop_first=True))
-  2. Scale features with StandardScaler or MinMaxScaler
-  3. Return the scaled feature matrix.
+    },
+    clustering: {
+      instructions: `SECURITY GATE: CLUSTERING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ The code is ready to run. Press ▶ Run to open the door!
 
-✓ Only feature work is required to pass Step 2!
-  Model training and evaluation will unlock in Step 3.`,
-      starter_code: `import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
+Task: Group data points into clusters.
+The solution is already written for you — just run it!`,
+      starter_code: `# CLUSTERING GATE — Press Run to unlock!
+# Task: Group network traffic patterns into 3 clusters.
 
-# Reusable Step 1 cleaner:
-def clean_data(df):
-    df_clean = df.drop_duplicates()
-    return df_clean.fillna(df_clean.median(numeric_only=True))
+traffic = [
+    {"bytes": 120,  "packets": 5},
+    {"bytes": 9800, "packets": 400},
+    {"bytes": 130,  "packets": 6},
+    {"bytes": 8900, "packets": 390},
+    {"bytes": 5500, "packets": 200},
+]
 
-def preprocess_features(df):
-    """
-    Step 2: Feature Engineering & Scaling
-    - One-hot encode categorical features (pd.get_dummies)
-    - Scale features using StandardScaler
-    Return the scaled feature array or DataFrame.
-    """
-    # 1. Encode categorical columns if any
-    df_encoded = pd.get_dummies(df, drop_first=True)
+# Simple rule-based clustering (no sklearn needed)
+def cluster(row):
+    if row["bytes"] < 500:   return 0  # Low
+    elif row["bytes"] < 6000: return 1  # Medium
+    else:                     return 2  # High
 
-    # 2. Scale features
-    scaler = StandardScaler()
-    scaled = scaler.fit_transform(df_encoded)
-
-    return scaled
+labels = [cluster(t) for t in traffic]
+print("Cluster labels:", labels)
+print("Gate check: PASSED ✓")
 `,
-    };
-  } else {
-    let starter = "";
-    if (doorType === "clustering") {
-      starter = `import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
+    },
+    anomaly: {
+      instructions: `SECURITY GATE: ANOMALY DETECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ The code is ready to run. Press ▶ Run to open the door!
 
-def clean_data(df):
-    return df.drop_duplicates().fillna(df.median(numeric_only=True))
+Task: Find the anomalous data point in the sensor feed.
+The solution is already written for you — just run it!`,
+      starter_code: `# ANOMALY GATE — Press Run to unlock!
+# Task: Flag unusual sensor readings.
 
-def cluster(feature_df):
-    """
-    Step 3: Model Training & Evaluation
-    Cluster the data and return cluster labels (0, 1, 2).
-    """
-    clean_df = clean_data(feature_df)
-    scaler = StandardScaler()
-    X = scaler.fit_transform(pd.get_dummies(clean_df, drop_first=True))
+readings = [0.98, 1.02, 0.97, 1.05, 8.74, 0.99, 1.01]
 
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-    return kmeans.fit_predict(X)
-`;
-    } else if (doorType === "anomaly") {
-      starter = `import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import IsolationForest
+mean = sum(readings) / len(readings)
+std  = (sum((x - mean) ** 2 for x in readings) / len(readings)) ** 0.5
 
-def clean_data(df):
-    return df.drop_duplicates().fillna(df.median(numeric_only=True))
+anomaly_threshold = 2.5  # standard deviations
+anomalies = [
+    (i, x) for i, x in enumerate(readings)
+    if abs(x - mean) > anomaly_threshold * std
+]
 
-def detect(feature_df):
-    """
-    Step 3: Model Training & Evaluation
-    Detect anomalies in sensor data. Return 0 for normal, 1 for anomaly.
-    """
-    clean_df = clean_data(feature_df)
-    scaler = StandardScaler()
-    X = scaler.fit_transform(pd.get_dummies(clean_df, drop_first=True))
+print("Anomalies detected:", anomalies)
+print(f"Mean={mean:.2f}, Std={std:.2f}, Threshold={anomaly_threshold}σ")
+print("Gate check: PASSED ✓")
+`,
+    },
+    mystery: {
+      instructions: `THE VAULT — FINAL GATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ You made it to the Vault! Press ▶ Run to open it!
 
-    iso = IsolationForest(contamination=0.1, random_state=42)
-    raw_preds = iso.fit_predict(X)
-    return [1 if p == -1 else 0 for p in raw_preds]
-`;
-    } else {
-      starter = `import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+Task: The vault recognizes those who understand all of ML.
+The solution is already written for you — just run it!`,
+      starter_code: `# THE VAULT — FINAL GATE. Press Run to open!
+# Congratulations on reaching the Vault.
 
-def clean_data(df):
-    return df.drop_duplicates().fillna(df.median(numeric_only=True))
+print("╔" + "═" * 48 + "╗")
+print("║   BLACKVAULT CORP — VAULT ACCESS TERMINAL     ║")
+print("║   Access Code: ML-9731-CLEARANCE-GRANTED       ║")
+print("║   All 5 sector gates verified.                 ║")
+print("╚" + "═" * 48 + "╝")
+print()
+print("ML Disciplines Cleared:")
+for sector in ["Classification", "Regression", "Clustering", "Anomaly Detection"]:
+    print(f"  ✓ {sector}")
+print()
+print("VAULT DOOR UNLOCKED. Welcome.✓")
+`,
+    },
+  };
 
-def predict(train_df, test_df, target_col):
-    """
-    Step 3: Model Training & Evaluation
-    Use your cleaned features from Steps 1 & 2 to train the model.
-    Return predictions for test_df.
-    """
-    # 1. Clean train data
-    clean_train = clean_data(train_df)
-    y_train = clean_train[target_col]
-    X_train_raw = clean_train.drop(columns=[target_col])
-
-    # 2. One-hot encode & scale
-    X_train_enc = pd.get_dummies(X_train_raw, drop_first=True)
-    X_test_enc = pd.get_dummies(test_df, drop_first=True)
-    X_train_enc, X_test_enc = X_train_enc.align(X_test_enc, join="left", axis=1, fill_value=0)
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train_enc)
-    X_test_scaled = scaler.transform(X_test_enc)
-
-    # 3. Train model
-    clf = RandomForestClassifier(n_estimators=50, random_state=42)
-    clf.fit(X_train_scaled, y_train)
-
-    # 4. Predict
-    return clf.predict(X_test_scaled)
-`;
-    }
-
-    return {
-      step: 3,
-      instructions: `SECURITY GATE: ${doorType.toUpperCase()} // STEP 3: MODEL TRAINING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Steps 1 & 2 passed! Now build the final model pipeline.
-Goal: Train the ML model to achieve the target evaluation metric.
-Once Step 3 passes, the security bulkhead door will unlock!`,
-      starter_code: starter,
-    };
-  }
+  return TASKS[doorType] || TASKS["classification"];
 }
+
+
 
 function showSectorClearedBanner(doorType, stars) {
   const banner = document.getElementById("sector-cleared-banner");
