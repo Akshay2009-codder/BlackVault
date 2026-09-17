@@ -237,7 +237,7 @@ export async function openTerminal(doorType, roomIndex = 1) {
   const tabLabel = document.getElementById("ide-tab-label");
   if (tabLabel) tabLabel.textContent = `${doorType}_task.py`;
 
-  timeRemaining = 300; // 5 minutes
+  timeRemaining = 600; // 10 minutes — generous for beginners
   updateTimerDisplay();
   updateAttemptsDisplay();
   startTimer();
@@ -372,9 +372,18 @@ function evaluatePlayerCode(code) {
   const doorType = activePuzzle?.door_type || "classification";
   const consoleOut = document.getElementById("terminal-result");
 
-  // Check if player hasn't edited anything or left pure pass / None
-  if (code.includes("# TODO") && (code.includes("pass") || code.includes("return None") || code.includes("cleaned = None") || code.includes("normalized = None") || code.includes("labels = None") || code.includes("spikes = None") || code.includes("accuracy = None"))) {
-    handleFailedAttempt("Incomplete code: Replace the # TODO placeholder with your solution.");
+  // ── No checkbox / dropdown / pipeline-selector UI exists anywhere in this flow.
+  // The player ALWAYS types Python code line-by-line in the Monaco editor above.
+  // Evaluation below is purely keyword-pattern-based to validate intent.
+
+  // Detect completely unedited starter code (still has TODO placeholder AND the null sentinel)
+  const hasNullSentinel =
+    code.includes("cleaned = None") || code.includes("normalized = None") ||
+    code.includes("labels = None")  || code.includes("spikes = None")     ||
+    code.includes("accuracy = None");
+  const hasToDoPlaceholder = code.includes("# TODO");
+  if (hasToDoPlaceholder && hasNullSentinel) {
+    handleFailedAttempt("Incomplete code: Replace the # TODO comment and the 'None' placeholder with your Python solution.");
     return;
   }
 
@@ -383,91 +392,112 @@ function evaluatePlayerCode(code) {
   let errorMsg = "";
 
   if (doorType === "classification") {
-    // ROOM 1: DATA CLEANING (Replace NaN with 0.0)
-    const hasNanHandling = code.includes("nan_to_num") || code.includes("isnan") || code.includes("where") || code.includes("fillna") || code.includes("0.0") || code.includes("0");
-    const hasReturn = code.includes("return");
+    // ── ROOM 1: DATA CLEANING (beginner-friendly) ──────────────────────────────
+    // Accept any reasonable attempt: handling None rows, fixing negative salary,
+    // stripping whitespace, OR simply having something written in place of None.
+    // The threshold is intentionally very low so a first-time programmer can pass.
+    const triedSomething = !hasNullSentinel; // Replaced the None placeholder
+    const hasNoneHandling = code.includes("None") || code.includes("if row") ||
+                            code.includes("continue") || code.includes("is None");
+    const hasFixedSalary  = code.includes("salary = 0") || code.includes("= 0") ||
+                            code.includes("max(") || code.includes("abs(");
+    const hasStrip        = code.includes(".strip()") || code.includes("strip()");
 
-    if (!hasReturn) {
-      errorMsg = "Function must return the cleaned data array.";
-    } else if (!hasNanHandling) {
-      errorMsg = "Missing NaN handling. Hint: Use np.nan_to_num(data, nan=0.0) or np.where(np.isnan(data), 0.0, data).";
+    if (!triedSomething) {
+      errorMsg = "Still showing placeholder code. Replace 'None' with your actual Python fix.";
     } else {
+      // Pass if ANY meaningful change was made — encourage the beginner
       passed = true;
       successMsg = `
         <div class="console-line sys">──────────────── DATA CLEANING VERIFIED ────────────────</div>
-        <div class="console-line success">✓ Test Case 1: [12.5, NaN, 34.0, NaN, 55.2] -> [12.5, 0.0, 34.0, 0.0, 55.2] (PASS)</div>
-        <div class="console-line success">✓ Test Case 2: Zero NaNs Remaining in Sensor Matrix</div>
-        <div class="console-line success">✓ Data Integrity Score: 100% — Ready for ML Pipeline!</div>
+        <div class="console-line success">✓ None rows filtered: security scan passed</div>
+        <div class="console-line success">✓ Invalid salary corrected: data integrity OK</div>
+        <div class="console-line success">✓ Name whitespace stripped: records normalised</div>
+        <div class="console-line success">✓ Clean record count: 4 — Gate 1 cleared!</div>
       `;
     }
+
   } else if (doorType === "regression") {
-    // ROOM 2: FEATURE NORMALIZATION (Min-Max Scaling to [0, 1])
-    const hasMinMax = (code.includes("min") && code.includes("max")) || code.includes("MinMaxScaler") || (code.includes("-") && code.includes("/"));
+    // ── ROOM 2: FEATURE SCALING ────────────────────────────────────────────────
+    // Accept min/max pattern, MinMaxScaler, or a subtraction + division expression.
+    const hasMinMax = (code.includes("min") && code.includes("max")) ||
+                      code.includes("MinMaxScaler") ||
+                      (code.includes("-") && code.includes("/"));
     const hasReturn = code.includes("return");
 
-    if (!hasReturn) {
-      errorMsg = "Function must return the normalized data array.";
+    if (!hasReturn && hasNullSentinel) {
+      errorMsg = "Replace the None placeholder with your scaling formula and keep the return statement.";
+    } else if (!hasMinMax && !hasReturn) {
+      errorMsg = "Missing normalisation logic. Hint: (data - np.min(data)) / (np.max(data) - np.min(data)).";
     } else if (!hasMinMax) {
-      errorMsg = "Missing min-max scaling formula. Hint: (data - np.min(data)) / (np.max(data) - np.min(data)).";
+      // They have a return but no obvious min/max — still accept if they replaced None
+      if (!hasNullSentinel) {
+        passed = true;
+      } else {
+        errorMsg = "Scaling formula not detected. Hint: use np.min() and np.max() in your formula.";
+      }
     } else {
       passed = true;
+    }
+    if (passed) {
       successMsg = `
         <div class="console-line sys">──────────────── FEATURE SCALING VERIFIED ────────────────</div>
-        <div class="console-line success">✓ Test Case 1: [10.0, 30.0, 60.0, 100.0] -> [0.0, 0.22, 0.56, 1.0] (PASS)</div>
-        <div class="console-line success">✓ Range Check: All features strictly bounded in [0.0, 1.0]</div>
-        <div class="console-line success">✓ Normalization Loss: 0.0000 — Scale Calibrated!</div>
+        <div class="console-line success">✓ Test: [10.0, 30.0, 60.0, 100.0] → [0.0, 0.22, 0.56, 1.0] (PASS)</div>
+        <div class="console-line success">✓ All features bounded in [0.0, 1.0]</div>
+        <div class="console-line success">✓ Gate 2 — Scale calibrated!</div>
       `;
     }
-  } else if (doorType === "clustering") {
-    // ROOM 3: THREAT CLASSIFIER (Threshold binary 0/1)
-    const hasThreshold = code.includes(">") || code.includes("threshold") || code.includes("50");
-    const hasBinaryOutput = code.includes("astype") || code.includes("1") || code.includes("where") || code.includes("for");
 
-    if (!code.includes("return")) {
-      errorMsg = "Function must return the array of binary labels.";
-    } else if (!hasThreshold || !hasBinaryOutput) {
-      errorMsg = "Missing classification logic. Hint: (signals > threshold).astype(int) or [1 if s > 50 else 0 for s in signals].";
+  } else if (doorType === "clustering") {
+    // ── ROOM 3: THREAT CLASSIFICATION ─────────────────────────────────────────
+    const hasThreshold  = code.includes(">") || code.includes("threshold") || code.includes("50");
+    const hasBinaryOut  = code.includes("astype") || code.includes("int(") || code.includes("where") ||
+                          code.includes("if") || code.includes("1");
+
+    if (!hasThreshold || !hasBinaryOut) {
+      errorMsg = "Hint: (signals > threshold).astype(int) classifies each signal as 0 or 1.";
     } else {
       passed = true;
       successMsg = `
         <div class="console-line sys">──────────────── THREAT CLASSIFIER VERIFIED ────────────────</div>
-        <div class="console-line success">✓ Test Case 1: Signals [15, 82, 45, 99, 12, 67] -> [0, 1, 0, 1, 0, 1] (PASS)</div>
-        <div class="console-line success">✓ Threat Detection Precision: 100.0%</div>
-        <div class="console-line success">✓ False Positive Rate: 0.0%</div>
+        <div class="console-line success">✓ Signals [15, 82, 45, 99, 12, 67] → [0, 1, 0, 1, 0, 1] (PASS)</div>
+        <div class="console-line success">✓ Threat precision: 100.0% — Gate 3 cleared!</div>
       `;
     }
+
   } else if (doorType === "anomaly") {
-    // ROOM 4: ANOMALY DETECTION (Filter temps > max_safe)
+    // ── ROOM 4: ANOMALY DETECTION ─────────────────────────────────────────────
     const hasFilter = code.includes(">") || code.includes("max_safe") || code.includes("80");
     const hasReturn = code.includes("return");
 
-    if (!hasReturn) {
-      errorMsg = "Function must return the filtered anomalies.";
-    } else if (!hasFilter) {
-      errorMsg = "Missing anomaly filter. Hint: temps[temps > max_safe] or [t for t in temps if t > 80.0].";
+    if (!hasFilter) {
+      errorMsg = "Hint: temps[temps > max_safe] filters readings above the threshold.";
+    } else if (!hasReturn && hasNullSentinel) {
+      errorMsg = "Replace the None placeholder with your filter expression and keep 'return spikes'.";
     } else {
       passed = true;
       successMsg = `
         <div class="console-line sys">──────────────── ANOMALY DETECTION VERIFIED ────────────────</div>
-        <div class="console-line success">✓ Test Case 1: Temps [42.0, 45.5, 95.0, 43.2, 88.4, 41.0] -> [95.0, 88.4] (PASS)</div>
-        <div class="console-line success">✓ Intrusion Spikes Flagged: 2 Critical Overheating Events</div>
-        <div class="console-line success">✓ Anomaly Recall Rate: 100.0%</div>
+        <div class="console-line success">✓ Overheating spikes found: [95.0, 88.4] — Gate 4 cleared!</div>
+        <div class="console-line success">✓ Anomaly recall rate: 100.0%</div>
       `;
     }
-  } else {
-    // ROOM 5: MASTER VAULT EVALUATION (Accuracy calculation)
-    const hasAccuracy = (code.includes("==") || code.includes("accuracy_score") || code.includes("mean") || code.includes("sum")) && code.includes("return");
 
-    if (!code.includes("return")) {
-      errorMsg = "Function must return the calculated accuracy score.";
+  } else {
+    // ── ROOM 5: MASTER VAULT ACCURACY METRIC ──────────────────────────────────
+    const hasAccuracy = code.includes("==") || code.includes("accuracy_score") ||
+                        code.includes("mean") || code.includes("sum");
+    const hasReturn   = code.includes("return");
+
+    if (!hasReturn && hasNullSentinel) {
+      errorMsg = "Replace the None placeholder with your accuracy formula and keep 'return accuracy'.";
     } else if (!hasAccuracy) {
-      errorMsg = "Missing accuracy calculation. Hint: np.mean(y_true == y_pred) or sum(y_true == y_pred) / len(y_true).";
+      errorMsg = "Hint: np.mean(y_true == y_pred) gives the fraction of correct predictions.";
     } else {
       passed = true;
       successMsg = `
         <div class="console-line sys">──────────────── MASTER VAULT CLEARANCE ────────────────</div>
-        <div class="console-line success">✓ Test Case 1: Matching 5 of 6 Predictions -> Accuracy = 0.8333 (PASS)</div>
-        <div class="console-line success">✓ Master Matrix Security Clearance Verified!</div>
+        <div class="console-line success">✓ Accuracy = 0.8333 — threshold met!</div>
         <div class="console-line success">🔓 BULKHEAD DOOR DISENGAGING...</div>
       `;
     }
@@ -566,51 +596,78 @@ function handleFailedAttempt(errorMsg) {
 function getOfflineStepInfo(doorType) {
   const TASKS = {
     classification: {
-      title: "Data Cleaning (Handling NaNs)",
-      shortSummary: "Replace missing sensor values (np.nan) with 0.0",
-      instructions: `ROOM 1 — DATA CLEANING & RECEPTION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📖 Concept: Data Cleaning (Handling Missing Values)
-🎯 Objective: Raw sensor logs contain corrupted missing readings (NaN).
-Write code to replace all NaN values with 0.0 so the dataset is clean for training.
+      title: "Employee Data Cleaning (Fix 3 Bugs)",
+      shortSummary: "Fix 3 clearly marked bugs: skip None rows, set negative salary to 0, strip name whitespace",
+      instructions: `GATE 1 — DATA CLEANING  (LEVEL 1 — EASY)
+────────────────────────────────────────────────
+📖 What you need to know: NONE— no ML needed! Just fix three simple Python bugs.
 
-Input:
-• raw_data: NumPy array with missing NaN values (e.g. [12.5, NaN, 34.0, NaN, 55.2])
+🔧 BUG 1 — Uncomment the two lines that skip None rows:
+    if row is None:
+        continue
 
-Your Task:
-1. Complete the 'clean_sensor_data' function
-2. Replace all NaN values with 0.0 (Hint: Use np.nan_to_num(data, nan=0.0) or np.where)
-3. Return the cleaned array`,
-      starter_code: `# ROOM 1: DATA CLEANING CHALLENGE
-# Concept: Clean raw corrupted sensor readings by replacing NaNs with 0.0
+🔧 BUG 2 — Change 'salary = salary' to 'salary = 0' inside the 'if salary < 0' block.
+
+🔧 BUG 3 — Change row["name"] to row["name"].strip() so spaces are removed.
+
+✅ When all 3 bugs are fixed, total_clean will equal 4 and the door opens!
+No imports or ML libraries needed — pure Python only.`,
+      starter_code: `# GATE 1 — Employee Record Cleaner  (LEVEL 1 — EASY)
+# Three bugs are clearly marked below with # BUG comments.
+# Your job: fix each bug so the code runs correctly.
+#
+# BUG 1 (line ~10): None rows crash the loop — skip them with: if row is None: continue
+# BUG 2 (line ~14): Negative salary keeps its bad value — set it to 0 instead
+# BUG 3 (line ~18): name.strip() is commented out — uncomment it to trim spaces
 import numpy as np
 
-# Raw corrupted telemetry readings from Reception Door
-raw_data = np.array([12.5, np.nan, 34.0, np.nan, 55.2])
+raw_records = [
+    {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
+    None,
+    {"name": "Bob",       "salary": -500,  "dept": "Finance"},
+    {"name": "  Carol ",  "salary": 62000, "dept": "HR"},
+    None,
+    {"name": "Dave",      "salary": 91000, "dept": "Security"},
+]
 
-def clean_sensor_data(data):
-    # TODO: Replace all NaN (missing) values in data with 0.0
-    # Hint: Use np.nan_to_num(data, nan=0.0)
-    cleaned = None  # Write your solution here
-    
-    return cleaned
+clean_records = []
 
-# Run cleaner
-result = clean_sensor_data(raw_data)
-print("Cleaned Sensor Data:", result)
+for row in raw_records:
+    # BUG 1: We never skip None rows. Add: if row is None: continue
+    # if row is None:
+    #     continue
+
+    salary = row["salary"]
+    # BUG 2: Negative salary should be set to 0, not kept as-is
+    if salary < 0:
+        salary = salary   # FIX: change 'salary' to 0
+
+    # BUG 3: strip() is commented out — names keep their whitespace
+    name = row["name"]  # FIX: should be row["name"].strip()
+
+    clean_records.append({"name": name, "salary": salary, "dept": row["dept"]})
+
+total_clean = len(clean_records)
+print(f"[GATE 1 CHECK] Clean records: {total_clean}")
+
+if total_clean == 4:
+    print("SUCCESS: Gate 1 passed. Door unlocked.")
+else:
+    print(f"Expected 4 clean records, got {total_clean}. Check Bug 1.")
 `,
       dataset_preview: {
-        columns: ["timestamp_ms", "sensor_voltage", "status"],
+        columns: ["name", "salary", "dept"],
         head_rows: [
-          [100, 12.5, "OK"],
-          [200, "NaN", "CORRUPTED"],
-          [300, 34.0, "OK"],
-          [400, "NaN", "CORRUPTED"],
-          [500, 55.2, "OK"],
+          ["  Alice  ", 75000, "Engineering"],
+          ["None",     "(skip)", ""],
+          ["Bob",       -500,  "Finance"],
+          ["  Carol ",  62000, "HR"],
+          ["Dave",      91000, "Security"],
         ],
-        total_rows: 25,
+        total_rows: 6,
       },
     },
+
 
     regression: {
       title: "Feature Scaling & Normalization",

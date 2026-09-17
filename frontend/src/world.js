@@ -2350,17 +2350,22 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.45);
 
   // Materials
+  // Portal-wall: warm amber-ochre (#7a4a1e) — a heated architectural terracotta that
+  // reads as "entrance" in any built environment. Jumps clearly against the cool
+  // teal-slate main corridor walls, so doors are visible from far across the room.
   const portalWallMat = new THREE.MeshStandardMaterial({
-    map: createWalnutWoodSlatTexture(),
-    color: 0xb86838,
-    roughness: 0.55,
+    map: createBrushedSilverWallTexture(),
+    color: 0x7a4a1e,   // warm amber-ochre — lit terracotta, not emissive
+    roughness: 0.72,
     metalness: 0.08,
   });
+  // Outer flanking wall: deep navy-midnight (#1c2e40) — recedes visually,
+  // pushing the eye toward the warmer, brighter door zone.
   const outerWallMat = new THREE.MeshStandardMaterial({
-    map: createBrushedSilverWallTexture(),
-    color: 0xd07848,
-    roughness: 0.52,
-    metalness: 0.18,
+    map: createWallNoiseTexture(),
+    color: 0x1c2e40,   // deep navy — cooler and darker than portal panels
+    roughness: 0.70,
+    metalness: 0.10,
   });
   const frameMat = new THREE.MeshStandardMaterial({
     color: 0x8a5838, // Warm bronze architectural frame
@@ -3469,16 +3474,18 @@ export function playErrorBuzzerSFX() {
   } catch (e) {}
 }
 
-function animateDoorLeaves(entry, duration = 2000, onDone) {
+function animateDoorLeaves(entry, duration = 6500, onDone) {
   const start = performance.now();
   const lStart = entry.leftLeaf.position.x;
   const rStart = entry.rightLeaf.position.x;
-  const lTarget = -3.85, rTarget = 3.85;
+  // Wider target: panels slide fully clear of the frame opening
+  const lTarget = -4.3, rTarget = 4.3;
 
   function step(now) {
     const t = Math.min(1, (now - start) / duration);
-    // Smooth cubic ease out
-    const e = 1 - Math.pow(1 - t, 3);
+    // Smoothstep easing: gentle start, gentle finish — no abrupt deceleration snap
+    // f(t) = t² × (3 − 2t)  — classic GLSL smoothstep
+    const e = t * t * (3.0 - 2.0 * t);
     entry.leftLeaf.position.x  = lStart + (lTarget - lStart) * e;
     entry.rightLeaf.position.x = rStart + (rTarget - rStart) * e;
 
@@ -3604,7 +3611,8 @@ export function setDoorUnlocked(doorType, onComplete) {
       if (t < 1) {
         requestAnimationFrame(pushStep);
       } else {
-        // Hold camera on the opening door for the full slide duration
+        // Hold camera on the door for the full 6.5-second slide (5500ms),
+        // then glide back over 700ms — camera returns only AFTER the door is fully open.
         setTimeout(() => {
           const retStart = performance.now();
           const retDuration = 700;
@@ -3625,14 +3633,15 @@ export function setDoorUnlocked(doorType, onComplete) {
             }
           }
           requestAnimationFrame(retStep);
-        }, 1600);
+        }, 5500);
       }
     }
     requestAnimationFrame(pushStep);
   }
 
-  // 3. Door leaves slide open smoothly
-  animateDoorLeaves(entry, 2100, () => {
+  // 3. Door leaves slide open slowly and fully — 6.5 seconds, smoothstep easing.
+  //    Player watches every centimeter of travel. Camera holds until motion completes.
+  animateDoorLeaves(entry, 6500, () => {
     setMaxZBound(entry.zDoor + 20.8);
     if (!camRunning) {
       if (entry.doorLight) entry.doorLight.intensity = 2.4;

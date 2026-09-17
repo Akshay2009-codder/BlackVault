@@ -1,8 +1,10 @@
-// BlackVault — Sleek Research Operative Character Model & Animation Controller
+// BlackVault — Realistic Human Research Operative Character Model & Animation Controller
 //
-// Character: Smart civilian research operative — fitted blazer silhouette,
-// clean proportions (1.82m, 8 heads tall), HUD lanyard, wrist comm.
-// No bulky armor or pauldrons — premium look matches the new ocean-slate environment.
+// Character: Realistically proportioned research operative — 1.82m, ~8 heads tall.
+// Natural human face with sculpted brow, nose bridge, lips, ears, and short hair cap.
+// Fitted dark blazer over white shirt, slim trousers, oxford shoes.
+// Skin uses warm ochre MeshStandardMaterial (not metallic/plastic).
+// Hair uses a dark matte material with subtle depth.
 //
 // Animation State Machine: idle, walk, run, jump, sit, typing
 // - Continuous exponential weight blending (no snaps, no T-pose transitions)
@@ -44,7 +46,59 @@ const weights = {
 let isSittingRequested = false;
 let sittingProgress = 0; // 0 = fully standing, 1 = fully seated
 
-// ── Materials ─────────────────────────────────────────────────────────────────
+// ── Skin & Hair Materials ──────────────────────────────────────────────────────
+// Warm human skin — NOT metallic, NOT plastic; natural subsurface scatter approximation
+const skinMat = new THREE.MeshStandardMaterial({
+  color: 0xc8956a,     // warm ochre-tan — believably human
+  roughness: 0.72,
+  metalness: 0.0,
+  envMapIntensity: 0.4,
+});
+
+// Slightly darker skin for ear/nose recessed areas
+const skinDarkMat = new THREE.MeshStandardMaterial({
+  color: 0xb8825c,
+  roughness: 0.75,
+  metalness: 0.0,
+});
+
+// Short dark hair — matte, natural
+const hairMat = new THREE.MeshStandardMaterial({
+  color: 0x1a120a,
+  roughness: 0.88,
+  metalness: 0.0,
+});
+
+// Eyebrow micro detail
+const eyebrowMat = new THREE.MeshStandardMaterial({
+  color: 0x120d08,
+  roughness: 0.90,
+  metalness: 0.0,
+});
+
+// Eyes — deep iris with subtle shine
+const irisMat = new THREE.MeshStandardMaterial({
+  color: 0x3d2b18,
+  roughness: 0.35,
+  metalness: 0.0,
+});
+const scleraMat = new THREE.MeshStandardMaterial({
+  color: 0xf0ece8,
+  roughness: 0.50,
+  metalness: 0.0,
+});
+const pupilMat = new THREE.MeshStandardMaterial({
+  color: 0x080604,
+  roughness: 0.20,
+  metalness: 0.0,
+});
+const lipMat = new THREE.MeshStandardMaterial({
+  color: 0xa06050,
+  roughness: 0.65,
+  metalness: 0.0,
+});
+
+// ── Clothing Materials ─────────────────────────────────────────────────────────
 // Matte charcoal blazer — primary silhouette
 const blazerMat = new THREE.MeshStandardMaterial({
   color: 0x1a1d24,
@@ -116,7 +170,7 @@ export function createPlayerCharacter(scene) {
   return bodyMesh;
 }
 
-// ── Procedural Skeletal Build — Sleek Research Operative ──────────────────────
+// ── Procedural Skeletal Build — Realistic Research Operative ──────────────────
 // 1.82m tall, 8-heads proportion. Forward direction: -Z (Three.js convention).
 function buildResearchOperativeBody() {
   bodyParts = {};
@@ -174,7 +228,7 @@ function buildResearchOperativeBody() {
 
   // Main blazer chest — wider shoulders, slim waist
   const chest = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.215, 0.162, 0.30, 16),
+    new THREE.CylinderGeometry(0.226, 0.170, 0.30, 16),   // wider: 0.215→0.226 top, 0.162→0.170 bottom
     blazerMat
   );
   chest.position.y = 0.15;
@@ -218,50 +272,26 @@ function buildResearchOperativeBody() {
 
   // ── 4. Neck & Head ───────────────────────────────────────────────────────
   const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.065, 0.075, 12),
-    shirtMat
+    new THREE.CylinderGeometry(0.054, 0.066, 0.092, 12),   // wider: 0.046→0.054 top, 0.058→0.066 base
+    skinMat
   );
   neck.position.y = 0.335;
   chestGrp.add(neck);
 
+  // Shirt collar visible above blazer
+  const collarRing = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.060, 0.065, 0.032, 12),
+    shirtMat
+  );
+  collarRing.position.y = 0.325;
+  chestGrp.add(collarRing);
+
   const headGrp = new THREE.Group();
-  headGrp.position.y = 0.415;
+  headGrp.position.y = 0.425;
   chestGrp.add(headGrp);
   bodyParts.headGrp = headGrp;
 
-  // Head — rounder, more natural dome with higher segment count
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.115, 20, 16),
-    new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.65, metalness: 0.0 })
-  );
-  head.scale.set(1.0, 1.10, 1.06);
-  head.castShadow = true;
-  headGrp.add(head);
-
-  // Slim smart-glasses / eyepiece bar — accent-tinted
-  const eyepiece = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 0.022, 0.016),
-    visorMat
-  );
-  eyepiece.position.set(0, 0.012, -0.108);
-  headGrp.add(eyepiece);
-
-  // Thin eyepiece glow line
-  const eyeGlow = new THREE.Mesh(
-    new THREE.BoxGeometry(0.14, 0.005, 0.006),
-    glowMat
-  );
-  eyeGlow.position.set(0, 0.012, -0.117);
-  headGrp.add(eyeGlow);
-
-  // Subtle ear comm piece (right ear — small disc)
-  const earComm = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.012, 0.008, 10),
-    glowMat
-  );
-  earComm.rotation.z = Math.PI / 2;
-  earComm.position.set(0.118, 0.008, -0.018);
-  headGrp.add(earComm);
+  buildRealisticHead(headGrp);
 
   // ── 5. Arms & Hands ─────────────────────────────────────────────────────
   function buildArm(side) {
@@ -316,25 +346,38 @@ function buildResearchOperativeBody() {
       forearmGrp.add(wristComm);
     }
 
-    // Hand
+    // Hand — realistic palm with skin material
     const handGrp = new THREE.Group();
     handGrp.position.y = -0.272;
     forearmGrp.add(handGrp);
 
+    // Palm — slightly rounded box
     const palm = new THREE.Mesh(
-      new THREE.BoxGeometry(0.058, 0.062, 0.028),
-      new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.65 })
+      new THREE.BoxGeometry(0.060, 0.065, 0.030),
+      skinMat
     );
     palm.position.y = -0.032;
     handGrp.add(palm);
 
-    // Slim knuckle ridge
-    const knuckles = new THREE.Mesh(
-      new THREE.BoxGeometry(0.060, 0.016, 0.016),
-      new THREE.MeshStandardMaterial({ color: 0xc4a880, roughness: 0.60 })
+    // Thumb — small capsule angled outward
+    const thumbGrp = new THREE.Group();
+    thumbGrp.position.set(sign * -0.035, -0.040, -0.010);
+    thumbGrp.rotation.z = sign * 0.55;
+    handGrp.add(thumbGrp);
+    const thumb = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.011, 0.028, 3, 6),
+      skinMat
     );
-    knuckles.position.set(0, -0.036, -0.016);
-    handGrp.add(knuckles);
+    thumb.position.y = 0.020;
+    thumbGrp.add(thumb);
+
+    // Four fingers as a fused capsule block
+    const fingers = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.014, 0.040, 3, 8),
+      skinMat
+    );
+    fingers.position.set(0, -0.075, -0.012);
+    handGrp.add(fingers);
 
     return { shoulderGrp, upperArmGrp, forearmGrp, handGrp };
   }
@@ -350,21 +393,21 @@ function buildResearchOperativeBody() {
     hipGrp.position.set(sign * 0.088, -0.055, 0);
     pelvisGrp.add(hipGrp);
 
-    // Thigh — slim, longer than before (0.40 vs 0.36)
+    // Thigh — slim, longer (0.40)
     const thighGrp = new THREE.Group();
     hipGrp.add(thighGrp);
 
     const thigh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.058, 0.40, 4, 10),
+      new THREE.CapsuleGeometry(0.060, 0.43, 4, 10),   // longer: 0.40→0.43, slightly wider
       trouserMat
     );
-    thigh.position.y = -0.225;
+    thigh.position.y = -0.240;
     thigh.castShadow = true;
     thighGrp.add(thigh);
 
-    // Knee — cleaner articulation
+    // Knee joint
     const kneeGrp = new THREE.Group();
-    kneeGrp.position.y = -0.45;
+    kneeGrp.position.y = -0.48;   // pushed down slightly to match longer thigh
     thighGrp.add(kneeGrp);
 
     // Shin — slim
@@ -384,7 +427,7 @@ function buildResearchOperativeBody() {
     troserCuff.position.y = -0.40;
     kneeGrp.add(troserCuff);
 
-    // Foot — slim oxford shoe (no bulky toe-cap)
+    // Foot — slim oxford shoe
     const footGrp = new THREE.Group();
     footGrp.position.y = -0.44;
     kneeGrp.add(footGrp);
@@ -403,11 +446,264 @@ function buildResearchOperativeBody() {
     upper.position.set(0, 0.018, -0.022);
     footGrp.add(upper);
 
+    // Toe cap — slightly rounded front
+    const toeCap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.042, 8, 6, 0, Math.PI),
+      shoeMat
+    );
+    toeCap.scale.set(1.0, 0.7, 1.1);
+    toeCap.position.set(0, 0.010, -0.105);
+    footGrp.add(toeCap);
+
     return { hipGrp, thighGrp, kneeGrp, footGrp };
   }
 
   bodyParts.leftLeg  = buildLeg(-1);
   bodyParts.rightLeg = buildLeg(1);
+}
+
+// ── Realistic Human Head Builder ──────────────────────────────────────────────
+// Produces: rounded skull, brow ridge, nose bridge + tip, ears, lips, eyes, short hair cap.
+function buildRealisticHead(headGrp) {
+  // ── Skull — rounded, naturally scaled (not a perfect sphere) ──────────────
+  const skull = new THREE.Mesh(
+    new THREE.SphereGeometry(0.118, 24, 20),
+    skinMat
+  );
+  skull.scale.set(1.0, 1.08, 1.06);   // less egg-shaped: real skulls are wider than tall
+  skull.castShadow = true;
+  headGrp.add(skull);
+
+  // ── Mandible / Jaw plane — breaks up the flat sphere face ────────────────
+  // A flattened ellipsoid sitting at the lower-front of the skull gives the
+  // jawline width that distinguishes a human face from a balloon.
+  const jaw = new THREE.Mesh(
+    new THREE.SphereGeometry(0.088, 16, 10, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45),
+    skinMat
+  );
+  jaw.scale.set(1.05, 0.68, 0.90);
+  jaw.position.set(0, -0.072, -0.018);
+  headGrp.add(jaw);
+
+  // Cheekbone width — two subtle bumps flanking the upper jaw
+  [-1, 1].forEach(side => {
+    const cheek = new THREE.Mesh(
+      new THREE.SphereGeometry(0.032, 8, 6),
+      skinMat
+    );
+    cheek.scale.set(0.9, 0.65, 0.55);
+    cheek.position.set(side * 0.078, -0.010, -0.096);
+    headGrp.add(cheek);
+  });
+
+  // ── Hair Cap — close-cropped dark hair over upper skull ───────────────────
+  const hairCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.122, 22, 18, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    hairMat
+  );
+  hairCap.scale.set(1.0, 1.12, 1.05);
+  hairCap.position.y = 0.010;
+  hairCap.castShadow = false;
+  headGrp.add(hairCap);
+
+  // Hair side taper — thin strips on temples
+  [-1, 1].forEach(side => {
+    const temple = new THREE.Mesh(
+      new THREE.BoxGeometry(0.010, 0.070, 0.075),
+      hairMat
+    );
+    temple.position.set(side * 0.116, 0.020, -0.030);
+    headGrp.add(temple);
+  });
+
+  // ── Brow Ridge — slight protrusion above eyes ─────────────────────────────
+  const browRidge = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.012, 0.120, 3, 8),
+    skinMat
+  );
+  browRidge.rotation.z = Math.PI / 2;
+  browRidge.position.set(0, 0.048, -0.108);
+  headGrp.add(browRidge);
+
+  // ── Eyebrows ──────────────────────────────────────────────────────────────
+  [-1, 1].forEach(side => {
+    const brow = new THREE.Mesh(
+      new THREE.BoxGeometry(0.048, 0.008, 0.010),
+      eyebrowMat
+    );
+    brow.position.set(side * 0.042, 0.056, -0.111);
+    brow.rotation.z = side * 0.08; // slight arch
+    headGrp.add(brow);
+  });
+
+  // ── Eyes ──────────────────────────────────────────────────────────────────
+  [-1, 1].forEach(side => {
+    // Eye socket recess (dark area around eye)
+    const socket = new THREE.Mesh(
+      new THREE.SphereGeometry(0.022, 10, 8),
+      skinDarkMat
+    );
+    socket.scale.set(1.3, 0.85, 0.5);
+    socket.position.set(side * 0.042, 0.022, -0.108);
+    headGrp.add(socket);
+
+    // White of eye (sclera)
+    const sclera = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 10, 8),
+      scleraMat
+    );
+    sclera.scale.set(1.2, 0.75, 0.6);
+    sclera.position.set(side * 0.042, 0.022, -0.112);
+    headGrp.add(sclera);
+
+    // Iris
+    const iris = new THREE.Mesh(
+      new THREE.CircleGeometry(0.010, 12),
+      irisMat
+    );
+    iris.position.set(side * 0.042, 0.022, -0.121);
+    headGrp.add(iris);
+
+    // Pupil
+    const pupil = new THREE.Mesh(
+      new THREE.CircleGeometry(0.005, 10),
+      pupilMat
+    );
+    pupil.position.set(side * 0.042, 0.022, -0.1215);
+    headGrp.add(pupil);
+
+    // Upper eyelid — thin crescent
+    const eyelid = new THREE.Mesh(
+      new THREE.BoxGeometry(0.038, 0.007, 0.010),
+      skinMat
+    );
+    eyelid.position.set(side * 0.042, 0.033, -0.113);
+    eyelid.rotation.z = side * 0.05;
+    headGrp.add(eyelid);
+  });
+
+  // ── Nose ──────────────────────────────────────────────────────────────────
+  // Bridge — slim vertical ridge down the centre
+  const noseBridge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.018, 0.055, 0.016),
+    skinMat
+  );
+  noseBridge.position.set(0, -0.010, -0.118);
+  headGrp.add(noseBridge);
+
+  // Nose tip — small round bulb
+  const noseTip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.018, 10, 8),
+    skinMat
+  );
+  noseTip.scale.set(1.0, 0.75, 0.95);
+  noseTip.position.set(0, -0.038, -0.122);
+  headGrp.add(noseTip);
+
+  // Nostrils — two small oval depressions
+  [-1, 1].forEach(side => {
+    const nostril = new THREE.Mesh(
+      new THREE.SphereGeometry(0.009, 8, 6),
+      skinDarkMat
+    );
+    nostril.scale.set(1.0, 0.65, 0.85);
+    nostril.position.set(side * 0.014, -0.044, -0.118);
+    headGrp.add(nostril);
+  });
+
+  // ── Lips & Mouth ──────────────────────────────────────────────────────────
+  // Upper lip
+  const upperLip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.040, 0.012, 0.014),
+    lipMat
+  );
+  upperLip.position.set(0, -0.062, -0.116);
+  headGrp.add(upperLip);
+
+  // Lower lip — slightly fuller
+  const lowerLip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.038, 0.013, 0.015),
+    lipMat
+  );
+  lowerLip.position.set(0, -0.076, -0.115);
+  headGrp.add(lowerLip);
+
+  // Philtrum indent (barely visible but breaks up the face plane)
+  const philtrum = new THREE.Mesh(
+    new THREE.BoxGeometry(0.014, 0.016, 0.006),
+    skinDarkMat
+  );
+  philtrum.position.set(0, -0.053, -0.118);
+  headGrp.add(philtrum);
+
+  // Chin
+  const chin = new THREE.Mesh(
+    new THREE.SphereGeometry(0.020, 8, 6),
+    skinMat
+  );
+  chin.scale.set(1.2, 0.75, 0.90);
+  chin.position.set(0, -0.096, -0.105);
+  headGrp.add(chin);
+
+  // ── Ears ──────────────────────────────────────────────────────────────────
+  [-1, 1].forEach(side => {
+    const earGrp = new THREE.Group();
+    earGrp.position.set(side * 0.118, 0.002, -0.014);
+
+    // Ear lobe — main body
+    const ear = new THREE.Mesh(
+      new THREE.SphereGeometry(0.028, 10, 8),
+      skinMat
+    );
+    ear.scale.set(0.35, 0.85, 0.55);
+    earGrp.add(ear);
+
+    // Inner ear detail — helical fold
+    const helix = new THREE.Mesh(
+      new THREE.TorusGeometry(0.018, 0.004, 5, 12, Math.PI * 1.3),
+      skinDarkMat
+    );
+    helix.rotation.x = Math.PI / 2;
+    helix.rotation.z = side > 0 ? 0.3 : -0.3;
+    helix.position.z = -0.004;
+    earGrp.add(helix);
+
+    // Ear canal (dark oval recess)
+    const canal = new THREE.Mesh(
+      new THREE.CircleGeometry(0.007, 8),
+      skinDarkMat
+    );
+    canal.position.z = 0.012;
+    earGrp.add(canal);
+
+    earGrp.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    headGrp.add(earGrp);
+  });
+
+  // ── Slim smart-glasses / eyepiece bar — accent-tinted ─────────────────────
+  const eyepiece = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.018, 0.012),
+    visorMat
+  );
+  eyepiece.position.set(0, 0.022, -0.114);
+  headGrp.add(eyepiece);
+
+  // Thin eyepiece glow line
+  const eyeGlow = new THREE.Mesh(
+    new THREE.BoxGeometry(0.14, 0.004, 0.005),
+    glowMat
+  );
+  eyeGlow.position.set(0, 0.022, -0.118);
+  headGrp.add(eyeGlow);
+
+  // Subtle ear comm piece (right ear — small disc)
+  const earComm = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.010, 0.010, 0.006, 10),
+    glowMat
+  );
+  earComm.rotation.z = Math.PI / 2;
+  earComm.position.set(0.124, 0.004, -0.016);
+  headGrp.add(earComm);
 }
 
 // ── Seating & Typing External API ──────────────────────────────────────────────
@@ -524,7 +820,7 @@ export function updatePlayerCharacter(delta) {
   const walkRForearmX = -0.24 - Math.max(0, -sinWalk) * 0.22;
   const walkSpineRotY = sinWalk * 0.055;
   const walkBobY      = Math.abs(sinWalk) * 0.040;
-  // Subtle head Y sway in sync with stride (NEW — gives life)
+  // Subtle head Y sway in sync with stride
   const walkHeadSwayY = sinWalk * 0.032;
 
   // Run kinematics — athletic forward lean
@@ -548,8 +844,7 @@ export function updatePlayerCharacter(delta) {
   const jumpForearmX = -0.60;
   const jumpSpineX   =  0.10;
 
-  // (D) LAND SQUAT — brief pelvis dip on grounding (NEW)
-  // landingSquatTimer goes from 0.18 → 0, squat magnitude peaks at t=0.18, fades
+  // (D) LAND SQUAT — brief pelvis dip on grounding
   const squatFraction  = landingSquatTimer / 0.18;
   const landingSquat   = squatFraction > 0 ? Math.sin(squatFraction * Math.PI) * 0.06 : 0;
 
@@ -577,7 +872,7 @@ export function updatePlayerCharacter(delta) {
     sitRForearmX += foreR * wType;
 
     if (bodyParts.headGrp) {
-      // Slow Y-axis scan (NEW — natural "reading screen" head movement)
+      // Slow Y-axis scan — natural "reading screen" head movement
       const readScan = Math.sin(typingTime * 0.35) * 0.12 * wType;
       bodyParts.headGrp.rotation.x = 0.14 + Math.sin(typingTime * 0.7) * 0.018 * wType;
       bodyParts.headGrp.rotation.y = readScan;

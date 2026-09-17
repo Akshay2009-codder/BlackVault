@@ -29,33 +29,37 @@ class LevelConfig:
     doors: Dict[str, DoorConfig] = field(default_factory=dict)
 
 
-# Placeholder values -- to be empirically tuned in Phase 4 (star calibration).
+# Level thresholds and time limits tuned for gradual difficulty ramp.
+# Level 1: deliberately easy so a beginner with no ML knowledge can pass Step 1 (data cleaning only).
+# Level 2: slightly harder than L1, still accessible to a learner who has completed L1.
+# Level 3+: full ML knowledge expected.
 LEVELS: Dict[int, LevelConfig] = {
     1: LevelConfig(
         level=1,
         doors={
-            "classification": DoorConfig(200, 0.10, 0.75, 300, 5, True),
-            "regression": DoorConfig(200, 0.10, 5000.0, 300, 5, True),   # target = max RMSE
-            "clustering": DoorConfig(200, 0.10, 0.50, 300, 5, True),      # target = min silhouette
-            "anomaly": DoorConfig(200, 0.10, 0.70, 300, 5, True),         # target = min recall
+            #   (rows, noise, threshold, time_s, attempts, hints)
+            "classification": DoorConfig(200, 0.10, 0.65, 480, 7, True),   # F1 >= 0.65 (was 0.75)
+            "regression":     DoorConfig(200, 0.10, 5000.0, 480, 7, True), # RMSE <= 5000 (generous, unchanged)
+            "clustering":     DoorConfig(200, 0.10, 0.40, 480, 7, True),   # silhouette >= 0.40 (was 0.50)
+            "anomaly":        DoorConfig(200, 0.10, 0.60, 480, 7, True),   # recall >= 0.60 (was 0.70)
         },
     ),
     2: LevelConfig(
         level=2,
         doors={
-            "classification": DoorConfig(400, 0.20, 0.80, 240, 4, True),
-            "regression": DoorConfig(400, 0.20, 4000.0, 240, 4, True),
-            "clustering": DoorConfig(400, 0.20, 0.55, 240, 4, True),
-            "anomaly": DoorConfig(400, 0.20, 0.75, 240, 4, True),
+            "classification": DoorConfig(400, 0.20, 0.73, 360, 5, True),   # F1 >= 0.73 (was 0.80)
+            "regression":     DoorConfig(400, 0.20, 4000.0, 360, 5, True), # RMSE <= 4000 (unchanged)
+            "clustering":     DoorConfig(400, 0.20, 0.48, 360, 5, True),   # silhouette >= 0.48 (was 0.55)
+            "anomaly":        DoorConfig(400, 0.20, 0.68, 360, 5, True),   # recall >= 0.68 (was 0.75)
         },
     ),
     3: LevelConfig(
         level=3,
         doors={
             "classification": DoorConfig(600, 0.30, 0.85, 200, 3, False),
-            "regression": DoorConfig(600, 0.30, 3000.0, 200, 3, False),
-            "clustering": DoorConfig(600, 0.30, 0.60, 200, 3, False),
-            "anomaly": DoorConfig(600, 0.30, 0.80, 200, 3, False),
+            "regression":     DoorConfig(600, 0.30, 3000.0, 200, 3, False),
+            "clustering":     DoorConfig(600, 0.30, 0.60, 200, 3, False),
+            "anomaly":        DoorConfig(600, 0.30, 0.80, 200, 3, False),
         },
     ),
     # Add more levels here as difficulty is tuned in Phase 3/4.

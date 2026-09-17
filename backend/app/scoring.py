@@ -352,7 +352,9 @@ def score_code_tiered(puzzle: dict, code: str, step: int = 1, time_remaining: in
 
             missing_count = int(cleaned.isna().sum().sum())
             dup_count = int(cleaned.duplicated().sum())
-            min_rows = max(10, int(len(df_raw) * 0.4))
+            # Allow keeping as few as 25% of rows so beginners using dropna() don't fail
+            # on datasets where many rows have NaN.  The old 40% threshold was too strict.
+            min_rows = max(10, int(len(df_raw) * 0.25))
 
             if len(cleaned) < min_rows:
                 return {
