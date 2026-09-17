@@ -16,10 +16,27 @@
 
   <div id="crosshair"></div>
 
+  <!-- ── Boot / Loading Sequence ──────────────────────────────────── -->
+  <div id="boot-overlay">
+    <div class="boot-logo">
+      <div class="boot-logo-text">BLACKVAULT</div>
+      <div class="boot-logo-sub">CORPORATE RESEARCH TOWER</div>
+    </div>
+    <div class="boot-bar-wrap">
+      <div class="boot-bar" id="boot-bar"></div>
+    </div>
+    <div class="boot-status" id="boot-status">INITIALIZING SECURE ENVIRONMENT…</div>
+  </div>
+
   <!-- HUD overlay -->
   <div id="hud">
-    <div class="hud-item hud-sector" id="level-label">G — Reception & Lobby</div>
-    <div class="hud-item" id="stars-total">★ 0 / 12</div>
+    <div class="hud-item hud-sector" id="level-label">G — Reception &amp; Lobby</div>
+
+    <!-- Stars with animated SVG ring around value -->
+    <div class="hud-item hud-stars-row">
+      <span id="stars-total">★ 0 / 12</span>
+    </div>
+
     <div class="hud-item" id="doors-remaining">Floors remaining: 5</div>
     <div id="build-tag"></div>
   </div>
@@ -42,7 +59,14 @@
     </div>
   </div>
 
-
+  <!-- ── Achievement Popup ─────────────────────────────────────────── -->
+  <div id="achievement-popup" class="hidden">
+    <div class="ach-icon">🏆</div>
+    <div class="ach-body">
+      <div class="ach-title">3-Star Clear!</div>
+      <div class="ach-sub">Perfect execution.</div>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════
        FINALE / ROOFTOP REVEAL OVERLAY
@@ -68,7 +92,21 @@
         <div class="ide-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
         <div class="ide-tab" id="ide-tab-label">task.py</div>
         <div class="ide-meta">
-          <span id="terminal-timer">05:00</span>
+          <!-- Timer: text + SVG ring side by side -->
+          <span class="timer-ring-wrap" title="Time remaining">
+            <svg class="timer-ring-svg" viewBox="0 0 44 44" width="36" height="36">
+              <!-- Background track -->
+              <circle cx="22" cy="22" r="18" fill="none"
+                      stroke="rgba(201,143,138,0.18)" stroke-width="3"/>
+              <!-- Progress arc — driven by JS via updateTimerRing() -->
+              <circle id="timer-ring-progress" cx="22" cy="22" r="18" fill="none"
+                      stroke="#7a9471" stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-dasharray="113.1 113.1"
+                      transform="rotate(-90 22 22)"/>
+            </svg>
+            <span id="terminal-timer">10:00</span>
+          </span>
           <span id="terminal-attempts">Trials: 3 / 3</span>
           <button id="terminal-close" title="Close">&times;</button>
         </div>

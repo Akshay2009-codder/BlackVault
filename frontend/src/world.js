@@ -3582,6 +3582,10 @@ export function setDoorUnlocked(doorType, onComplete) {
     }, 200);
   }
 
+  // ── Spark burst — 60 glowing particles exploding from the door frame ──
+  // Additive blending means they bloom through the post-processing stack.
+  spawnDoorSparkBurst(entry, getScene());
+
   // 2. Cinematic camera shot: smooth camera glide to frame the blast door directly
   let camRunning = false;
   if (worldCamera) {
@@ -3683,3 +3687,86 @@ export function updateWorldAnimations(delta) {
     mysteryInnerRing.rotation.y += delta * 0.42;
   }
 }
+
+// ── Helper: exported for spark burst ──────────────────────────────────
+let _worldSceneRef = null;
+export function setWorldSceneRef(s) { _worldSceneRef = s; }
+function getScene() { return _worldSceneRef; }
+
+// ── Spark Burst Particle Effect ────────────────────────────────────────
+// Called when a door unlocks — shoots 60 additive-blended glowing sparks
+// outward from the door frame in the room's accent colour.
+// Particles use PointsMaterial + additive blending so they glow through bloom.
+function spawnDoorSparkBurst(entry, scene) {
+  if (!scene) return;
+
+  const count = 60;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const vel = []; // velocity per particle
+
+  const cx = entry.group ? entry.group.position.x : 0;
+  const cy = 2.2;
+  const cz = entry.zDoor || 0;
+
+  for (let i = 0; i < count; i++) {
+    pos[i * 3]     = cx;
+    pos[i * 3 + 1] = cy;
+    pos[i * 3 + 2] = cz;
+    // Random spherical velocity — bias upward
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.random() * Math.PI;
+    const speed = 2.5 + Math.random() * 4.5;
+    vel.push(
+      Math.sin(phi) * Math.cos(theta) * speed,
+      Math.abs(Math.cos(phi)) * speed * 0.8 + 0.5,
+      Math.sin(phi) * Math.sin(theta) * speed * 0.6
+    );
+  }
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+  const themeColor = entry.themeColor || 0x00f0ff;
+  const mat = new THREE.PointsMaterial({
+    color: themeColor,
+    size: 0.12,
+    transparent: true,
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    sizeAttenuation: true,
+  });
+
+  const sparks = new THREE.Points(geo, mat);
+  scene.add(sparks);
+
+  const startTime = performance.now();
+  const duration  = 1100; // ms
+
+  function animateSparks(now) {
+    const t = (now - startTime) / duration;
+    if (t >= 1) {
+      scene.remove(sparks);
+      geo.dispose();
+      mat.dispose();
+      return;
+    }
+
+    const posArr = geo.attributes.position.array;
+    const dt = 0.016; // approximate frame step in world units
+    for (let i = 0; i < count; i++) {
+      posArr[i * 3]     += vel[i * 3]     * dt;
+      posArr[i * 3 + 1] += vel[i * 3 + 1] * dt;
+      posArr[i * 3 + 2] += vel[i * 3 + 2] * dt;
+      vel[i * 3 + 1]    -= 9.8 * dt; // gravity
+    }
+    geo.attributes.position.needsUpdate = true;
+
+    // Fade out with ease-in: slow start, accelerates toward end
+    mat.opacity = 1.0 - t * t;
+    mat.size = 0.12 * (1.0 - t * 0.5);
+
+    requestAnimationFrame(animateSparks);
+  }
+  requestAnimationFrame(animateSparks);
+}
+

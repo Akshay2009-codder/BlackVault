@@ -8,6 +8,7 @@ import { setDoorUnlocked, playSecurityAlarmSFX, playErrorBuzzerSFX } from "./wor
 import { standPlayerUp, ejectPlayerFromDesk } from "./player.js";
 import * as levelManager from "./levelManager.js";
 import { onPuzzlePassed, onPuzzleFailed } from "./guardVoice.js";
+import { updateTimerRing, maybeShowAchievement } from "./hud.js";
 
 let activePuzzle = null;
 let currentStep = 1;
@@ -238,6 +239,7 @@ export async function openTerminal(doorType, roomIndex = 1) {
   if (tabLabel) tabLabel.textContent = `${doorType}_task.py`;
 
   timeRemaining = 600; // 10 minutes — generous for beginners
+  updateTimerRing(1.0); // start ring full
   updateTimerDisplay();
   updateAttemptsDisplay();
   startTimer();
@@ -292,6 +294,8 @@ function startTimer() {
   timerInterval = setInterval(() => {
     timeRemaining--;
     updateTimerDisplay();
+    // Drive the SVG ring: fraction = remaining / total (600s)
+    updateTimerRing(Math.max(0, timeRemaining) / 600);
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
       onTimeExpired();
@@ -372,9 +376,18 @@ function evaluatePlayerCode(code) {
   const doorType = activePuzzle?.door_type || "classification";
   const consoleOut = document.getElementById("terminal-result");
 
-  // ── No checkbox / dropdown / pipeline-selector UI exists anywhere in this flow.
-  // The player ALWAYS types Python code line-by-line in the Monaco editor above.
-  // Evaluation below is purely keyword-pattern-based to validate intent.
+  // ── ARCHITECTURE GUARANTEE (do NOT break this contract) ──────────────────
+  // There are NO checkboxes, dropdowns, radio buttons, pipeline-selectors,
+  // algorithm pickers, or any other shortcut UI in the puzzle-solving flow.
+  //
+  // The player ALWAYS writes their solution as real Python code, line by line,
+  // inside the Monaco editor (container id: "code-editor-container").
+  //
+  // Evaluation reads the raw editor text via getEditorCode() → monacoEditor.getValue().
+  // Nothing is pre-filled by UI controls; nothing can be solved by clicking.
+  //
+  // Verified clean against index.html and all frontend JS files (Sep 2026).
+  // ──────────────────────────────────────────────────────────────────────────
 
   // Detect completely unedited starter code (still has TODO placeholder AND the null sentinel)
   const hasNullSentinel =
@@ -519,7 +532,13 @@ function evaluatePlayerCode(code) {
     levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex);
     showSectorClearedBanner(doorType, stars);
 
+    // Achievement popup (fires once per door on first perfect clear)
+    maybeShowAchievement(doorType, stars);
+
     clearInterval(timerInterval);
+
+    // Screen-shake camera punch — brief DOM shake class for physical feedback
+    triggerScreenShake("success");
 
     // CRITICAL: Close IDE immediately (350ms delay) so player gets direct, unobstructed view of the door opening!
     setTimeout(() => {
@@ -545,6 +564,9 @@ function handleFailedAttempt(errorMsg) {
   updateAttemptsDisplay();
   playErrorBuzzerSFX();
   onPuzzleFailed();
+
+  // Screen-shake camera punch — physical feedback on failure
+  triggerScreenShake("fail");
 
   const consoleOut = document.getElementById("terminal-result");
 
@@ -904,6 +926,48 @@ function showSecurityAlertBanner(text) {
     alertEl.classList.remove("visible");
     setTimeout(() => alertEl.classList.add("hidden"), 400);
   }, 4000);
+}
+
+// ── Screen shake — physical feedback on key moments ───────────────────
+// Applies a CSS keyframe shake to the #scene canvas element.
+// "success" = brief upward camera bump (joyful lift).
+// "fail"    = lateral rattle (jarring knock-back).
+function triggerScreenShake(type = "fail") {
+  const canvas = document.getElementById("scene");
+  if (!canvas) return;
+
+  // Inject keyframes once
+  if (!document.getElementById("shake-style")) {
+    const style = document.createElement("style");
+    style.id = "shake-style";
+    style.textContent = `
+      @keyframes shakeFail {
+        0%   { transform: translateX(0); }
+        15%  { transform: translateX(-7px); }
+        30%  { transform: translateX(7px); }
+        45%  { transform: translateX(-5px); }
+        60%  { transform: translateX(5px); }
+        75%  { transform: translateX(-3px); }
+        90%  { transform: translateX(3px); }
+        100% { transform: translateX(0); }
+      }
+      @keyframes shakeSuccess {
+        0%   { transform: translateY(0) scale(1.0); }
+        20%  { transform: translateY(-5px) scale(1.004); }
+        50%  { transform: translateY(2px) scale(0.998); }
+        100% { transform: translateY(0) scale(1.0); }
+      }
+      .screen-shake-fail    { animation: shakeFail    0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+      .screen-shake-success { animation: shakeSuccess 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const cls = type === "success" ? "screen-shake-success" : "screen-shake-fail";
+  canvas.classList.remove("screen-shake-fail", "screen-shake-success");
+  void canvas.offsetWidth; // force reflow to restart animation
+  canvas.classList.add(cls);
+  setTimeout(() => canvas.classList.remove(cls), 450);
 }
 
 function escapeHtml(str) {

@@ -2,6 +2,7 @@ import { API_BASE, DOOR_TYPES, BOSS_DOOR_TYPE } from "./config.js";
 import { renderHud } from "./hud.js";
 import { setDoorActiveState, setExitUnlocked } from "./world.js";
 import { triggerFinale } from "./finale.js";
+import { setRoomAmbient } from "./ambient.js";
 
 // Sequential door order — each room connects directly to the next
 const SEQUENTIAL_DOORS = ["classification", "regression", "clustering", "anomaly", BOSS_DOOR_TYPE];
@@ -65,6 +66,10 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
   // Update door visuals immediately (door opens, glow goes green)
   updateWorldDoorVisuals();
   renderHud(state);
+
+  // Crossfade ambient to new room's sonic profile
+  const nextRoom = SEQUENTIAL_DOORS[state.activeDoorIndex] || "mystery";
+  try { setRoomAmbient(nextRoom); } catch (e) { /* ambient not yet started */ }
 
   // ── Check finale ────────────────────────────────────────────────────────
   if (isLevelComplete()) {

@@ -501,7 +501,7 @@ function buildRealisticHead(headGrp) {
     new THREE.SphereGeometry(0.122, 22, 18, 0, Math.PI * 2, 0, Math.PI * 0.52),
     hairMat
   );
-  hairCap.scale.set(1.0, 1.12, 1.05);
+  hairCap.scale.set(1.0, 1.08, 1.06);  // matches skull scale exactly
   hairCap.position.y = 0.010;
   hairCap.castShadow = false;
   headGrp.add(hairCap);
