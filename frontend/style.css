@@ -1,17 +1,17 @@
 :root {
-  /* ── Dusty Pink + Burgundy + Cream Building Identity ───────────────── */
-  --bg:               #1a0d0f;           /* very deep warm dark */
-  --panel-bg:         rgba(36, 20, 23, 0.94);
-  --panel-border:     rgba(201, 143, 138, 0.35);  /* dusty pink border */
-  --accent-burgundy:  #6b1f2a;
-  --accent-pink:      #c98f8a;           /* dusty pink */
-  --accent-gold:      #c9a66b;           /* brushed gold */
-  --accent-danger:    #8c2635;           /* locked / danger */
-  --accent-green:     #7a9471;           /* solved / sage green */
-  --cream:            #f2e8dc;
-  --cream-alt:        #eadfd0;
-  --text-main:        #f2e8dc;           /* cream text on dark */
-  --text-muted:       #b09a8e;           /* muted dusty-warm */
+  /* ── Cyber Titanium + Electric Cyan + Champagne Gold Identity ─────── */
+  --bg:               #162436;           /* radiant deep twilight slate */
+  --panel-bg:         rgba(18, 34, 54, 0.85);
+  --panel-border:     rgba(56, 189, 248, 0.40);  /* glowing cyan border */
+  --accent-burgundy:  #0284c7;           /* azure primary */
+  --accent-pink:      #38bdf8;           /* cyber electric cyan */
+  --accent-gold:      #fbbf24;           /* radiant gold */
+  --accent-danger:    #f59e0b;           /* locked / amber */
+  --accent-green:     #10b981;           /* solved / emerald */
+  --cream:            #f0f9ff;
+  --cream-alt:        #e0f2fe;
+  --text-main:        #f0f9ff;           /* crisp white text */
+  --text-muted:       #94a3b8;           /* soft silver muted */
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
@@ -47,22 +47,22 @@ html, body {
   inset: 0;
   pointer-events: none;
   z-index: 5;
-  box-shadow: inset 0 0 130px rgba(20, 6, 8, 0.65);
+  box-shadow: inset 0 0 100px rgba(10, 25, 45, 0.35);
 }
 
 .hidden {
   display: none !important;
 }
 
-/* Crosshair — warm cream dot */
+/* Crosshair — glowing cyan dot */
 #crosshair {
   position: fixed;
   top: 50%;
   left: 50%;
   width: 6px;
   height: 6px;
-  background: var(--cream);
-  box-shadow: 0 0 8px rgba(242, 232, 220, 0.7);
+  background: var(--accent-pink);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.85);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -77,13 +77,13 @@ html, body {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   padding: 14px 22px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-main);
   z-index: 15;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 18px rgba(107, 31, 42, 0.2);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(56, 189, 248, 0.25);
 }
 
 #level-label {
@@ -92,7 +92,7 @@ html, body {
   font-size: 15px;
   margin-bottom: 6px;
   letter-spacing: 0.05em;
-  text-shadow: 0 0 10px rgba(201, 143, 138, 0.45);
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.55);
 }
 
 #stars-total {
@@ -805,24 +805,24 @@ html, body {
 }
 .ide-right .primary-btn:hover:not(:disabled)::after { opacity: 1; }
 .ide-right .primary-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #8c2635 0%, #6b1f2a 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: var(--cream);
-  box-shadow: 0 0 22px rgba(140, 38, 53, 0.65), 0 -2px 10px rgba(107, 31, 42, 0.4);
+  box-shadow: 0 0 22px rgba(2, 132, 199, 0.65), 0 -2px 10px rgba(56, 189, 248, 0.4);
 }
 .ide-right .primary-btn:active:not(:disabled) {
   transform: scale(0.98);
 }
-.ide-right .primary-btn:disabled { background: #2e1a1d; color: var(--text-muted); cursor: not-allowed; }
+.ide-right .primary-btn:disabled { background: #1e2c3d; color: var(--text-muted); cursor: not-allowed; }
 
 /* Voice toggle: pulsing glow on hover */
 #voice-toggle-btn:hover {
-  background: rgba(201, 143, 138, 0.15);
-  box-shadow: 0 0 18px rgba(201, 143, 138, 0.45);
+  background: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.45);
   animation: voicePulse 1.2s ease-in-out infinite;
 }
 @keyframes voicePulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(201, 143, 138, 0.35); }
-  50%       { box-shadow: 0 0 22px rgba(201, 143, 138, 0.65); }
+  0%, 100% { box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); }
+  50%       { box-shadow: 0 0 22px rgba(56, 189, 248, 0.65); }
 }
 
 /* HUD stars row layout */
@@ -844,7 +844,7 @@ html, body {
 .fallback-editor {
   width: 100%;
   height: 100%;
-  background: #1a0d0f;
+  background: #101c2a;
   color: var(--cream);
   font-family: var(--font-mono);
   font-size: 14px;

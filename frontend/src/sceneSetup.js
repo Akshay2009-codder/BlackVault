@@ -40,14 +40,14 @@ export function setCamSwayEnabled(v) { camSwayEnabled = v; }
 const VignetteColorGradeShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uVigStrength: { value: 0.72 },   // vignette darkness
-    uVigSoftness: { value: 0.60 },   // vignette radius
-    uSaturation:  { value: 1.08 },   // slight saturation boost
-    uContrast:    { value: 1.06 },   // slight contrast lift
-    // Shadow tint: warm dark teal (matches scene background)
-    uShadowTint:  { value: new THREE.Color(0.10, 0.16, 0.20) },
-    // Highlight tint: warm cream (matches CSS --cream)
-    uHighlightTint: { value: new THREE.Color(0.98, 0.92, 0.85) },
+    uVigStrength: { value: 0.38 },   // gentle vignette — no pitch black corners
+    uVigSoftness: { value: 0.75 },   // smooth wide radius
+    uSaturation:  { value: 1.12 },   // rich vibrant saturation boost
+    uContrast:    { value: 1.04 },   // soft contrast
+    // Shadow tint: luminous steel-azure (prevents harsh pitch black shadows)
+    uShadowTint:  { value: new THREE.Color(0.22, 0.32, 0.45) },
+    // Highlight tint: radiant champagne warm-white
+    uHighlightTint: { value: new THREE.Color(0.98, 0.96, 0.90) },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -72,7 +72,7 @@ const VignetteColorGradeShader = {
       // ── 1. Vignette ──────────────────────────────────────────────
       vec2 uv = vUv - 0.5;
       float vd = dot(uv, uv);
-      float vignette = smoothstep(uVigSoftness, uVigSoftness - 0.35, vd * uVigStrength);
+      float vignette = smoothstep(uVigSoftness, uVigSoftness - 0.40, vd * uVigStrength);
       color.rgb *= vignette;
 
       // ── 2. Saturation ────────────────────────────────────────────
@@ -101,10 +101,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Warm teal-slate background — matches new wall palette, clearly not black
-  scene.background = new THREE.Color(0x2a3e4e);
-  // Atmospheric depth fog in warm teal-slate
-  scene.fog = new THREE.FogExp2(0x2a3e4e, 0.0016);
+  // Radiant azure-slate background — bright and luminous
+  scene.background = new THREE.Color(0x324860);
+  // Atmospheric depth fog in matching soft azure-slate
+  scene.fog = new THREE.FogExp2(0x324860, 0.0012);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -125,22 +125,22 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.15;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  // Strong ambient fill so teal-slate walls are clearly visible
-  const ambientLight = new THREE.AmbientLight(0xd8e8f0, 0.95);
+  // Strong ambient fill so walls and structures are clearly illuminated
+  const ambientLight = new THREE.AmbientLight(0xe8f4ff, 1.25);
   scene.add(ambientLight);
 
-  // Hemisphere fill: bright cool-white sky, teal ground bounce
-  const hemiLight = new THREE.HemisphereLight(0xe8f2ff, 0x2a4050, 0.80);
+  // Hemisphere fill: crisp sky, azure ground bounce
+  const hemiLight = new THREE.HemisphereLight(0xf0f8ff, 0x486480, 1.10);
   scene.add(hemiLight);
 
-  // Warm champagne directional — key light that hits the teal walls
-  const skyDirLight = new THREE.DirectionalLight(0xfff0d0, 0.85);
+  // Warm champagne directional — key light that highlights architecture
+  const skyDirLight = new THREE.DirectionalLight(0xfff8e8, 1.20);
   skyDirLight.position.set(6, 20.0, 18);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 1024;
