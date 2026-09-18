@@ -618,30 +618,21 @@ function handleFailedAttempt(errorMsg) {
 function getOfflineStepInfo(doorType) {
   const TASKS = {
     classification: {
-      title: "Employee Data Cleaning (Fix 3 Bugs)",
-      shortSummary: "Fix 3 clearly marked bugs: skip None rows, set negative salary to 0, strip name whitespace",
-      instructions: `GATE 1 — DATA CLEANING  (LEVEL 1 — EASY)
-────────────────────────────────────────────────
-📖 What you need to know: NONE— no ML needed! Just fix three simple Python bugs.
+      title: "Data Cleaning & Preprocessing",
+      shortSummary: "Clean raw records: skip None rows, clamp negative salary to 0, and strip name whitespace",
+      instructions: `ROOM 1 — DATA CLEANING & RECTIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📖 Concept: Data Cleaning & Preprocessing
+🎯 Objective: Machine learning models require clean, valid input data.
+Write a data cleaning function to clean incoming employee logs:
 
-🔧 BUG 1 — Uncomment the two lines that skip None rows:
-    if row is None:
-        continue
-
-🔧 BUG 2 — Change 'salary = salary' to 'salary = 0' inside the 'if salary < 0' block.
-
-🔧 BUG 3 — Change row["name"] to row["name"].strip() so spaces are removed.
-
-✅ When all 3 bugs are fixed, total_clean will equal 4 and the door opens!
-No imports or ML libraries needed — pure Python only.`,
-      starter_code: `# GATE 1 — Employee Record Cleaner  (LEVEL 1 — EASY)
-# Three bugs are clearly marked below with # BUG comments.
-# Your job: fix each bug so the code runs correctly.
-#
-# BUG 1 (line ~10): None rows crash the loop — skip them with: if row is None: continue
-# BUG 2 (line ~14): Negative salary keeps its bad value — set it to 0 instead
-# BUG 3 (line ~18): name.strip() is commented out — uncomment it to trim spaces
-import numpy as np
+Requirements:
+1. Filter out / skip any row that is None.
+2. If salary is negative (< 0), set it to 0.
+3. Remove surrounding whitespace from the employee name (e.g. "  Alice  " → "Alice").
+4. Return the list of cleaned record dictionaries.`,
+      starter_code: `# GATE 1 — DATA CLEANING CHALLENGE
+# Write a function that cleans dirty employee records.
 
 raw_records = [
     {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
@@ -652,30 +643,18 @@ raw_records = [
     {"name": "Dave",      "salary": 91000, "dept": "Security"},
 ]
 
-clean_records = []
+def clean_data(records):
+    # TODO: Write your data cleaning logic here
+    # 1. Skip None entries
+    # 2. Fix negative salaries to 0
+    # 3. Strip whitespace from names
+    cleaned = None  # Write your solution here
+    
+    return cleaned
 
-for row in raw_records:
-    # BUG 1: We never skip None rows. Add: if row is None: continue
-    # if row is None:
-    #     continue
-
-    salary = row["salary"]
-    # BUG 2: Negative salary should be set to 0, not kept as-is
-    if salary < 0:
-        salary = salary   # FIX: change 'salary' to 0
-
-    # BUG 3: strip() is commented out — names keep their whitespace
-    name = row["name"]  # FIX: should be row["name"].strip()
-
-    clean_records.append({"name": name, "salary": salary, "dept": row["dept"]})
-
-total_clean = len(clean_records)
-print(f"[GATE 1 CHECK] Clean records: {total_clean}")
-
-if total_clean == 4:
-    print("SUCCESS: Gate 1 passed. Door unlocked.")
-else:
-    print(f"Expected 4 clean records, got {total_clean}. Check Bug 1.")
+# Execute pipeline
+result = clean_data(raw_records)
+print("Cleaned Records:", result)
 `,
       dataset_preview: {
         columns: ["name", "salary", "dept"],

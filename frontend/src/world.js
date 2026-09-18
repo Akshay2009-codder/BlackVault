@@ -78,39 +78,39 @@ export function clearCollisionBoxes() {
 
 var worldCamera = null;
 
-// ── Luminous Titanium-Cyan & Champagne Gold Corporate Palette ─────────────
-// Replaces dark/black surfaces with bright architectural titanium, warm teak, and vibrant neon
+// ── Cyber-Sunset & Luminous Alabaster Palette ─────────────────────────────
+// Clean, high-contrast, beautiful architectural tones with radiant amber-gold and ice cyan
 const P = {
-  // Architectural Wall Surfaces — Luminous satin titanium-slate
-  wallMain:    0x7a9eb5,   // Clean bright titanium-slate — primary wall
-  wallAlt:     0x6a8fa8,   // Soft slate titanium — secondary panels
-  wallSilver:  0xa4c0d8,   // Brushed platinum-silver composite upper panels
-  wallBrown:   0x986b48,   // Warm architectural teak / amber bronze
-  wallBronze:  0xb8885a,   // Warm champagne gold accent reveals
-  warmWood:    0x8a5838,   // Rich warm teak timber slats
-  floor:       0x3a4c5e,   // Reflective steel-slate tech floor
-  floorTrim:   0x587890,   // Brushed steel baseboard
-  ceiling:     0x3a5068,   // Luminous architectural ceiling
-  trussSteel:  0x6c88a2,   // Brushed aluminum/titanium structural beams (bright & visible)
+  // Architectural Wall Surfaces — Luminous Pearl Alabaster & Satin Titanium
+  wallMain:    0xced8e2,   // Clean pearl alabaster — primary wall (bright & visible)
+  wallAlt:     0xb8c8d6,   // Soft slate titanium — secondary panels
+  wallSilver:  0xdfe8f0,   // Brushed platinum upper panels
+  wallBrown:   0xb06c3b,   // Warm desert cedar / terracotta wainscot
+  wallBronze:  0xf5c26b,   // Radiant champagne gold accent reveals
+  warmWood:    0xa45e2c,   // Rich warm cedar slats
+  floor:       0x28384c,   // Reflective royal slate floor with gold joints
+  floorTrim:   0x6b8aa8,   // Brushed titanium baseboard
+  ceiling:     0x2c425a,   // Twilight slate ceiling
+  trussSteel:  0x889eb4,   // Brushed champagne titanium beams (bright & crisp)
 
   // Ceiling light fixtures
-  ceilingCyan:      0x00f0ff,   // Electric cyan-teal beam strips #00F0FF
-  ceilingDownlight: 0xfffae8,   // Soft warm-white recessed downlights #FFFAE8
-  ceilingMagenta:   0x38bdf8,   // Radiant cyan-azure accent strips #38BDF8
+  ceilingCyan:      0x00f0ff,   // Electric cyan LED strips #00F0FF
+  ceilingDownlight: 0xfffae8,   // Warm solar downlights #FFFAE8
+  ceilingMagenta:   0xffaa22,   // Radiant sunset amber accent strips #FFAA22
 
   // Furniture & props
-  furniture:   0x384a5c,   // Slate-titanium chassis with metallic sheen
-  chrome:      0xdde8f2,   // Bright polished chrome / silver
-  gold:        0xf0c868,   // Vibrant champagne brass / gold trim
-  leatherWarm: 0x5a7c98,   // Slate-cyan leather
-  fabricSlate: 0x6a849c,   // Modern acoustic fabric
+  furniture:   0x324458,   // Deep slate-titanium chassis
+  chrome:      0xe8f0f8,   // Polished chrome / silver
+  gold:        0xf5c26b,   // Radiant champagne gold
+  leatherWarm: 0x567898,   // Slate-cyan leather
+  fabricSlate: 0x728ca4,   // Modern acoustic fabric
 
-  // RGB Neon Accents (Vibrant light sources — per room)
-  pink:      0x00d2ff,   // #00D2FF — electric cyan
-  blue:      0x38bdf8,   // #38BDF8 — radiant azure
+  // RGB Neon Accents
+  pink:      0x00f0ff,   // #00F0FF — electric cyan
+  blue:      0x38bdf8,   // #38BDF8 — sky azure
   green:     0x10b981,   // #10B981 — emerald neon
-  white:     0xf0f9ff,   // #F0F9FF — luminous white
-  burgundy:  0x0284c7,   // #0284C7 — deep cerulean
+  white:     0xf8fafc,   // #F8FAFC — luminous white
+  burgundy:  0xf59e0b,   // #F59E0B — amber gold
 
   // Status — reserved for door locks only
   danger:    0xf59e0b,   // Amber glow (#F59E0B)
@@ -119,6 +119,7 @@ const P = {
   // Plant greens
   plant1:    0x10b981,
   plant2:    0x059669,
+  plant3:    0x06b6d4,
   plant3:    0x1abc9c,
 };
 
@@ -2351,24 +2352,24 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.45);
 
   // Materials
-  // Portal-wall: warm architectural terracotta-gold (#b87848) — elegant and visible
+  // Portal-wall: warm architectural sunset terracotta-gold (#c47844)
   const portalWallMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0xb87848,   // warm terracotta-gold — lit architectural panel
-    roughness: 0.60,
-    metalness: 0.15,
-  });
-  // Outer flanking wall: clean satin steel-titanium (#608298) — bright and architectural
-  const outerWallMat = new THREE.MeshStandardMaterial({
-    map: createWallNoiseTexture(),
-    color: 0x608298,   // clean titanium-slate — bright, no black shadows
-    roughness: 0.65,
+    color: 0xc47844,   // warm sunset terracotta-gold — crisp and elegant
+    roughness: 0.55,
     metalness: 0.18,
   });
+  // Outer flanking wall: luminous satin pearl-slate (#7c98b0)
+  const outerWallMat = new THREE.MeshStandardMaterial({
+    map: createWallNoiseTexture(),
+    color: 0x7c98b0,   // clean pearl-slate — bright, high contrast
+    roughness: 0.60,
+    metalness: 0.20,
+  });
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0xa87850, // Warm bronze-gold architectural frame
-    metalness: 0.85,
-    roughness: 0.25,
+    color: 0xb88050, // Warm bronze-gold architectural frame
+    metalness: 0.88,
+    roughness: 0.22,
   });
   const accentGlowMat = new THREE.MeshBasicMaterial({ color });
   const seamGlowMat = new THREE.MeshBasicMaterial({ color: STATUS_COLORS.locked });
