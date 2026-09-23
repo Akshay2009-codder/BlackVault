@@ -54,11 +54,18 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
     return { x: nextX, z: nextZ };
   }
 
-  // Filter nearby boxes within active interaction sphere
+  // Filter nearby boxes within active interaction sphere (proper AABB distance check)
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b.active) continue;
-    if (Math.abs(b.minX - currentX) > 8.0 || Math.abs(b.minZ - currentZ) > 8.0) continue;
+    if (
+      currentX < b.minX - 6.0 ||
+      currentX > b.maxX + 6.0 ||
+      currentZ < b.minZ - 6.0 ||
+      currentZ > b.maxZ + 6.0
+    ) {
+      continue;
+    }
 
     // 1. Resolve X movement against active collision boxes
     if (
@@ -82,7 +89,14 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b.active) continue;
-    if (Math.abs(b.minX - currentX) > 8.0 || Math.abs(b.minZ - currentZ) > 8.0) continue;
+    if (
+      currentX < b.minX - 6.0 ||
+      currentX > b.maxX + 6.0 ||
+      currentZ < b.minZ - 6.0 ||
+      currentZ > b.maxZ + 6.0
+    ) {
+      continue;
+    }
 
     if (
       nextX + PLAYER_RADIUS > b.minX &&
@@ -414,11 +428,20 @@ export async function initPlayer(cam, element = document.body, sceneRef = null) 
   });
 }
 
+function isTerminalOrEditorActive() {
+  const ide = document.getElementById("pycharm-ide");
+  if (ide && !ide.classList.contains("hidden")) return true;
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || (activeEl.closest && activeEl.closest(".monaco-editor")))) {
+    return true;
+  }
+  return false;
+}
+
 function onKeyDown(e) {
-  // CRITICAL: fully ignore all input while movement is locked (sit transition / terminal open)
-  // Without this guard, holding a key at the moment of interaction leaves moveState dirty.
-  if (movementLocked) {
-    // Extra safety: clear any stale move state just in case
+  // CRITICAL: fully ignore all input while movement is locked or typing in terminal/editor
+  // Without this guard, keystrokes in Monaco trigger jump/camera toggle/moveState corruption.
+  if (movementLocked || isTerminalOrEditorActive()) {
     moveState.forward = false;
     moveState.backward = false;
     moveState.left = false;
@@ -454,7 +477,7 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
-  if (movementLocked) {
+  if (movementLocked || isTerminalOrEditorActive()) {
     moveState.forward = false;
     moveState.backward = false;
     moveState.left = false;
@@ -477,7 +500,7 @@ function onKeyUp(e) {
 }
 
 function onMouseMove(e) {
-  if (!isLocked || !camera || movementLocked) return;
+  if (!isLocked || !camera || movementLocked || isTerminalOrEditorActive()) return;
 
   const movementX = e.movementX || 0;
   const movementY = e.movementY || 0;

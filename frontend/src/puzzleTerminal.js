@@ -23,12 +23,37 @@ let monacoReady = false;
 // Lockout tracking after 3 failed attempts
 let lockoutUntil = 0;
 
+// Preserve player draft code across terminal opens/closes per door type
+const doorDraftCode = {};
+
 export function isTerminalLockedOut() {
   return Date.now() < lockoutUntil;
 }
 
 export function getLockoutRemainingSeconds() {
   return Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
+}
+
+export function isTerminalOpen() {
+  const ide = document.getElementById("pycharm-ide");
+  return ide ? !ide.classList.contains("hidden") : false;
+}
+
+export function isEditorFocused() {
+  if (monacoEditor && monacoEditor.hasTextFocus && monacoEditor.hasTextFocus()) return true;
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || (activeEl.closest && activeEl.closest(".monaco-editor")))) {
+    return true;
+  }
+  return false;
+}
+
+export function getDraftCode(doorType) {
+  return doorDraftCode[doorType];
+}
+
+export function setDraftCode(doorType, code) {
+  doorDraftCode[doorType] = code;
 }
 
 // ── Monaco Editor Setup ──────────────────────────────────────────────
@@ -82,8 +107,17 @@ function createEditor(initialCode) {
   const container = document.getElementById("code-editor-container");
   if (!container) return;
 
+  // If Monaco instance already exists, reuse it and only update if content changed
   if (monacoEditor) {
-    monacoEditor.setValue(initialCode);
+    if (monacoEditor.getValue() !== initialCode) {
+      monacoEditor.setValue(initialCode);
+    }
+    requestAnimationFrame(() => {
+      if (monacoEditor) {
+        monacoEditor.layout();
+        monacoEditor.focus();
+      }
+    });
     return;
   }
   container.innerHTML = "";
@@ -114,11 +148,25 @@ function createEditor(initialCode) {
       },
     });
 
+    // Auto-save player draft on typing
+    monacoEditor.onDidChangeModelContent(() => {
+      if (activePuzzle && activePuzzle.door_type) {
+        doorDraftCode[activePuzzle.door_type] = monacoEditor.getValue();
+      }
+    });
+
     // Ctrl+Enter to submit
     monacoEditor.addCommand(
       window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter,
       () => submitCode()
     );
+
+    requestAnimationFrame(() => {
+      if (monacoEditor) {
+        monacoEditor.layout();
+        monacoEditor.focus();
+      }
+    });
   } else {
     // Textarea fallback
     const textarea = document.createElement("textarea");
@@ -126,7 +174,13 @@ function createEditor(initialCode) {
     textarea.className = "fallback-editor";
     textarea.value = initialCode;
     textarea.spellcheck = false;
+    textarea.addEventListener("input", () => {
+      if (activePuzzle && activePuzzle.door_type) {
+        doorDraftCode[activePuzzle.door_type] = textarea.value;
+      }
+    });
     container.appendChild(textarea);
+    requestAnimationFrame(() => textarea.focus());
   }
 }
 
@@ -177,6 +231,13 @@ export function initTerminalUI() {
     }
   });
 
+  // Window resize layout for Monaco
+  window.addEventListener("resize", () => {
+    if (monacoEditor && isTerminalOpen()) {
+      monacoEditor.layout();
+    }
+  });
+
   // Pre-load Monaco
   initMonaco();
 }
@@ -186,6 +247,15 @@ export async function openTerminal(doorType, roomIndex = 1) {
   if (isTerminalLockedOut()) {
     const rem = getLockoutRemainingSeconds();
     showSecurityAlertBanner(`⚠️ TERMINAL LOCKED OUT: ${rem}s remaining after 3 failed attempts.`);
+    return;
+  }
+
+  // Prevent duplicate execution if terminal is already open for this exact door
+  if (isTerminalOpen() && activePuzzle && activePuzzle.door_type === doorType) {
+    if (monacoEditor) {
+      monacoEditor.layout();
+      monacoEditor.focus();
+    }
     return;
   }
 
@@ -228,7 +298,11 @@ export async function openTerminal(doorType, roomIndex = 1) {
     dataset_preview: stepData.dataset_preview,
   };
 
-  createEditor(stepData.starter_code);
+  // Restore player's draft code if they previously typed in this room, else use starter template
+  const initialCode = doorDraftCode[doorType] !== undefined ? doorDraftCode[doorType] : stepData.starter_code;
+  doorDraftCode[doorType] = initialCode;
+
+  createEditor(initialCode);
 
   const problemEl = document.getElementById("problem-statement");
   if (problemEl) {
@@ -247,6 +321,13 @@ export async function openTerminal(doorType, roomIndex = 1) {
 }
 
 export function closeTerminal() {
+  if (activePuzzle && activePuzzle.door_type) {
+    const currentCode = getEditorCode();
+    if (currentCode) {
+      doorDraftCode[activePuzzle.door_type] = currentCode;
+    }
+  }
+
   const ide = document.getElementById("pycharm-ide");
   if (ide) {
     ide.classList.add("hidden");

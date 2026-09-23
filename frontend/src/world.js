@@ -889,6 +889,7 @@ function buildWallPilasterColumn(scene, x, z, h, rotY) {
   g.add(sl);
 
   scene.add(g);
+  addCollisionBox(x - 0.25, x + 0.25, z - 0.25, z + 0.25, "pilaster_column");
 }
 
 /** Modern Executive Lounge with Cognac Leather Sectional, Smoked Glass Table & Rug */
@@ -1762,6 +1763,7 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
     gg.add(rightF);
 
     scene.add(gg);
+    addCollisionBox(wallX - 0.25, wallX + 0.25, pz - 2.7, pz + 2.7, "glass_mezzanine_wall");
   });
 }
 
@@ -2029,6 +2031,7 @@ function buildFloor3Clustering(scene) {
   const confTable = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.09, 16.0), tableMat);
   confTable.position.set(0, 0.78, ZMid);
   scene.add(confTable);
+  addCollisionBox(-1.65, 1.65, ZMid - 8.1, ZMid + 8.1, "conference_table");
   const tableEdge = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.035, 16.02), metalTrimMat);
   tableEdge.position.set(0, 0.83, ZMid);
   scene.add(tableEdge);
@@ -2226,6 +2229,7 @@ function buildFloor5MysteryVault(scene) {
     bl.position.set(cx, 0.5, cz);
     scene.add(bl);
     registerFlickerLight(bl, 1.2);
+    addCollisionBox(cx - 0.35, cx + 0.35, cz - 0.35, cz + 0.35, "vault_entrance_column");
   });
 
   // ── Aesthetic Room Additions: Planters & Holographic Pedestals ──────────
@@ -2271,6 +2275,7 @@ function buildFloor5MysteryVault(scene) {
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.42, 8), pedMat);
   ped.position.set(0, 0.21, ZCore);
   scene.add(ped);
+  addCollisionBox(-4.6, 4.6, ZCore - 4.6, ZCore + 4.6, "vault_pedestal");
 
   const pedRing = new THREE.Mesh(
     new THREE.TorusGeometry(4.3, 0.065, 16, 32),
@@ -2322,6 +2327,7 @@ function buildFloor5MysteryVault(scene) {
       ring.position.set(x, yp, z);
       scene.add(ring);
     });
+    addCollisionBox(x - 0.35, x + 0.35, z - 0.35, z + 0.35, "containment_pillar");
   });
 }
 
@@ -2890,6 +2896,8 @@ function buildCubicle(scene, x, z, rotY, accent) {
   g.add(namePlate);
 
   scene.add(g);
+  // Collision box for cubicle footprint
+  addCollisionBox(x - 1.65, x + 1.65, z - 1.0, z + 1.0, "cubicle");
 }
 
 /** Sofa / waiting area seating */
@@ -2959,6 +2967,7 @@ function buildBreakCorner(scene, x, z) {
     stoolStem.position.set(x + ox, 0.41, z + 1.2);
     scene.add(stoolStem);
   });
+  addCollisionBox(x + 0.95, x + 1.65, z - 0.35, z + 0.35, "break_corner_fridge");
 }
 
 
@@ -2991,6 +3000,7 @@ function buildLoungeArea(scene, x, z) {
   g.add(table);
 
   scene.add(g);
+  addCollisionBox(x - 2.2, x + 2.2, z - 0.7, z + 0.7, "lounge_area");
 }
 
 /** Ceiling architectural metal conduit strip */
@@ -3256,6 +3266,7 @@ function makeOfficePlant(scene, x, z) {
   }
   g.position.set(x, 0, z);
   scene.add(g);
+  addCollisionBox(x - 0.35, x + 0.35, z - 0.35, z + 0.35, "plant");
 }
 
 /** Server rack tower with physical chassis slots and metallic rails */

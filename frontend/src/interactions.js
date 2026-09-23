@@ -8,7 +8,7 @@ import { getDoorRegistry, getExitDoor } from "./world.js";
 import { getPlayerPosition, getControls, sitAt } from "./player.js";
 import * as hud from "./hud.js";
 import * as levelManager from "./levelManager.js";
-import { isTerminalLockedOut, getLockoutRemainingSeconds } from "./puzzleTerminal.js";
+import { isTerminalLockedOut, getLockoutRemainingSeconds, isTerminalOpen, isEditorFocused } from "./puzzleTerminal.js";
 
 const INTERACT_RANGE = 5.5;
 const raycaster = new THREE.Raycaster();
@@ -27,6 +27,14 @@ export function initInteractions(cam, onOpenDoor) {
 
 function onKeyDown(e) {
   if (e.code !== "KeyE") return;
+
+  // CRITICAL: Ignore interaction key completely if terminal is already open or typing in editor
+  if (isTerminalOpen && isTerminalOpen()) return;
+  if (isEditorFocused && isEditorFocused()) return;
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || (activeEl.closest && activeEl.closest(".monaco-editor")))) {
+    return;
+  }
 
   if (!targetedDoorType) return;
   if (targetedIsExit) {
@@ -57,6 +65,9 @@ export function updateInteractions() {
   targetedDoorType = null;
   targetedIsExit = false;
   hud.hideInteractPrompt();
+
+  // If terminal is open, do not raycast or show interaction prompts
+  if (isTerminalOpen && isTerminalOpen()) return;
 
   const playerPos = getPlayerPosition();
   camera.getWorldDirection(forward);
