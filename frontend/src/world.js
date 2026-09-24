@@ -1,16 +1,15 @@
-// BlackVault 3D Corporate Tower — World Architecture
+// BlackVault 3D Wonder Tower — World Architecture
 // Room-to-room layout: 5 puzzle rooms connected directly through corridor doors.
-// Deep Ocean-Slate + Warm Brass corporate palette.
+// "Golden hour meets aurora" wonder palette.
 //
 // PALETTE:
-//   Walls:     Deep ocean-slate #2C3A4A / Navy-midnight #243040
-//   Floor:     Charcoal dark #1A2028 with brass grout
-//   Ceiling:   Slate-navy #222D38
-//   Accent:    Warm champagne brass #E8C878 (trim, handles, reveals)
-//   Steel:     Steel-blue panels #3D5068
-//   Neon:      RGB accents per room (pink / green / blue / red / violet)
-//   Danger:    Electric amber #FF9900 (locked doors)
-//   Solved:    Ice cyan #00F0FF (solved state)
+//   Walls:     Warm ivory/pearl #F5F0E8 / soft pearl-rose #EDE6DB
+//   Floor:     Reflective warm stone #E8DFD0 with gold grout
+//   Ceiling:   Aurora night sky (shader) for lobby/vault, warm cream for mid-floors
+//   Accent:    Twilight blue #6B7FD7, warm gold #E8B84B, soft lavender #B39DDB
+//   Trim:      Brushed warm gold #D4A843 (reveals, handles)
+//   Danger:    Amber #FF9900 (locked doors)
+//   Solved:    Soft teal #00D4B4 (solved state)
 
 import * as THREE from "three";
 import { BOSS_DOOR_TYPE, STATUS_COLORS } from "./config.js";
@@ -81,53 +80,55 @@ var worldCamera = null;
 // ── Cyber-Sunset & Luminous Alabaster Palette ─────────────────────────────
 // Clean, high-contrast, beautiful architectural tones with radiant amber-gold and ice cyan
 const P = {
-  // Architectural Wall Surfaces — Luminous Pearl Alabaster & Satin Titanium
-  wallMain:    0xced8e2,   // Clean pearl alabaster — primary wall (bright & visible)
-  wallAlt:     0xb8c8d6,   // Soft slate titanium — secondary panels
-  wallSilver:  0xdfe8f0,   // Brushed platinum upper panels
-  wallBrown:   0xb06c3b,   // Warm desert cedar / terracotta wainscot
-  wallBronze:  0xf5c26b,   // Radiant champagne gold accent reveals
-  warmWood:    0xa45e2c,   // Rich warm cedar slats
-  floor:       0x28384c,   // Reflective royal slate floor with gold joints
-  floorTrim:   0x6b8aa8,   // Brushed titanium baseboard
-  ceiling:     0x2c425a,   // Twilight slate ceiling
-  trussSteel:  0x889eb4,   // Brushed champagne titanium beams (bright & crisp)
+  // ── Architectural Wall Surfaces — Warm Ivory / Pearl / Rose ─────────────────
+  wallMain:    0xF0EAE0,   // Warm ivory / pearl — primary wall
+  wallAlt:     0xE4DDD4,   // Soft rose-pearl — secondary panels
+  wallSilver:  0xEEE8DF,   // Creamy linen upper panels
+  wallBrown:   0xC09060,   // Warm honey sandstone wainscot
+  wallBronze:  0xE8B84B,   // Warm gold accent reveals
+  warmWood:    0xA87840,   // Rich warm cedar slats
+  floor:       0xE0D5C0,   // Warm stone / travertine floor
+  floorTrim:   0xD4A843,   // Brushed warm-gold baseboard
+  ceiling:     0xF5F0E8,   // Warm cream ceiling (mid-floors)
+  trussSteel:  0xD4C8A0,   // Warm champagne beam
 
-  // Ceiling light fixtures
-  ceilingCyan:      0x00f0ff,   // Electric cyan LED strips #00F0FF
-  ceilingDownlight: 0xfffae8,   // Warm solar downlights #FFFAE8
-  ceilingMagenta:   0xffaa22,   // Radiant sunset amber accent strips #FFAA22
+  // Ceiling luminaire colours
+  ceilingCyan:      0xE8B84B,   // Warm gold LED strip (replaces cyan)
+  ceilingDownlight: 0xFFF8F0,   // Soft warm-white downlights
+  ceilingMagenta:   0xB39DDB,   // Soft lavender accent strips
 
   // Furniture & props
-  furniture:   0x324458,   // Deep slate-titanium chassis
-  chrome:      0xe8f0f8,   // Polished chrome / silver
-  gold:        0xf5c26b,   // Radiant champagne gold
-  leatherWarm: 0x567898,   // Slate-cyan leather
-  fabricSlate: 0x728ca4,   // Modern acoustic fabric
+  furniture:   0xC8B898,   // Warm linen / warm slate chassis
+  chrome:      0xECE4D4,   // Warm white / ivory trim
+  gold:        0xE8B84B,   // Warm gold #E8B84B
+  leatherWarm: 0xA87840,   // Warm cognac leather
+  fabricSlate: 0xB8A898,   // Warm linen fabric
 
-  // RGB Neon Accents
-  pink:      0x00f0ff,   // #00F0FF — electric cyan
-  blue:      0x38bdf8,   // #38BDF8 — sky azure
-  green:     0x10b981,   // #10B981 — emerald neon
-  white:     0xf8fafc,   // #F8FAFC — luminous white
-  burgundy:  0xf59e0b,   // #F59E0B — amber gold
+  // Wonder Accent Palette — twilight blue, warm gold, soft lavender
+  pink:      0x6B7FD7,   // #6B7FD7 — twilight blue (replaces neon pink)
+  blue:      0x6B7FD7,   // #6B7FD7 — twilight blue
+  green:     0xB39DDB,   // #B39DDB — soft lavender (replaces neon green)
+  white:     0xFFF8F0,   // #FFF8F0 — warm luminous white
+  burgundy:  0xE8B84B,   // #E8B84B — warm gold
 
   // Status — reserved for door locks only
   danger:    0xf59e0b,   // Amber glow (#F59E0B)
-  sage:      0x00f0ff,   // Brilliant Ice Cyan (#00F0FF)
+  sage:      0x00D4B4,   // Soft teal (#00D4B4) — solved state
 
   // Plant greens
-  plant1:    0x10b981,
-  plant2:    0x059669,
-  plant3:    0x06b6d4,
-  plant3:    0x1abc9c,
+  plant1:    0x8DAF70,
+  plant2:    0x729060,
+  plant3:    0x9AC080,
 };
 
-// Room geometry constants (Generously scaled for expansive 38m wide layout)
+// Room geometry constants — Wonder Tower (selective grandeur)
 const ROOM_W  = 38.0;
-const ROOM_H  = 8.5;   // High control-room vaulted ceiling
-const VAULT_H = 11.5;  // Top floor grand vault
-const DATA_H  = 7.8;   // Server floor ceiling
+const ROOM_H  = 13.0;   // Double-height atrium lobby + hallways (wow on entry!)
+const VAULT_H = 15.5;   // Vault grand finale ceiling — tallest, most dramatic
+const DATA_H  = 6.8;    // Server floor — intimate, lower, purposefully human-scaled
+
+// Intermediate floors use a modest height for intimacy contrast
+const MID_H   = 9.0;    // Classification, Clustering, Anomaly — cozy puzzle rooms
 
 // Total building depth — 6 zones (Ground + 5 floors)
 const TOTAL_LEN = 236.0;
@@ -157,42 +158,50 @@ export function initWorld(scene, cameraRef = null) {
   // ── Shared base materials ─────────────────────────────────────────────────
   const floorMat = new THREE.MeshStandardMaterial({
     map: createHolographicFloorTexture(),
-    color: 0xffffff,
-    roughness: 0.26,
-    metalness: 0.25,
-  });
-
-  // Upper Walls: Warm terracotta composite panels
-  const wallSilverMat = new THREE.MeshStandardMaterial({
-    map: createBrushedSilverWallTexture(),
-    color: 0xd07848,
-    roughness: 0.52,
+    color: 0xE8DFD0,   // warm travertine stone
+    roughness: 0.22,
     metalness: 0.18,
   });
 
-  // Lower Walls & Wainscoting: Warm rust-orange timber slats
-  const woodSlatMat = new THREE.MeshStandardMaterial({
-    map: createWalnutWoodSlatTexture(),
-    color: 0xb86838,
+  // Upper Walls: Warm ivory pearl composite panels
+  const wallSilverMat = new THREE.MeshStandardMaterial({
+    map: createBrushedSilverWallTexture(),
+    color: 0xF0EAE0,   // warm ivory
     roughness: 0.55,
     metalness: 0.08,
+  });
+
+  // Lower Walls & Wainscoting: Warm honey sandstone slats
+  const woodSlatMat = new THREE.MeshStandardMaterial({
+    map: createWalnutWoodSlatTexture(),
+    color: 0xC09060,   // honey sandstone
+    roughness: 0.60,
+    metalness: 0.05,
   });
 
   const wallNoiseTex = createWallNoiseTexture();
   const wallMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallMain,
-    roughness: 0.70,
-    metalness: 0.22,
+    roughness: 0.68,
+    metalness: 0.06,
   });
   const wallAltMat = new THREE.MeshStandardMaterial({
     map: wallNoiseTex,
     color: P.wallAlt,
-    roughness: 0.65,
-    metalness: 0.12,
+    roughness: 0.62,
+    metalness: 0.05,
   });
 
   const ceilMat = createAuroraCeilingMaterial();
+  // Mid-floor ceiling: warm cream plaster — intimate and human-scaled
+  const midCeilMat = new THREE.MeshStandardMaterial({
+    color: 0xF5F0E8,   // warm ivory plaster
+    roughness: 0.80,
+    metalness: 0.02,
+    emissive: 0xFFF8F0,
+    emissiveIntensity: 0.04,
+  });
   const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
   const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
 
@@ -211,31 +220,37 @@ export function initWorld(scene, cameraRef = null) {
   });
 
   // ── Ceiling segments (Exposed structural ceiling) ────────────────────────
-  // Ground (Z: -6 → 30, H: 8.5)
-  addCeiling(scene, 36.0, ROOM_H,  12.0,  ceilMat);
-  // Floor 1 (Z: 30 → 66, H: 8.5)
-  addCeiling(scene, 36.0, ROOM_H,  48.0,  ceilMat);
-  // Floor 2 (Z: 66 → 102, H: 7.8)
-  addCeiling(scene, 36.0, DATA_H,  84.0,  ceilMat);
-  // Floor 3 (Z: 102 → 138, H: 8.5)
-  addCeiling(scene, 36.0, ROOM_H, 120.0,  ceilMat);
-  // Floor 4 (Z: 138 → 174, H: 8.5)
-  addCeiling(scene, 36.0, ROOM_H, 156.0,  ceilMat);
-  // Floor 5 / Vault (Z: 174 → 226, H: 11.5)
+  addCeiling(scene, 36.0, ROOM_H,  12.0,  ceilMat);  // Lobby — tall atrium
+  // Floor 1 (Z: 30 → 66, H: MID_H) — intimate classification
+  addCeiling(scene, 36.0, MID_H,  48.0,  midCeilMat);
+  // Floor 2 (Z: 66 → 102, H: DATA_H) — very low server floor
+  addCeiling(scene, 36.0, DATA_H,  84.0,  midCeilMat);
+  // Floor 3 (Z: 102 → 138, H: MID_H)
+  addCeiling(scene, 36.0, MID_H, 120.0,  midCeilMat);
+  // Floor 4 (Z: 138 → 174, H: MID_H)
+  addCeiling(scene, 36.0, MID_H, 156.0,  midCeilMat);
+  // Floor 5 / Vault (Z: 174 → 226, H: VAULT_H) — grand finale
   addCeiling(scene, 52.0, VAULT_H, 200.0, ceilMat);
 
   // ── Industrial Ceiling Trusses, Beams & Practical Recessed Downlights ───
   buildArchitecturalCeilingSystem(scene);
 
-  // Step wall at vault entry (height bump 8.5→11.5 at Z=174)
+  // Step wall at vault entry (height bump MID_H→VAULT_H at Z=174)
   const transWall = new THREE.Mesh(
-    new THREE.PlaneGeometry(ROOM_W, VAULT_H - ROOM_H), wallAltMat
+    new THREE.PlaneGeometry(ROOM_W, VAULT_H - MID_H), wallAltMat
   );
-  transWall.position.set(0, ROOM_H + (VAULT_H - ROOM_H) / 2, 174.0);
+  transWall.position.set(0, MID_H + (VAULT_H - MID_H) / 2, 174.0);
   scene.add(transWall);
 
-  // ── Two-Tone Architectural Perimeter Walls (Walnut Wood Slats Lower + Brushed Silver Upper) ──
-  const wainH = 2.4; // Wainscot height in meters
+  // Lobby-to-mid transition wall (ROOM_H → MID_H step at Z=30)
+  const lobbyTransWall = new THREE.Mesh(
+    new THREE.PlaneGeometry(ROOM_W, ROOM_H - MID_H), wallAltMat
+  );
+  lobbyTransWall.position.set(0, MID_H + (ROOM_H - MID_H) / 2, 30.0);
+  scene.add(lobbyTransWall);
+
+  // ── Two-Tone Architectural Perimeter Walls (Honey Sandstone Lower + Warm Ivory Upper) ──
+  const wainH = 2.8; // Wainscot height in meters
   const upperH = ROOM_H - wainH;
 
   // Left Wall: Lower Walnut Slats
@@ -282,10 +297,10 @@ export function initWorld(scene, cameraRef = null) {
     buildWallPilasterColumn(scene,  ROOM_W / 2 - 0.15, pz - 6.0, ROOM_H, -Math.PI / 2);
   }
 
-  // Elevated vault side walls (Y: 8.5→11.5)
+  // Elevated vault side walls (Y: MID_H→VAULT_H)
   [[-ROOM_W / 2, Math.PI / 2], [ROOM_W / 2, -Math.PI / 2]].forEach(([wx, ry]) => {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(52.0, VAULT_H - ROOM_H), wallSilverMat);
-    w.position.set(wx, ROOM_H + (VAULT_H - ROOM_H) / 2, 200.0);
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(52.0, VAULT_H - MID_H), wallSilverMat);
+    w.position.set(wx, MID_H + (VAULT_H - MID_H) / 2, 200.0);
     w.rotation.y = ry;
     scene.add(w);
   });
@@ -317,10 +332,10 @@ export function initWorld(scene, cameraRef = null) {
   buildFloor5MysteryVault(scene);
 
   // ── Door stations (puzzle terminals) ──────────────────────────────────────
-  createDoorStation(scene, "classification", 0, 30.0,  ROOM_H);
+  createDoorStation(scene, "classification", 0, 30.0,  MID_H);
   createDoorStation(scene, "regression",     0, 66.0,  DATA_H);
-  createDoorStation(scene, "clustering",     0, 102.0, ROOM_H);
-  createDoorStation(scene, "anomaly",        0, 138.0, ROOM_H);
+  createDoorStation(scene, "clustering",     0, 102.0, MID_H);
+  createDoorStation(scene, "anomaly",        0, 138.0, MID_H);
   createDoorStation(scene, "mystery",        0, 174.0, VAULT_H);
 
   setMaxZBound(28.5);
@@ -3653,10 +3668,19 @@ export function setDoorUnlocked(doorType, onComplete) {
     requestAnimationFrame(pushStep);
   }
 
+  const DOOR_UNLOCK_BOUNDS = {
+    classification: 64.5,
+    regression: 100.5,
+    clustering: 136.5,
+    anomaly: 172.5,
+    mystery: 224.5,
+  };
+
   // 3. Door leaves slide open slowly and fully — 6.5 seconds, smoothstep easing.
   //    Player watches every centimeter of travel. Camera holds until motion completes.
   animateDoorLeaves(entry, 6500, () => {
-    setMaxZBound(entry.zDoor + 20.8);
+    const nextMaxZ = DOOR_UNLOCK_BOUNDS[doorType] || (entry.zDoor + 34.5);
+    setMaxZBound(nextMaxZ);
     if (!camRunning) {
       if (entry.doorLight) entry.doorLight.intensity = 2.4;
       if (onComplete) onComplete();
@@ -3677,7 +3701,7 @@ export function resetHubForNewLevel() {
     entry.isActive = false;
     setDoorActiveState(entry.doorType, false, false);
   });
-  setMaxZBound(20.8);
+  setMaxZBound(28.5);
 }
 
 export function updateWorldAnimations(delta) {

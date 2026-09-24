@@ -54,7 +54,7 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
     return { x: nextX, z: nextZ };
   }
 
-  // Filter nearby boxes within active interaction sphere (proper AABB distance check)
+  // 1. Resolve X movement against active collision boxes
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b.active) continue;
@@ -67,19 +67,19 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
       continue;
     }
 
-    // 1. Resolve X movement against active collision boxes
     if (
       nextX + PLAYER_RADIUS > b.minX &&
       nextX - PLAYER_RADIUS < b.maxX &&
       currentZ + PLAYER_RADIUS > b.minZ &&
       currentZ - PLAYER_RADIUS < b.maxZ
     ) {
-      if (currentX <= b.minX) {
-        nextX = Math.min(nextX, b.minX - PLAYER_RADIUS);
-      } else if (currentX >= b.maxX) {
-        nextX = Math.max(nextX, b.maxX + PLAYER_RADIUS);
+      const boxCenterX = (b.minX + b.maxX) / 2;
+      if (currentX <= b.minX || (currentX < boxCenterX && deltaX > 0)) {
+        nextX = b.minX - PLAYER_RADIUS;
+      } else if (currentX >= b.maxX || (currentX >= boxCenterX && deltaX < 0)) {
+        nextX = b.maxX + PLAYER_RADIUS;
       } else {
-        nextX = currentX;
+        nextX = currentX < boxCenterX ? b.minX - PLAYER_RADIUS : b.maxX + PLAYER_RADIUS;
       }
       velocity.x = 0;
     }
@@ -104,12 +104,13 @@ function resolveCollisions(currentX, currentZ, deltaX, deltaZ) {
       nextZ + PLAYER_RADIUS > b.minZ &&
       nextZ - PLAYER_RADIUS < b.maxZ
     ) {
-      if (currentZ <= b.minZ) {
-        nextZ = Math.min(nextZ, b.minZ - PLAYER_RADIUS);
-      } else if (currentZ >= b.maxZ) {
-        nextZ = Math.max(nextZ, b.maxZ + PLAYER_RADIUS);
+      const boxCenterZ = (b.minZ + b.maxZ) / 2;
+      if (currentZ <= b.minZ || (currentZ < boxCenterZ && deltaZ > 0)) {
+        nextZ = b.minZ - PLAYER_RADIUS;
+      } else if (currentZ >= b.maxZ || (currentZ >= boxCenterZ && deltaZ < 0)) {
+        nextZ = b.maxZ + PLAYER_RADIUS;
       } else {
-        nextZ = currentZ;
+        nextZ = currentZ < boxCenterZ ? b.minZ - PLAYER_RADIUS : b.maxZ + PLAYER_RADIUS;
       }
       velocity.z = 0;
     }

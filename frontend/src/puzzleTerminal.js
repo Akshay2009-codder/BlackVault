@@ -470,14 +470,15 @@ function evaluatePlayerCode(code) {
   // Verified clean against index.html and all frontend JS files (Sep 2026).
   // ──────────────────────────────────────────────────────────────────────────
 
-  // Detect completely unedited starter code (still has TODO placeholder AND the null sentinel)
-  const hasNullSentinel =
+  // Detect completely unedited starter code (still has TODO placeholder and unedited pass)
+  const isUnedited =
+    (code.includes("pass") && code.includes("# TODO")) ||
     code.includes("cleaned = None") || code.includes("normalized = None") ||
     code.includes("labels = None")  || code.includes("spikes = None")     ||
     code.includes("accuracy = None");
-  const hasToDoPlaceholder = code.includes("# TODO");
-  if (hasToDoPlaceholder && hasNullSentinel) {
-    handleFailedAttempt("Incomplete code: Replace the # TODO comment and the 'None' placeholder with your Python solution.");
+
+  if (isUnedited && !code.includes("return ") && !code.includes("for ") && !code.includes("np.min") && !code.includes("==")) {
+    handleFailedAttempt("Incomplete code: Replace 'pass' with your Python implementation and return the result.");
     return;
   }
 
@@ -488,19 +489,18 @@ function evaluatePlayerCode(code) {
   if (doorType === "classification") {
     // ── ROOM 1: DATA CLEANING (beginner-friendly) ──────────────────────────────
     // Accept any reasonable attempt: handling None rows, fixing negative salary,
-    // stripping whitespace, OR simply having something written in place of None.
-    // The threshold is intentionally very low so a first-time programmer can pass.
-    const triedSomething = !hasNullSentinel; // Replaced the None placeholder
+    // stripping whitespace, OR returning cleaned records.
     const hasNoneHandling = code.includes("None") || code.includes("if row") ||
                             code.includes("continue") || code.includes("is None");
     const hasFixedSalary  = code.includes("salary = 0") || code.includes("= 0") ||
                             code.includes("max(") || code.includes("abs(");
     const hasStrip        = code.includes(".strip()") || code.includes("strip()");
+    const hasReturn       = code.includes("return");
 
-    if (!triedSomething) {
-      errorMsg = "Still showing placeholder code. Replace 'None' with your actual Python fix.";
+    if (code.includes("pass") && !hasReturn) {
+      errorMsg = "Still showing placeholder 'pass'. Replace with your actual Python cleaning loop and return the cleaned records.";
     } else {
-      // Pass if ANY meaningful change was made — encourage the beginner
+      // Pass if meaningful implementation is provided
       passed = true;
       successMsg = `
         <div class="console-line sys">──────────────── DATA CLEANING VERIFIED ────────────────</div>
@@ -713,7 +713,7 @@ Requirements:
 3. Remove surrounding whitespace from the employee name (e.g. "  Alice  " → "Alice").
 4. Return the list of cleaned record dictionaries.`,
       starter_code: `# GATE 1 — DATA CLEANING CHALLENGE
-# Write a function that cleans dirty employee records.
+# Clean dirty employee records: skip None, fix negative salaries to 0, and strip name whitespace.
 
 raw_records = [
     {"name": "  Alice  ", "salary": 75000, "dept": "Engineering"},
@@ -729,9 +729,7 @@ def clean_data(records):
     # 1. Skip None entries
     # 2. Fix negative salaries to 0
     # 3. Strip whitespace from names
-    cleaned = None  # Write your solution here
-    
-    return cleaned
+    pass
 
 # Execute pipeline
 result = clean_data(raw_records)
@@ -778,9 +776,7 @@ raw_speeds = np.array([10.0, 30.0, 60.0, 100.0])
 def normalize_features(data):
     # TODO: Calculate Min-Max scaled values between 0.0 and 1.0
     # Hint: (data - np.min(data)) / (np.max(data) - np.min(data))
-    normalized = None  # Write your solution here
-    
-    return normalized
+    pass
 
 # Run normalization
 result = normalize_features(raw_speeds)
@@ -826,9 +822,7 @@ THRESHOLD = 50
 def classify_threats(signals, threshold=50):
     # TODO: Return array where elements > threshold become 1, else 0
     # Hint: (signals > threshold).astype(int)
-    labels = None  # Write your solution here
-    
-    return labels
+    pass
 
 # Run classifier
 threat_flags = classify_threats(signals, THRESHOLD)
@@ -876,9 +870,7 @@ MAX_SAFE = 80.0
 def detect_temperature_spikes(temps, max_safe=80.0):
     # TODO: Return array containing only temperatures > max_safe
     # Hint: temps[temps > max_safe]
-    spikes = None  # Write your solution here
-    
-    return spikes
+    pass
 
 # Run anomaly detector
 anomalies = detect_temperature_spikes(temps, MAX_SAFE)
@@ -928,9 +920,7 @@ y_pred = np.array([1, 0, 1, 0, 0, 1])
 def calculate_accuracy(y_true, y_pred):
     # TODO: Calculate fraction of matching predictions
     # Hint: np.mean(y_true == y_pred)
-    accuracy = None  # Write your solution here
-    
-    return accuracy
+    pass
 
 # Run evaluation
 score = calculate_accuracy(y_true, y_pred)

@@ -1,11 +1,11 @@
 // Three.js renderer, camera, and lighting setup for BlackVault.
-// Deep Ocean-Slate + Warm Brass corporate tower aesthetic.
-// Cool ambient fill, steel-blue hemisphere, champagne directional light.
+// Wonder-inducing "golden hour meets aurora" aesthetic.
+// Warm ivory/pearl architecture, god-ray dominant key, enchanted motes.
 //
 // Post-processing stack (in order):
 //   1. RenderPass   — main scene render
-//   2. UnrealBloomPass — selective glow on emissive/neon elements
-//   3. ShaderPass (vignette + colour-grade) — cinematic frame + palette unity
+//   2. UnrealBloomPass — bloom tuned for god-rays + glowing accents
+//   3. ShaderPass (vignette + warm colour-grade) — luminous cinematic grade
 //   4. OutputPass   — gamma/sRGB conversion
 
 import * as THREE from "three";
@@ -40,14 +40,14 @@ export function setCamSwayEnabled(v) { camSwayEnabled = v; }
 const VignetteColorGradeShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uVigStrength: { value: 0.38 },   // gentle vignette — no pitch black corners
-    uVigSoftness: { value: 0.75 },   // smooth wide radius
-    uSaturation:  { value: 1.12 },   // rich vibrant saturation boost
-    uContrast:    { value: 1.04 },   // soft contrast
-    // Shadow tint: luminous steel-azure (prevents harsh pitch black shadows)
-    uShadowTint:  { value: new THREE.Color(0.22, 0.32, 0.45) },
-    // Highlight tint: radiant champagne warm-white
-    uHighlightTint: { value: new THREE.Color(0.98, 0.96, 0.90) },
+    uVigStrength: { value: 0.32 },   // gentle vignette — keeps wonder bright at edges
+    uVigSoftness: { value: 0.80 },   // wide smooth falloff
+    uSaturation:  { value: 1.18 },   // slightly boosted — makes gold/lavender pop
+    uContrast:    { value: 1.05 },   // soft contrast lift
+    // Shadow tint: warm twilight violet — no cold steel-azure in shadows
+    uShadowTint:  { value: new THREE.Color(0.28, 0.24, 0.38) },
+    // Highlight tint: radiant warm ivory — #F5F0E8
+    uHighlightTint: { value: new THREE.Color(0.96, 0.94, 0.91) },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -101,10 +101,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Radiant azure-slate background — bright and luminous
-  scene.background = new THREE.Color(0x324860);
-  // Atmospheric depth fog in matching soft azure-slate
-  scene.fog = new THREE.FogExp2(0x324860, 0.0012);
+  // Warm pearl-ivory background — light reads luminously against ivory walls
+  scene.background = new THREE.Color(0xd8cfc4);
+  // Soft warm ivory-gold atmospheric haze — god-rays will be visible in this
+  scene.fog = new THREE.FogExp2(0xcfc6b8, 0.0010);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -125,48 +125,52 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.20;  // slightly lifted — ivory walls read warm
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  // Strong ambient fill so walls and structures are clearly illuminated
-  const ambientLight = new THREE.AmbientLight(0xe8f4ff, 1.25);
+  // Warm ivory ambient fill — walls receive light as luminous pearl
+  const ambientLight = new THREE.AmbientLight(0xfff5e8, 0.90);
   scene.add(ambientLight);
 
-  // Hemisphere fill: crisp sky, azure ground bounce
-  const hemiLight = new THREE.HemisphereLight(0xf0f8ff, 0x486480, 1.10);
+  // Hemisphere fill: warm ivory sky above, soft amber-lavender ground bounce
+  const hemiLight = new THREE.HemisphereLight(0xfff5e8, 0x9090c0, 0.80);
   scene.add(hemiLight);
 
-  // Warm champagne directional — key light that highlights architecture
-  const skyDirLight = new THREE.DirectionalLight(0xfff8e8, 1.20);
-  skyDirLight.position.set(6, 20.0, 18);
+  // Warm gold directional — master key light, casts god-ray-style shadows
+  const skyDirLight = new THREE.DirectionalLight(0xffe8c0, 1.35);
+  skyDirLight.position.set(8, 22.0, 15);
   skyDirLight.castShadow = true;
-  skyDirLight.shadow.mapSize.width = 1024;
-  skyDirLight.shadow.mapSize.height = 1024;
+  skyDirLight.shadow.mapSize.width = 2048;
+  skyDirLight.shadow.mapSize.height = 2048;
   skyDirLight.shadow.bias = -0.0001;
   skyDirLight.shadow.normalBias = 0.02;
   skyDirLight.shadow.camera.near = 0.5;
-  skyDirLight.shadow.camera.far = 280;
-  skyDirLight.shadow.camera.left  = -35;
-  skyDirLight.shadow.camera.right  = 35;
-  skyDirLight.shadow.camera.top    = 35;
-  skyDirLight.shadow.camera.bottom = -35;
+  skyDirLight.shadow.camera.far = 300;
+  skyDirLight.shadow.camera.left  = -40;
+  skyDirLight.shadow.camera.right  = 40;
+  skyDirLight.shadow.camera.top    = 40;
+  skyDirLight.shadow.camera.bottom = -40;
   scene.add(skyDirLight);
+
+  // Secondary cool twilight-blue fill from opposite angle (aurora feel)
+  const coolFill = new THREE.DirectionalLight(0xc0d0ff, 0.28);
+  coolFill.position.set(-10, 12, -8);
+  scene.add(coolFill);
 
   // ── Post-Processing Stack ─────────────────────────────────────────
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
-  // 1. Bloom — tuned for emissive neon signs, door glows, screens
-  //    Slightly stronger than before (0.30→0.42), same tight threshold so
-  //    only truly bright emissive surfaces bloom, not the whole scene.
+  // 1. Bloom — tuned for god-rays, enchanted motes, glowing accents
+  //    Wider radius so light-shaft halos bleed softly into ivory walls.
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.42,   // strength: punchy enough to feel real without halation
-    0.30,   // radius:   tight spread — neons glow, walls don't
-    0.82    // threshold: only picks up emissive + very bright areas
+    0.55,   // strength: enough for god-ray halation and mote glow
+    0.55,   // radius:   wider — god-rays bleed softly, motes have halo
+    0.78    // threshold: picks up bright emissives + god-ray panels
   );
   composer.addPass(bloomPass);
 
@@ -186,52 +190,90 @@ export function initScene() {
   return { scene, camera, renderer };
 }
 
+// Enchanted light-mote color palette — golden hour meets aurora
+// Three overlapping systems in warm gold, soft lavender, and twilight blue
+const MOTE_COLORS = [0xE8B84B, 0xB39DDB, 0x6B7FD7];
+
 function createDustMotes() {
-  const particleCount = 500;
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(particleCount * 3);
-  const speeds    = new Float32Array(particleCount);   // per-particle vertical drift speed
+  const particleCount = 180;  // per color layer (540 total)
 
-  for (let i = 0; i < particleCount; i++) {
-    positions[i * 3]     = (Math.random() - 0.5) * 38;
-    positions[i * 3 + 1] = Math.random() * 8.0 + 0.3;
-    positions[i * 3 + 2] = Math.random() * 180 - 5;
-    speeds[i] = 0.04 + Math.random() * 0.08; // varied drift
-  }
+  MOTE_COLORS.forEach((color, layerIdx) => {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const speeds    = new Float32Array(particleCount);
+    const phases    = new Float32Array(particleCount); // lateral oscillation phase
 
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("speed", new THREE.BufferAttribute(speeds, 1));
+    for (let i = 0; i < particleCount; i++) {
+      // Distribute across the full building length, bias toward lobby (Z<30) and vault (Z>174)
+      let z;
+      const r = Math.random();
+      if (r < 0.35)       z = Math.random() * 34 - 5;          // lobby cluster
+      else if (r < 0.55)  z = 174 + Math.random() * 52;        // vault cluster
+      else                z = 30 + Math.random() * 144;         // mid floors
 
-  // Electric cyan floating data motes
-  const material = new THREE.PointsMaterial({
-    color: 0x2fd1ff,
-    size: 0.048,
-    transparent: true,
-    opacity: 0.30,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
+      positions[i * 3]     = (Math.random() - 0.5) * 36;
+      positions[i * 3 + 1] = Math.random() * 10.5 + 0.5;
+      positions[i * 3 + 2] = z;
+      speeds[i]  = 0.025 + Math.random() * 0.055;  // slow gentle drift
+      phases[i]  = Math.random() * Math.PI * 2;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("speed",    new THREE.BufferAttribute(speeds, 1));
+    geometry.setAttribute("phase",    new THREE.BufferAttribute(phases, 1));
+
+    // Mote size varies per layer: gold largest, blue smallest for depth
+    const sizes = [0.062, 0.048, 0.038];
+    const opacs = [0.55,  0.45,  0.40];
+
+    const material = new THREE.PointsMaterial({
+      color,
+      size: sizes[layerIdx],
+      transparent: true,
+      opacity: opacs[layerIdx],
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    particles.userData.positions = positions;
+    particles.userData.speeds    = speeds;
+    particles.userData.phases    = phases;
+    particles.userData.maxY      = layerIdx === 0 ? 13.5 : (layerIdx === 1 ? 11.0 : 9.5);
+    scene.add(particles);
+
+    if (!dustParticles) dustParticles = particles;  // keep first ref for compat
+    // Store all layers
+    if (!scene.userData.moteLayers) scene.userData.moteLayers = [];
+    scene.userData.moteLayers.push(particles);
   });
-
-  dustParticles = new THREE.Points(geometry, material);
-  dustParticles.userData.positions = positions;
-  dustParticles.userData.speeds = speeds;
-  scene.add(dustParticles);
 }
 
 export function updateSceneEffects(delta) {
-  // ── Dust motes: per-particle drift with gentle xy oscillation ────
-  if (dustParticles) {
-    const pos = dustParticles.userData.positions;
-    const spd = dustParticles.userData.speeds;
+  // ── Enchanted motes: per-layer drift with gentle spiraling oscillation ────
+  const layers = scene && scene.userData.moteLayers;
+  if (layers) {
     const t = performance.now() * 0.001;
-    for (let i = 0; i < pos.length / 3; i++) {
-      pos[i * 3 + 1] += spd[i] * delta;
-      pos[i * 3]     += Math.sin(t * 0.3 + i * 0.5) * 0.002; // gentle lateral drift
-      if (pos[i * 3 + 1] > 9.0) {
-        pos[i * 3 + 1] = 0.2;
+    layers.forEach((particles, li) => {
+      const pos = particles.userData.positions;
+      const spd = particles.userData.speeds;
+      const phs = particles.userData.phases;
+      const maxY = particles.userData.maxY || 9.0;
+      const count = pos.length / 3;
+      for (let i = 0; i < count; i++) {
+        // Slow upward drift
+        pos[i * 3 + 1] += spd[i] * delta;
+        // Gentle figure-eight lateral oscillation — enchanted float
+        pos[i * 3]     += Math.sin(t * 0.22 + phs[i]) * 0.0018;
+        pos[i * 3 + 2] += Math.cos(t * 0.15 + phs[i] * 0.7) * 0.0010;
+        // Reset when too high — teleport back to floor
+        if (pos[i * 3 + 1] > maxY) {
+          pos[i * 3 + 1] = 0.3 + Math.random() * 0.5;
+        }
       }
-    }
-    dustParticles.geometry.attributes.position.needsUpdate = true;
+      particles.geometry.attributes.position.needsUpdate = true;
+    });
   }
 
   // ── Idle camera sway — subtle breathing while standing still ─────
