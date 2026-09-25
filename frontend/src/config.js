@@ -22,38 +22,38 @@ export const DOOR_LABELS = {
   mystery:        "Core Vault",
 };
 
-// Sci-Fi Corporate Control-Room Palette: Dark Graphite + RGB Neon Accents
+// Wonder-inducing Aesthetic Palette: Warm Ivory + Soft Glowing Accents
 export const BUILDING_PALETTE = {
-  // RGB Neon Accents
-  hotPink:        0xff2e9a,  // #FF2E9A - vibrant neon pink/magenta
-  electricBlue:   0x2fd1ff,  // #2FD1FF - intense cyan/blue
-  emeraldGreen:   0x22f0a8,  // #22F0A8 - vivid data-center green
-  coolWhite:      0xe6f8ff,  // #E6F8FF - backlit signage white
-  gold:           0xd4af37,  // #D4AF37 - metallic hardware trim
+  // Magical Accents
+  hotPink:        0xB39DDB,  // #B39DDB - gentle lavender
+  electricBlue:   0x6B7FD7,  // #6B7FD7 - twilight blue
+  emeraldGreen:   0xB39DDB,  // #B39DDB - gentle lavender
+  coolWhite:      0xF5F0E8,  // #F5F0E8 - warm ivory / pearl
+  gold:           0xE8B84B,  // #E8B84B - warm gold
 
-  // Dark Architectural Base
-  wallGraphite:   0x1a1d24,  // #1A1D24 - dark matte graphite walls
-  wallAlt:        0x161820,  // #161820 - secondary dark panel
-  floorDark:      0x14161b,  // #14161B - glossy reflective dark floor
-  floorGrout:     0x0d0f13,  // #0D0F13 - dark floor grid seam
-  ceilingDark:    0x2a2e36,  // #2A2E36 - dark graphite ceiling plane
-  trussMetal:     0x1c1f24,  // #1C1F24 - structural beam metal tone
-  ceilingCyan:    0x3fd8e8,  // #3FD8E8 - glowing cyan-teal beam strips
-  downlightWhite: 0xe8f4ff,  // #E8F4FF - soft cool-white recessed downlights
-  edgeMagenta:    0xff4fa3,  // #FF4FA3 - sparse magenta ceiling edge strips
-  furniture:      0x101216,  // #101216 - dark console/chassis body
+  // Warm Luminous Architectural Base
+  wallGraphite:   0xF5F0E8,  // #F5F0E8 - warm ivory walls
+  wallAlt:        0xE8DFD0,  // #E8DFD0 - warm stone
+  floorDark:      0xE8DFD0,  // #E8DFD0 - reflective warm stone floor
+  floorGrout:     0xE8B84B,  // #E8B84B - warm gold grout
+  ceilingDark:    0xF5F0E8,  // #F5F0E8 - warm cream ceiling
+  trussMetal:     0xD4C8A0,  // #D4C8A0 - warm champagne beam
+  ceilingCyan:    0xE8B84B,  // #E8B84B - warm gold LED strip
+  downlightWhite: 0xFFF8F0,  // #FFF8F0 - luminous warm-white downlights
+  edgeMagenta:    0xB39DDB,  // #B39DDB - soft lavender accent
+  furniture:      0xC8B898,  // #C8B898 - warm linen chassis
 };
 
-// Door identity colours — unified electric cyan/blue accent
+// Door identity colours — unified twilight blue accent
 export const DOOR_COLORS = {
-  classification: 0x2fd1ff, // 1F: Electric Cyan/Blue
-  regression:     0x2fd1ff, // 2F: Electric Cyan/Blue
-  clustering:     0x2fd1ff, // 3F: Electric Cyan/Blue
-  anomaly:        0x2fd1ff, // 4F: Electric Cyan/Blue
-  mystery:        0x2fd1ff, // 5F: Electric Cyan/Blue
+  classification: 0x6b7fd7, // 1F: Twilight Blue
+  regression:     0x6b7fd7, // 2F: Twilight Blue
+  clustering:     0x6b7fd7, // 3F: Twilight Blue
+  anomaly:        0x6b7fd7, // 4F: Twilight Blue
+  mystery:        0x6b7fd7, // 5F: Twilight Blue
 };
 
-// Status colours — reserved for locked / solved states ONLY (distinct from floor accents!)
+// Status colours — reserved for locked / solved states ONLY
 export const STATUS_COLORS = {
   locked:   0xff9900, // Electric Security Amber (#FF9900) — locked / danger
   unlocked: 0x00f0ff, // Brilliant Ice Cyan (#00F0FF)      — solved / unlocked

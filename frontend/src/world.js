@@ -485,6 +485,67 @@ function buildBacklitBlackvaultSign(scene, x, y, z) {
   scene.add(g);
 }
 
+/** Grand Dramatic Focal Window with Aurora Vista */
+function buildFocalWindow(scene, x, y, z) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+
+  const windowW = 24.0, windowH = 10.0;
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xD4C8A0, metalness: 0.85, roughness: 0.25 });
+  
+  // The vista (Aurora Sky)
+  const windowMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(windowW, windowH),
+    auroraCeilingMaterial
+  );
+  windowMesh.position.z = 0.05;
+  g.add(windowMesh);
+
+  // Structural mullions / frame
+  const borderThickness = 0.4;
+  const bTop = new THREE.Mesh(new THREE.BoxGeometry(windowW + borderThickness, borderThickness, 0.2), frameMat);
+  bTop.position.set(0, windowH / 2, 0);
+  g.add(bTop);
+
+  const bBot = new THREE.Mesh(new THREE.BoxGeometry(windowW + borderThickness, borderThickness, 0.2), frameMat);
+  bBot.position.set(0, -windowH / 2, 0);
+  g.add(bBot);
+
+  const bLeft = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, windowH + borderThickness, 0.2), frameMat);
+  bLeft.position.set(-windowW / 2, 0, 0);
+  g.add(bLeft);
+
+  const bRight = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, windowH + borderThickness, 0.2), frameMat);
+  bRight.position.set(windowW / 2, 0, 0);
+  g.add(bRight);
+
+  // Vertical mullions
+  for (let mx = -windowW / 2 + 4.0; mx < windowW / 2; mx += 4.0) {
+    const vMullion = new THREE.Mesh(new THREE.BoxGeometry(0.15, windowH, 0.1), frameMat);
+    vMullion.position.set(mx, 0, 0.05);
+    g.add(vMullion);
+  }
+
+  // Large dominant light shaft (God-ray effect) spilling from window
+  const lightShaftMat = new THREE.MeshBasicMaterial({
+    color: 0xE8B84B, 
+    transparent: true, 
+    opacity: 0.15, 
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  const lightShaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(windowW * 0.4, windowW * 0.5, 20.0, 4, 1, true),
+    lightShaftMat
+  );
+  lightShaft.rotation.x = Math.PI / 2;
+  lightShaft.position.set(0, 0, -10.0);
+  g.add(lightShaft);
+
+  scene.add(g);
+}
+
 let auroraCeilingMaterial = null;
 
 /**
@@ -1785,8 +1846,8 @@ function buildRightGlassMezzanineWall(scene, z0, z1) {
 function buildGroundLobby(scene) {
   const Z0 = -6.0, Z1 = 30.0, ZMid = 12.0;
 
-  // 1. Far Wall Backlit BLACKVAULT Billboard Sign with Glowing Shield Emblem
-  buildBacklitBlackvaultSign(scene, 0, 5.8, 29.5);
+  // 1. Far Wall Large Focal Window (Aurora Sky Vista)
+  buildFocalWindow(scene, 0, 6.5, 29.5);
 
   // 2. Data Center Server Racks (Left continuous aisle & rear wall arrays)
   buildDataCenterServerAisles(scene);
@@ -2253,6 +2314,32 @@ function buildFloor5MysteryVault(scene) {
   buildHolographicPedestal(scene, -8.0, Z0 + 18.0);
   buildHolographicPedestal(scene,  8.0, Z0 + 18.0);
 
+  // ── WONDER: Grand Vault Aurora Skylight ──────────────────────────────────
+  const skylightMat = new THREE.MeshStandardMaterial({
+    color: 0xE8C8FF,
+    emissive: 0xC8A8FF,
+    emissiveIntensity: 0.95,
+    transparent: true,
+    opacity: 0.85,
+    roughness: 0.05,
+    metalness: 0.20,
+    side: THREE.DoubleSide,
+  });
+  const vaultSkylight = new THREE.Mesh(new THREE.PlaneGeometry(24.0, 24.0), skylightMat);
+  vaultSkylight.rotation.x = Math.PI / 2;
+  vaultSkylight.position.set(0, vH - 0.05, ZCore);
+  scene.add(vaultSkylight);
+
+  // Octagonal skylight frame
+  const sfMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.95, roughness: 0.15 });
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 10.0), sfMat);
+    beam.rotation.y = angle;
+    beam.position.set(Math.cos(angle) * 5.0, vH - 0.2, ZCore + Math.sin(angle) * 5.0);
+    scene.add(beam);
+  }
+
   // Ceiling dome ring
   const domeRing = new THREE.Mesh(
     new THREE.TorusGeometry(7.0, 0.12, 16, 48),
@@ -2280,10 +2367,24 @@ function buildFloor5MysteryVault(scene) {
   mysteryInnerRing.position.set(0, 3.2, ZCore);
   scene.add(mysteryInnerRing);
 
-  // Vault ambient fill
-  const p1 = new THREE.PointLight(0xf4e0f4, 0.65, 22); p1.position.set(-8, 5.5, Z0 + 15); scene.add(p1); registerFlickerLight(p1, 0.65);
-  const p2 = new THREE.PointLight(0xe0eeff, 0.65, 22); p2.position.set( 8, 5.5, Z0 + 15); scene.add(p2); registerFlickerLight(p2, 0.65);
-  const p3 = new THREE.PointLight(0xe0fff4, 0.55, 20); p3.position.set( 0, 6.2, Z0 + 35); scene.add(p3); registerFlickerLight(p3, 0.55);
+  // ── WONDER: Vault Lighting (Dominant Core Spot + Golden Fill) ────────────
+  const coreSpot = new THREE.SpotLight(0xFFD090, 4.5, 25.0, Math.PI / 6, 0.6, 1.2);
+  coreSpot.position.set(0, vH - 0.5, ZCore);
+  coreSpot.target.position.set(0, 3.2, ZCore);
+  scene.add(coreSpot);
+  scene.add(coreSpot.target);
+
+  const fill1 = new THREE.PointLight(0xFFE8C0, 0.85, 28); fill1.position.set(-10, 6.5, ZCore - 10); scene.add(fill1);
+  const fill2 = new THREE.PointLight(0xC0A0E0, 0.75, 28); fill2.position.set( 10, 6.5, ZCore + 10); scene.add(fill2);
+
+  // Central god-ray shaft
+  const godRayMat = new THREE.MeshStandardMaterial({
+    color: 0xFFD070, emissive: 0xFFD070, emissiveIntensity: 0.60,
+    transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const centerShaft = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 7.5, vH, 16, 1, true), godRayMat);
+  centerShaft.position.set(0, vH / 2, ZCore);
+  scene.add(centerShaft);
 
   // Octagonal pedestal
   const pedMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.92, roughness: 0.14 });
@@ -2300,16 +2401,16 @@ function buildFloor5MysteryVault(scene) {
   pedRing.position.set(0, 0.42, ZCore);
   scene.add(pedRing);
 
-  const pedLight = new THREE.PointLight(P.blue, 2.0, 10);
+  const pedLight = new THREE.PointLight(P.white, 2.0, 10);
   pedLight.position.set(0, 0.5, ZCore);
   scene.add(pedLight);
   registerFlickerLight(pedLight, 2.0);
 
-  // Mystery core — cyan wireframe icosahedron + glowing nucleus
+  // Mystery core — warm gold wireframe + twilight blue nucleus
   mysteryCoreMesh = new THREE.Mesh(
     new THREE.IcosahedronGeometry(1.1, 2),
     new THREE.MeshStandardMaterial({
-      color: P.blue, emissive: P.blue, emissiveIntensity: 1.5, wireframe: true
+      color: P.gold, emissive: P.gold, emissiveIntensity: 1.5, wireframe: true
     })
   );
   mysteryCoreMesh.position.set(0, 3.2, ZCore);
@@ -2318,8 +2419,42 @@ function buildFloor5MysteryVault(scene) {
   // Inner nucleus
   mysteryCoreMesh.add(new THREE.Mesh(
     new THREE.SphereGeometry(0.55, 16, 16),
-    new THREE.MeshStandardMaterial({ color: P.green, emissive: P.green, emissiveIntensity: 1.4 })
+    new THREE.MeshStandardMaterial({ color: P.blue, emissive: P.blue, emissiveIntensity: 1.4 })
   ));
+
+  // ── WONDER: Core Sparkle Cluster ─────────────────────────────────────────
+  const sparkGeo = new THREE.BufferGeometry();
+  const sparkCount = 200;
+  const sparkPos = new Float32Array(sparkCount * 3);
+  const sparkSpeeds = new Float32Array(sparkCount);
+  const sparkPhases = new Float32Array(sparkCount);
+  for (let i = 0; i < sparkCount; i++) {
+    const r = Math.random() * 4.0;
+    const th = Math.random() * Math.PI * 2;
+    sparkPos[i * 3]     = Math.cos(th) * r;
+    sparkPos[i * 3 + 1] = 1.5 + Math.random() * 6.0;
+    sparkPos[i * 3 + 2] = ZCore + Math.sin(th) * r;
+    sparkSpeeds[i]  = 0.015 + Math.random() * 0.030;
+    sparkPhases[i]  = Math.random() * Math.PI * 2;
+  }
+  sparkGeo.setAttribute("position", new THREE.BufferAttribute(sparkPos, 3));
+  const sparkMat = new THREE.PointsMaterial({
+    color: 0xC8A8FF,  // lavender sparkle around core
+    size: 0.065,
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    sizeAttenuation: true,
+  });
+  const coreSparkle = new THREE.Points(sparkGeo, sparkMat);
+  coreSparkle.userData.positions = sparkPos;
+  coreSparkle.userData.speeds    = sparkSpeeds;
+  coreSparkle.userData.phases    = sparkPhases;
+  coreSparkle.userData.isCoreSparkle = true;
+  scene.add(coreSparkle);
+  if (!scene.userData.moteLayers) scene.userData.moteLayers = [];
+  scene.userData.moteLayers.push(coreSparkle);
 
   // Containment pillars
   [

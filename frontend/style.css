@@ -1,17 +1,17 @@
 :root {
-  /* ── Cyber Titanium + Electric Cyan + Champagne Gold Identity ─────── */
-  --bg:               #162436;           /* radiant deep twilight slate */
-  --panel-bg:         rgba(18, 34, 54, 0.85);
-  --panel-border:     rgba(56, 189, 248, 0.40);  /* glowing cyan border */
-  --accent-burgundy:  #0284c7;           /* azure primary */
-  --accent-pink:      #38bdf8;           /* cyber electric cyan */
-  --accent-gold:      #fbbf24;           /* radiant gold */
+  /* ── Wonder Aesthetic: Ivory + Twilight Blue + Warm Gold ─────── */
+  --bg:               #F5F0E8;           /* warm ivory/pearl base */
+  --panel-bg:         rgba(245, 240, 232, 0.85); /* ivory panel */
+  --panel-border:     rgba(107, 127, 215, 0.40); /* twilight blue border */
+  --accent-burgundy:  #E8B84B;           /* warm gold */
+  --accent-pink:      #6B7FD7;           /* twilight blue */
+  --accent-gold:      #E8B84B;           /* radiant warm gold */
   --accent-danger:    #f59e0b;           /* locked / amber */
-  --accent-green:     #10b981;           /* solved / emerald */
-  --cream:            #f0f9ff;
-  --cream-alt:        #e0f2fe;
-  --text-main:        #f0f9ff;           /* crisp white text */
-  --text-muted:       #94a3b8;           /* soft silver muted */
+  --accent-green:     #B39DDB;           /* gentle lavender */
+  --cream:            #ffffff;
+  --cream-alt:        #F5F0E8;
+  --text-main:        #333333;           /* dark slate text for ivory */
+  --text-muted:       #7a899c;           /* soft muted dark */
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
