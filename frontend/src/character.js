@@ -765,8 +765,8 @@ export function updatePlayerCharacter(delta) {
     }
   }
 
-  // 2. Exponential smoothing — blendRate 18.0 for crisp but smooth transitions
-  const blendRate = 1.0 - Math.exp(-18.0 * delta);
+  // 2. Exponential smoothing — blendRate 6.0 for smooth crossfades
+  const blendRate = 1.0 - Math.exp(-6.0 * delta);
   weights.idle   = THREE.MathUtils.lerp(weights.idle,   targetIdle,   blendRate);
   weights.walk   = THREE.MathUtils.lerp(weights.walk,   targetWalk,   blendRate);
   weights.run    = THREE.MathUtils.lerp(weights.run,    targetRun,    blendRate);

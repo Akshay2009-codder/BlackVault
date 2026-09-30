@@ -43,7 +43,7 @@ import {
   createArchitecturalCeilingTexture,
 } from "./textures.js";
 import { setMaxZBound } from "./player.js";
-import { registerFlickerLight } from "./sceneSetup.js";
+// import { registerFlickerLight } from "./sceneSetup.js";
 
 // ── Collision Registry ────────────────────────────────────────────────────
 const collisionBoxes = [];
@@ -80,45 +80,45 @@ var worldCamera = null;
 // ── Cyber-Sunset & Luminous Alabaster Palette ─────────────────────────────
 // Clean, high-contrast, beautiful architectural tones with radiant amber-gold and ice cyan
 const P = {
-  // ── Architectural Wall Surfaces — Warm Ivory / Pearl / Rose ─────────────────
-  wallMain:    0xF0EAE0,   // Warm ivory / pearl — primary wall
-  wallAlt:     0xE4DDD4,   // Soft rose-pearl — secondary panels
-  wallSilver:  0xEEE8DF,   // Creamy linen upper panels
-  wallBrown:   0xC09060,   // Warm honey sandstone wainscot
-  wallBronze:  0xE8B84B,   // Warm gold accent reveals
-  warmWood:    0xA87840,   // Rich warm cedar slats
-  floor:       0xE0D5C0,   // Warm stone / travertine floor
-  floorTrim:   0xD4A843,   // Brushed warm-gold baseboard
-  ceiling:     0xF5F0E8,   // Warm cream ceiling (mid-floors)
-  trussSteel:  0xD4C8A0,   // Warm champagne beam
+  // ── Architectural Wall Surfaces — Neutral ─────────────────
+  wallMain:    0xF4F1EC,   // warm white
+  wallAlt:     0xF4F1EC,
+  wallSilver:  0xF4F1EC,
+  wallBrown:   0x26241F,   // dark equipment / warm charcoal
+  wallBronze:  0x26241F,
+  warmWood:    0x26241F,
+  floor:       0xD9D4C8,   // light warm grey
+  floorTrim:   0x2B2B2E,   // dark trim
+  ceiling:     0xEDEAE3,
+  trussSteel:  0x26241F,
 
   // Ceiling luminaire colours
-  ceilingCyan:      0xE8B84B,   // Warm gold LED strip (replaces cyan)
-  ceilingDownlight: 0xFFF8F0,   // Soft warm-white downlights
-  ceilingMagenta:   0xB39DDB,   // Soft lavender accent strips
+  ceilingCyan:      0x0F5C56,
+  ceilingDownlight: 0xFFFFFF,
+  ceilingMagenta:   0x0F5C56,
 
   // Furniture & props
-  furniture:   0xC8B898,   // Warm linen / warm slate chassis
-  chrome:      0xECE4D4,   // Warm white / ivory trim
-  gold:        0xE8B84B,   // Warm gold #E8B84B
-  leatherWarm: 0xA87840,   // Warm cognac leather
-  fabricSlate: 0xB8A898,   // Warm linen fabric
+  furniture:   0x26241F,
+  chrome:      0x26241F,
+  gold:        0x26241F,
+  leatherWarm: 0x26241F,
+  fabricSlate: 0x26241F,
 
-  // Wonder Accent Palette — twilight blue, warm gold, soft lavender
-  pink:      0x6B7FD7,   // #6B7FD7 — twilight blue (replaces neon pink)
-  blue:      0x6B7FD7,   // #6B7FD7 — twilight blue
-  green:     0xB39DDB,   // #B39DDB — soft lavender (replaces neon green)
-  white:     0xFFF8F0,   // #FFF8F0 — warm luminous white
-  burgundy:  0xE8B84B,   // #E8B84B — warm gold
+  // Accent Palette
+  pink:      0x0F5C56,
+  blue:      0x0F5C56,
+  green:     0x0F5C56,
+  white:     0xFFFFFF,
+  burgundy:  0xC1502E,
 
   // Status — reserved for door locks only
-  danger:    0xf59e0b,   // Amber glow (#F59E0B)
-  sage:      0x00D4B4,   // Soft teal (#00D4B4) — solved state
+  danger:    0xC1502E,   // locked (terracotta)
+  sage:      0x0F5C56,   // unlocked (teal)
 
   // Plant greens
-  plant1:    0x8DAF70,
-  plant2:    0x729060,
-  plant3:    0x9AC080,
+  plant1:    0x0F5C56,
+  plant2:    0x0F5C56,
+  plant3:    0x0F5C56,
 };
 
 // Room geometry constants — Wonder Tower (selective grandeur)
@@ -143,11 +143,11 @@ let mysteryInnerRing = null;
 
 // Door accent colours (each floor leans on one accent)
 const doorColors = {
-  classification: P.blue,
-  regression:     P.blue,
-  clustering:     P.blue,
-  anomaly:        P.blue,
-  mystery:        P.blue,
+  classification: P.sage,
+  regression:     P.sage,
+  clustering:     P.sage,
+  anomaly:        P.sage,
+  mystery:        P.sage,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,23 +158,23 @@ export function initWorld(scene, cameraRef = null) {
   // ── Shared base materials ─────────────────────────────────────────────────
   const floorMat = new THREE.MeshStandardMaterial({
     map: createHolographicFloorTexture(),
-    color: 0xE8DFD0,   // warm travertine stone
+    color: P.floor,
     roughness: 0.22,
     metalness: 0.18,
   });
 
-  // Upper Walls: Warm ivory pearl composite panels
+  // Upper Walls
   const wallSilverMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0xF0EAE0,   // warm ivory
+    color: P.wallSilver,
     roughness: 0.55,
     metalness: 0.08,
   });
 
-  // Lower Walls & Wainscoting: Warm honey sandstone slats
+  // Lower Walls & Wainscoting
   const woodSlatMat = new THREE.MeshStandardMaterial({
     map: createWalnutWoodSlatTexture(),
-    color: 0xC09060,   // honey sandstone
+    color: P.wallBrown,
     roughness: 0.60,
     metalness: 0.05,
   });
@@ -194,13 +194,11 @@ export function initWorld(scene, cameraRef = null) {
   });
 
   const ceilMat = createAuroraCeilingMaterial();
-  // Mid-floor ceiling: warm cream plaster — intimate and human-scaled
+  // Mid-floor ceiling
   const midCeilMat = new THREE.MeshStandardMaterial({
-    color: 0xF5F0E8,   // warm ivory plaster
+    color: P.ceiling,
     roughness: 0.80,
     metalness: 0.02,
-    emissive: 0xFFF8F0,
-    emissiveIntensity: 0.04,
   });
   const trimMat = new THREE.MeshStandardMaterial({ color: P.floorTrim, roughness: 0.35, metalness: 0.45 });
   const brassTrimMat = new THREE.MeshStandardMaterial({ color: P.gold, roughness: 0.25, metalness: 0.85 });
@@ -416,8 +414,9 @@ function buildGrandEntranceDoors(scene, x, z) {
   g.add(plaqueTrim);
 
   // Overhead cool cyan-white downlight fixture
-  const downlight = new THREE.PointLight(0xe8f0ff, 0.75, 6.0);
-  downlight.position.set(0, doorH + 0.3, 0.6);
+//   const downlight = new THREE.PointLight(0xe8f0ff, 0.75, 6.0);
+// REMOVED downlight
+//   downlight.position.set(0, doorH + 0.3, 0.6);
   g.add(downlight);
 
   // Electronic RFID Security Badge Scanner on right side wall
@@ -809,7 +808,7 @@ function buildArchitecturalCeilingSystem(scene) {
   ];
 
   zones.forEach(zone => {
-    const { z0, z1, h, trusses, downlights, edgeMagenta } = zone;
+    const { z0, z1, h, trusses } = zone;
     const len = z1 - z0;
     const midZ = (z0 + z1) / 2;
 
@@ -820,22 +819,11 @@ function buildArchitecturalCeilingSystem(scene) {
       scene.add(runner);
     });
 
-    // Center continuous cyan glow strip on underside of center runner
-    const centerGlow = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.02, len), cyanGlowMat);
-    centerGlow.position.set(0.0, h - 0.55, midZ);
-    scene.add(centerGlow);
-
-    // 2. Perimeter Conduits & Sparse Low-Intensity Magenta Strips near room edges
+    // 2. Perimeter Conduits
     [-ROOM_W / 2 + 0.80, ROOM_W / 2 - 0.80].forEach(ex => {
       const conduit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, len), steelMat);
       conduit.position.set(ex, h - 0.08, midZ);
       scene.add(conduit);
-
-      if (edgeMagenta) {
-        const magStrip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.02, len), magentaGlowMat);
-        magStrip.position.set(ex, h - 0.12, midZ);
-        scene.add(magStrip);
-      }
     });
 
     // 3. Exposed Transverse Structural Trusses
@@ -848,23 +836,10 @@ function buildArchitecturalCeilingSystem(scene) {
       topChord.position.y = h - 0.15;
       tg.add(topChord);
 
-      // Aurora Rim Highlight on top edge of top chord
-      const rimHighlight = new THREE.Mesh(
-        new THREE.BoxGeometry(ROOM_W - 0.4, 0.025, 0.04),
-        rimHighlightMat
-      );
-      rimHighlight.position.set(0, h - 0.05, 0);
-      tg.add(rimHighlight);
-
       // Bottom chord
       const botChord = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.2, 0.18, 0.18), steelMat);
       botChord.position.y = h - 0.95;
       tg.add(botChord);
-
-      // Glowing Cyan-Teal Strip on bottom edge of truss
-      const cyanStrip = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.035, 0.06), cyanGlowMat);
-      cyanStrip.position.set(0, h - 1.05, 0);
-      tg.add(cyanStrip);
 
       // Web struts
       for (let x = -ROOM_W / 2 + 2.0; x <= ROOM_W / 2 - 2.0; x += 3.2) {
@@ -888,29 +863,24 @@ function buildArchitecturalCeilingSystem(scene) {
       scene.add(tg);
     });
 
-    // 4. Soft Cool-White Recessed Downlight Panels with Practical Downlights
-    downlights.forEach(dl => {
-      const dg = new THREE.Group();
-      dg.position.set(dl.x, h, dl.z);
+    // 4. Soft Cool-White Main Light
+    const dg = new THREE.Group();
+    dg.position.set(0, h, midZ);
 
-      // Bezel casing (offset down from ceiling plane to eliminate z-fighting)
-      const bezel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.6), downlightBezelMat);
-      bezel.position.y = -0.05;
-      dg.add(bezel);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 2.4), downlightBezelMat);
+    bezel.position.y = -0.05;
+    dg.add(bezel);
 
-      // Diffuser panel with steady calibrated emissive
-      const lens = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.02, 0.42), downlightLensMat);
-      lens.position.y = -0.08;
-      dg.add(lens);
+    const lens = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.02, 2.2), downlightLensMat);
+    lens.position.y = -0.08;
+    dg.add(lens);
 
-      scene.add(dg);
+    scene.add(dg);
 
-      // Practical Downlight illuminating room from above
-      const pLight = new THREE.PointLight(P.ceilingDownlight, 0.72, 16, 1.8);
-      pLight.position.set(dl.x, h - 0.40, dl.z);
-      scene.add(pLight);
-      registerFlickerLight(pLight, 0.72);
-    });
+    // Practical Downlight illuminating room from above
+    const pLight = new THREE.PointLight(P.ceilingDownlight, 3.5, 30.0, 1.5);
+    pLight.position.set(0, h - 1.0, midZ);
+    scene.add(pLight);
   });
 }
 
@@ -960,9 +930,10 @@ function buildWallPilasterColumn(scene, x, z, h, rotY) {
   g.add(botSlit);
 
   // Bright magenta-pink sconce light at base — cyan-to-magenta gradient along pillar
-  const sl = new THREE.PointLight(0xff3ec8, 0.55, 5.5);
-  sl.position.set(0, 2.8, 0.45);
-  g.add(sl);
+//   const sl = new THREE.PointLight(0xff3ec8, 0.55, 5.5);
+// REMOVED sl
+//   sl.position.set(0, 2.8, 0.45);
+//   g.add(sl);
 
   scene.add(g);
   addCollisionBox(x - 0.25, x + 0.25, z - 0.25, z + 0.25, "pilaster_column");
@@ -1068,9 +1039,10 @@ function buildExecutiveLounge(scene, x, z, rotY = 0) {
   lampShade.position.set(1.9, 1.75, -1.4);
   g.add(lampShade);
 
-  const lampLight = new THREE.PointLight(0xffebd0, 0.85, 6.0);
-  lampLight.position.set(1.9, 1.70, -1.4);
-  g.add(lampLight);
+//   const lampLight = new THREE.PointLight(0xffebd0, 0.85, 6.0);
+// REMOVED lampLight
+//   lampLight.position.set(1.9, 1.70, -1.4);
+//   g.add(lampLight);
 
   scene.add(g);
   addCollisionBox(x - 2.0, x + 2.0, z - 2.0, z + 1.8, "lounge");
@@ -1175,9 +1147,10 @@ function buildWayfindingTotem(scene, x, z, rotY = 0) {
   baseTrimMesh.position.y = 0.22;
   g.add(baseTrimMesh);
 
-  const pl = new THREE.PointLight(0xe8f4ff, 0.45, 3.5);
-  pl.position.set(0, 1.4, 0.4);
-  g.add(pl);
+//   const pl = new THREE.PointLight(0xe8f4ff, 0.45, 3.5);
+// REMOVED pl
+//   pl.position.set(0, 1.4, 0.4);
+//   g.add(pl);
 
   scene.add(g);
   addCollisionBox(x - 0.7, x + 0.7, z - 0.35, z + 0.35, "totem");
@@ -1235,14 +1208,16 @@ function buildHolographicPedestal(scene, x, z) {
   g.add(innerCube);
 
   // Vivid cyan interior illumination #4FF2E0 matching ceiling aurora
-  const hLight = new THREE.PointLight(0x4ff2e0, 0.80, 5.0);
+//   const hLight = new THREE.PointLight(0x4ff2e0, 0.80, 5.0);
+// REMOVED hLight
   hLight.position.y = 1.5;
-  g.add(hLight);
+//   g.add(hLight);
 
   // Magenta-pink base glow light #FF3EC8 for cyan-to-magenta gradient
-  const baseLight = new THREE.PointLight(0xff3ec8, 0.60, 3.5);
+//   const baseLight = new THREE.PointLight(0xff3ec8, 0.60, 3.5);
+// REMOVED baseLight
   baseLight.position.y = 0.3;
-  g.add(baseLight);
+//   g.add(baseLight);
 
   scene.add(g);
   addCollisionBox(x - 0.85, x + 0.85, z - 0.85, z + 0.85, "holo_pedestal");
@@ -1283,9 +1258,10 @@ function buildWallArtPiece(scene, x, y, z, rotY, w = 2.6, h = 3.4, themeIndex = 
   sconceHead.position.set(0, h / 2 + 0.25, 0.36);
   g.add(sconceHead);
 
-  const artLight = new THREE.PointLight(0xffeed8, 0.65, 4.0);
-  artLight.position.set(0, h / 2 + 0.15, 0.45);
-  g.add(artLight);
+//   const artLight = new THREE.PointLight(0xffeed8, 0.65, 4.0);
+// REMOVED artLight
+//   artLight.position.set(0, h / 2 + 0.15, 0.45);
+//   g.add(artLight);
 
   scene.add(g);
 }
@@ -1696,9 +1672,10 @@ function buildCentralCommandStation(scene, x, z) {
     stand.position.set(cfg.x, cfg.y - 0.32, cfg.z + 0.1);
     g.add(stand);
 
-    const scLight = new THREE.PointLight(cfg.glow, 1.4, 5.0);
-    scLight.position.set(cfg.x, cfg.y, cfg.z - 0.4);
-    g.add(scLight);
+//     const scLight = new THREE.PointLight(cfg.glow, 1.4, 5.0);
+// REMOVED scLight
+//     scLight.position.set(cfg.x, cfg.y, cfg.z - 0.4);
+//     g.add(scLight);
   });
 
   // 3. Mechanical Keyboards & Accessories on Desk
@@ -1890,12 +1867,14 @@ function buildGroundLobby(scene) {
   floorStrip(scene,  1.8, 22.0, 30.0, floorInlayMat);
 
   // Main ambient room fill — cool cyan-white #E8F0FF matching ceiling palette
-  const ambLight1 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
-  ambLight1.position.set(-4.0, 6.8, 5.0);
-  scene.add(ambLight1);
-  const ambLight2 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
-  ambLight2.position.set( 4.0, 6.8, 18.0);
-  scene.add(ambLight2);
+//   const ambLight1 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
+// REMOVED ambLight1
+//   ambLight1.position.set(-4.0, 6.8, 5.0);
+//   scene.add(ambLight1);
+//   const ambLight2 = new THREE.PointLight(0xe8f0ff, 0.75, 24);
+// REMOVED ambLight2
+//   ambLight2.position.set( 4.0, 6.8, 18.0);
+//   scene.add(ambLight2);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1924,10 +1903,11 @@ function buildFloor1Classification(scene) {
   floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, metalTrimMat);
 
   // Near-neutral architectural fill from ceiling — colour comes from cubicle monitors
-  const rl = new THREE.PointLight(0xfff4f8, 0.50, 32);
-  rl.position.set(0, ROOM_H - 0.8, ZMid);
-  scene.add(rl);
-  registerFlickerLight(rl, 0.50);
+//   const rl = new THREE.PointLight(0xfff4f8, 0.50, 32);
+// REMOVED rl
+//   rl.position.set(0, ROOM_H - 0.8, ZMid);
+//   scene.add(rl);
+//   registerFlickerLight(rl, 0.50);
 
   // ── Cubicle farm (2 rows × 3 cubicles) ──────────────────────────────────
   const cubiclePositions = [
@@ -1936,12 +1916,13 @@ function buildFloor1Classification(scene) {
   ];
   cubiclePositions.forEach((pos, i) => {
     buildCubicle(scene, pos.x, pos.z, i % 2 === 0 ? 0 : Math.PI, accent);
-    const ml = new THREE.PointLight(accent, 2.0, 4.5);
+//     const ml = new THREE.PointLight(accent, 2.0, 4.5);
+// REMOVED ml
     buildWorkstationDesk(scene, {
       x: pos.x, z: pos.z, rotY: i % 2 === 0 ? 0 : Math.PI, accentColor: accent,
       screenTexture: createLeftUltrawideScreenTexture(), monitorLight: ml,
     });
-    registerFlickerLight(ml, 2.0);
+//     registerFlickerLight(ml, 2.0);
   });
 
   // ── Aesthetic Room Additions: Bookshelves, Planters & Wall Art ──────────
@@ -1992,10 +1973,11 @@ function buildFloor2Regression(scene) {
   floorStrip(scene,  ROOM_W / 2 - 0.15, Z1 - 4.0, Z1, metalTrimMat);
 
   // Near-neutral ceiling fill — green character comes from server rack LEDs and pendant lights
-  const rl = new THREE.PointLight(0xf0fff6, 0.50, 28);
-  rl.position.set(0, h - 0.8, ZMid);
-  scene.add(rl);
-  registerFlickerLight(rl, 0.50);
+//   const rl = new THREE.PointLight(0xf0fff6, 0.50, 28);
+// REMOVED rl
+//   rl.position.set(0, h - 0.8, ZMid);
+//   scene.add(rl);
+//   registerFlickerLight(rl, 0.50);
 
   // Dense server rack arrays
   [Z0 + 6.0, Z0 + 14.0, Z0 + 22.0, Z0 + 29.0].forEach(rz => {
@@ -2039,19 +2021,21 @@ function buildFloor2Regression(scene) {
     );
     shade.position.set(0, h - 1.35, pz);
     scene.add(shade);
-    const pl = new THREE.PointLight(0xdfffe8, 1.2, 6);
-    pl.position.set(0, h - 1.55, pz);
-    scene.add(pl);
-    registerFlickerLight(pl, 1.2);
+//     const pl = new THREE.PointLight(0xdfffe8, 1.2, 6);
+// REMOVED pl
+//     pl.position.set(0, h - 1.55, pz);
+//     scene.add(pl);
+//     registerFlickerLight(pl, 1.2);
   });
 
   // Solo analyst workstation in aisle
-  const mMon = new THREE.PointLight(accent, 2.0, 5);
+//   const mMon = new THREE.PointLight(accent, 2.0, 5);
+// REMOVED mMon
   buildWorkstationDesk(scene, {
     x: 0, z: ZMid - 1.5, rotY: 0, accentColor: accent,
     screenTexture: createRightUltrawideScreenTexture(), monitorLight: mMon,
   });
-  registerFlickerLight(mMon, 2.0);
+//   registerFlickerLight(mMon, 2.0);
 
   // Regression chart on right wall
   const chartMesh = new THREE.Mesh(
@@ -2142,10 +2126,11 @@ function buildFloor3Clustering(scene) {
     );
     shade.position.set(0, ROOM_H - 1.75, pz);
     scene.add(shade);
-    const pl = new THREE.PointLight(0xd4eaff, 1.4, 7);
-    pl.position.set(0, ROOM_H - 1.95, pz);
-    scene.add(pl);
-    registerFlickerLight(pl, 1.4);
+//     const pl = new THREE.PointLight(0xd4eaff, 1.4, 7);
+// REMOVED pl
+//     pl.position.set(0, ROOM_H - 1.95, pz);
+//     scene.add(pl);
+//     registerFlickerLight(pl, 1.4);
   });
 
   // Cluster presentation screen
@@ -2155,10 +2140,11 @@ function buildFloor3Clustering(scene) {
   );
   presScreen.position.set(0, 2.7, Z1 - 2.5);
   scene.add(presScreen);
-  const scrLight = new THREE.PointLight(0xd4eaff, 1.2, 10);
-  scrLight.position.set(0, 2.7, Z1 - 3.5);
-  scene.add(scrLight);
-  registerFlickerLight(scrLight, 1.2);
+//   const scrLight = new THREE.PointLight(0xd4eaff, 1.2, 10);
+// REMOVED scrLight
+//   scrLight.position.set(0, 2.7, Z1 - 3.5);
+//   scene.add(scrLight);
+//   registerFlickerLight(scrLight, 1.2);
 
   // Break room on side
   buildCoffeeStation(scene, ROOM_W / 2 - 2.5, Z0 + 4.5);
@@ -2203,10 +2189,11 @@ function buildFloor4AnomalyWing(scene) {
   floorStrip(scene, -ROOM_W / 2 + 0.15, Z1 - 4.0, Z1, metalTrimMat4);
 
   // Near-neutral architectural fill
-  const dl1 = new THREE.PointLight(0xfff2ee, 0.45, 30);
-  dl1.position.set(0, ROOM_H - 0.8, ZMid);
-  scene.add(dl1);
-  registerFlickerLight(dl1, 0.45);
+//   const dl1 = new THREE.PointLight(0xfff2ee, 0.45, 30);
+// REMOVED dl1
+//   dl1.position.set(0, ROOM_H - 0.8, ZMid);
+//   scene.add(dl1);
+//   registerFlickerLight(dl1, 0.45);
 
   // Security command arc (3 desks)
   [
@@ -2214,12 +2201,13 @@ function buildFloor4AnomalyWing(scene) {
     { x:  0.0, z: Z0 + 10.5, rotY:  0.0,  col: P.pink },
     { x:  6.5, z: Z0 + 12.5, rotY: -0.35, col: red    },
   ].forEach(({ x, z, rotY, col }) => {
-    const ml = new THREE.PointLight(col, 2.0, 5);
+//     const ml = new THREE.PointLight(col, 2.0, 5);
+// REMOVED ml
     buildWorkstationDesk(scene, {
       x, z, rotY, accentColor: col,
       screenTexture: createLeftUltrawideScreenTexture(), monitorLight: ml,
     });
-    registerFlickerLight(ml, 2.0);
+//     registerFlickerLight(ml, 2.0);
   });
 
   // Lounge break area
@@ -2238,10 +2226,11 @@ function buildFloor4AnomalyWing(scene) {
   );
   threatMesh.position.set(0, 2.8, Z1 - 2.2);
   scene.add(threatMesh);
-  const twLight = new THREE.PointLight(STATUS_COLORS.locked, 1.8, 14);
-  twLight.position.set(0, 2.8, Z1 - 3.5);
-  scene.add(twLight);
-  registerFlickerLight(twLight, 1.8);
+//   const twLight = new THREE.PointLight(STATUS_COLORS.locked, 1.8, 14);
+// REMOVED twLight
+//   twLight.position.set(0, 2.8, Z1 - 3.5);
+//   scene.add(twLight);
+//   registerFlickerLight(twLight, 1.8);
 
   // Server banks
   buildServerRackGroup(scene, -ROOM_W / 2 + 1.2, Z0 + 22.5, P.blue);
@@ -2301,10 +2290,11 @@ function buildFloor5MysteryVault(scene) {
     topRing.position.set(cx, vH - 0.1, cz);
     scene.add(topRing);
 
-    const bl = new THREE.PointLight(0xddeeff, 1.2, 7.0);
-    bl.position.set(cx, 0.5, cz);
+//     const bl = new THREE.PointLight(0xddeeff, 1.2, 7.0);
+// REMOVED bl
+//     bl.position.set(cx, 0.5, cz);
     scene.add(bl);
-    registerFlickerLight(bl, 1.2);
+//     registerFlickerLight(bl, 1.2);
     addCollisionBox(cx - 0.35, cx + 0.35, cz - 0.35, cz + 0.35, "vault_entrance_column");
   });
 
@@ -2374,8 +2364,10 @@ function buildFloor5MysteryVault(scene) {
   scene.add(coreSpot);
   scene.add(coreSpot.target);
 
-  const fill1 = new THREE.PointLight(0xFFE8C0, 0.85, 28); fill1.position.set(-10, 6.5, ZCore - 10); scene.add(fill1);
-  const fill2 = new THREE.PointLight(0xC0A0E0, 0.75, 28); fill2.position.set( 10, 6.5, ZCore + 10); scene.add(fill2);
+//   const fill1 = new THREE.PointLight(0xFFE8C0, 0.85, 28); fill1.position.set(-10, 6.5, ZCore - 10); scene.add(fill1);
+// REMOVED fill1
+//   const fill2 = new THREE.PointLight(0xC0A0E0, 0.75, 28); fill2.position.set( 10, 6.5, ZCore + 10); scene.add(fill2);
+// REMOVED fill2
 
   // Central god-ray shaft
   const godRayMat = new THREE.MeshStandardMaterial({
@@ -2401,10 +2393,11 @@ function buildFloor5MysteryVault(scene) {
   pedRing.position.set(0, 0.42, ZCore);
   scene.add(pedRing);
 
-  const pedLight = new THREE.PointLight(P.white, 2.0, 10);
-  pedLight.position.set(0, 0.5, ZCore);
-  scene.add(pedLight);
-  registerFlickerLight(pedLight, 2.0);
+//   const pedLight = new THREE.PointLight(P.white, 2.0, 10);
+// REMOVED pedLight
+//   pedLight.position.set(0, 0.5, ZCore);
+//   scene.add(pedLight);
+//   registerFlickerLight(pedLight, 2.0);
 
   // Mystery core — warm gold wireframe + twilight blue nucleus
   mysteryCoreMesh = new THREE.Mesh(
@@ -2508,22 +2501,20 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   const unlockedLeafEmissive = new THREE.Color().setHSL(hsl.h, Math.min(1.0, hsl.s * 1.25), 0.45);
 
   // Materials
-  // Portal-wall: warm architectural sunset terracotta-gold (#c47844)
   const portalWallMat = new THREE.MeshStandardMaterial({
     map: createBrushedSilverWallTexture(),
-    color: 0xc47844,   // warm sunset terracotta-gold — crisp and elegant
+    color: P.wallMain,
     roughness: 0.55,
     metalness: 0.18,
   });
-  // Outer flanking wall: luminous satin pearl-slate (#7c98b0)
   const outerWallMat = new THREE.MeshStandardMaterial({
     map: createWallNoiseTexture(),
-    color: 0x7c98b0,   // clean pearl-slate — bright, high contrast
+    color: P.wallMain,
     roughness: 0.60,
     metalness: 0.20,
   });
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0xb88050, // Warm bronze-gold architectural frame
+    color: P.wallBrown,
     metalness: 0.88,
     roughness: 0.22,
   });
@@ -2664,9 +2655,10 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   glow.position.y = 4.41;
   group.add(glow);
 
-  const doorLight = new THREE.PointLight(STATUS_COLORS.locked, 2.2, 12);
-  doorLight.position.set(0, 4.3, 1.1);
-  group.add(doorLight);
+//   const doorLight = new THREE.PointLight(STATUS_COLORS.locked, 2.2, 12);
+// REMOVED doorLight
+//   doorLight.position.set(0, 4.3, 1.1);
+//   group.add(doorLight);
 
   // ── Workstation Computer & Desk Setup (Next to Door) ──────────────────────
   const deskGroup = new THREE.Group();
@@ -2674,8 +2666,8 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   deskGroup.rotation.y = Math.PI; // Screen faces -Z towards the chair!
 
   const deskMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.22, metalness: 0.5 });
-  const goldMat = new THREE.MeshStandardMaterial({ color: P.gold, metalness: 0.95, roughness: 0.18 });
-  const pinkMat = new THREE.MeshStandardMaterial({ color: P.pink, roughness: 0.65 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: P.furniture, metalness: 0.95, roughness: 0.18 });
+  const pinkMat = new THREE.MeshStandardMaterial({ color: P.furniture, roughness: 0.65 });
 
   // Desk top with gold chamfer trim
   const deskTop = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.95), deskMat);
@@ -2761,10 +2753,11 @@ function createDoorStation(scene, doorType, x, z, wallH) {
   deskGroup.add(mouse);
 
   // Terminal screen ambient glow light
-  const termLight = new THREE.PointLight(color, 1.8, 5.0);
-  termLight.position.set(0, 1.22, 0.25);
-  deskGroup.add(termLight);
-  registerFlickerLight(termLight, 1.8);
+//   const termLight = new THREE.PointLight(color, 1.8, 5.0);
+// REMOVED termLight
+//   termLight.position.set(0, 1.22, 0.25);
+//   deskGroup.add(termLight);
+//   registerFlickerLight(termLight, 1.8);
 
   group.add(deskGroup);
 
@@ -2844,7 +2837,7 @@ function createDoorStation(scene, doorType, x, z, wallH) {
     group, leftLeaf, rightLeaf, leftEdgeGlow, rightEdgeGlow,
     doorLeafMat, lockedLeafColor, lockedLeafEmissive,
     unlockedLeafColor, unlockedLeafEmissive, themeColor: color,
-    glow, doorLight, termLight, screen, chairGroup,
+    glow, doorLight: null, termLight: null, screen, chairGroup,
     doorType, seatPosition, seatLookAt, barrierBox,
     zDoor: z, isUnlocked: false, isActive: false,
   };
@@ -3001,10 +2994,11 @@ function buildReceptionDesk(scene, x, z) {
   g.add(intercomLED);
 
   // 9. Reception light
-  const rLight = new THREE.PointLight(0xfff5e8, 1.4, 10);
-  rLight.position.set(0, 1.8, -0.5);
-  g.add(rLight);
-  registerFlickerLight(rLight, 1.4);
+//   const rLight = new THREE.PointLight(0xfff5e8, 1.4, 10);
+// REMOVED rLight
+//   rLight.position.set(0, 1.8, -0.5);
+//   g.add(rLight);
+//   registerFlickerLight(rLight, 1.4);
 
   scene.add(g);
 

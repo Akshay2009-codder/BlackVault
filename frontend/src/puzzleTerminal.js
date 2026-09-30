@@ -135,7 +135,7 @@ function createEditor(initialCode) {
       wordWrap: "on",
       tabSize: 4,
       insertSpaces: true,
-      automaticLayout: true,
+      automaticLayout: false, // Turn off polling layout to prevent lag
       padding: { top: 12 },
       renderLineHighlight: "all",
       cursorBlinking: "smooth",
@@ -148,12 +148,8 @@ function createEditor(initialCode) {
       },
     });
 
-    // Auto-save player draft on typing
-    monacoEditor.onDidChangeModelContent(() => {
-      if (activePuzzle && activePuzzle.door_type) {
-        doorDraftCode[activePuzzle.door_type] = monacoEditor.getValue();
-      }
-    });
+    // Auto-save player draft is handled on closeTerminal instead of every keystroke to reduce latency.
+
 
     // Ctrl+Enter to submit
     monacoEditor.addCommand(

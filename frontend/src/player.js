@@ -557,21 +557,19 @@ export function updatePlayer(delta) {
     }
   }
 
-  velocity.x -= velocity.x * 10.0 * delta;
-  velocity.z -= velocity.z * 10.0 * delta;
-
   direction.z = Number(moveState.forward) - Number(moveState.backward);
   direction.x = Number(moveState.right) - Number(moveState.left);
   direction.normalize();
 
   const currentSpeed = moveState.shift ? RUN_SPEED : WALK_SPEED;
 
-  if (moveState.forward || moveState.backward) {
-    velocity.z -= direction.z * currentSpeed * 10.0 * delta;
-  }
-  if (moveState.left || moveState.right) {
-    velocity.x += direction.x * currentSpeed * 10.0 * delta;
-  }
+  // Frame-rate independent velocity interpolation
+  const damp = 1.0 - Math.exp(-12.0 * delta); // 12.0 for responsive but smooth easing
+  const targetVelX = direction.x * currentSpeed;
+  const targetVelZ = -direction.z * currentSpeed;
+
+  velocity.x += (targetVelX - velocity.x) * damp;
+  velocity.z += (targetVelZ - velocity.z) * damp;
 
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
   const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);

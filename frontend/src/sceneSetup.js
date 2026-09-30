@@ -44,10 +44,10 @@ const VignetteColorGradeShader = {
     uVigSoftness: { value: 0.80 },   // wide smooth falloff
     uSaturation:  { value: 1.18 },   // slightly boosted — makes gold/lavender pop
     uContrast:    { value: 1.05 },   // soft contrast lift
-    // Shadow tint: warm twilight violet — no cold steel-azure in shadows
-    uShadowTint:  { value: new THREE.Color(0.28, 0.24, 0.38) },
-    // Highlight tint: radiant warm ivory — #F5F0E8
-    uHighlightTint: { value: new THREE.Color(0.96, 0.94, 0.91) },
+    // Shadow tint: neutral dark #1E2530
+    uShadowTint:  { value: new THREE.Color(0.12, 0.15, 0.19) },
+    // Highlight tint: neutral white
+    uHighlightTint: { value: new THREE.Color(1.0, 1.0, 1.0) },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -101,10 +101,10 @@ export function initScene() {
   const canvas = document.getElementById("scene");
 
   scene = new THREE.Scene();
-  // Warm pearl-ivory background — light reads luminously against ivory walls
-  scene.background = new THREE.Color(0xd8cfc4);
-  // Soft warm ivory-gold atmospheric haze — god-rays will be visible in this
-  scene.fog = new THREE.FogExp2(0xcfc6b8, 0.0010);
+  // Neutral light grey background
+  scene.background = new THREE.Color(0xd8e3ee);
+  // Neutral atmospheric haze
+  scene.fog = new THREE.FogExp2(0xd8e3ee, 0.0010);
 
   camera = new THREE.PerspectiveCamera(
     64,
@@ -131,16 +131,16 @@ export function initScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  // Warm ivory ambient fill — walls receive light as luminous pearl
-  const ambientLight = new THREE.AmbientLight(0xfff5e8, 0.90);
+  // Neutral ambient fill
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.90);
   scene.add(ambientLight);
 
-  // Hemisphere fill: warm ivory sky above, soft amber-lavender ground bounce
-  const hemiLight = new THREE.HemisphereLight(0xfff5e8, 0x9090c0, 0.80);
+  // Hemisphere fill: neutral sky, light floor bounce
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xb8c4ce, 0.80);
   scene.add(hemiLight);
 
-  // Warm gold directional — master key light, casts god-ray-style shadows
-  const skyDirLight = new THREE.DirectionalLight(0xffe8c0, 1.35);
+  // Clean directional master key light
+  const skyDirLight = new THREE.DirectionalLight(0xffffff, 1.35);
   skyDirLight.position.set(8, 22.0, 15);
   skyDirLight.castShadow = true;
   skyDirLight.shadow.mapSize.width = 2048;
@@ -190,9 +190,8 @@ export function initScene() {
   return { scene, camera, renderer };
 }
 
-// Enchanted light-mote color palette — golden hour meets aurora
-// Three overlapping systems in warm gold, soft lavender, and twilight blue
-const MOTE_COLORS = [0xE8B84B, 0xB39DDB, 0x6B7FD7];
+// Light-mote color palette — electric accents
+const MOTE_COLORS = [0x2F80ED, 0x8B5CF6, 0xFF9F43];
 
 function createDustMotes() {
   const particleCount = 180;  // per color layer (540 total)

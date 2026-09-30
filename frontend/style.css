@@ -1,17 +1,16 @@
 :root {
-  /* ── Wonder Aesthetic: Ivory + Twilight Blue + Warm Gold ─────── */
-  --bg:               #F5F0E8;           /* warm ivory/pearl base */
-  --panel-bg:         rgba(245, 240, 232, 0.85); /* ivory panel */
-  --panel-border:     rgba(107, 127, 215, 0.40); /* twilight blue border */
-  --accent-burgundy:  #E8B84B;           /* warm gold */
-  --accent-pink:      #6B7FD7;           /* twilight blue */
-  --accent-gold:      #E8B84B;           /* radiant warm gold */
-  --accent-danger:    #f59e0b;           /* locked / amber */
-  --accent-green:     #B39DDB;           /* gentle lavender */
+  --bg:               #1E2530;
+  --panel-bg:         rgba(30, 37, 48, 0.85);
+  --panel-border:     rgba(47, 128, 237, 0.40);
+  --accent-burgundy:  #FF9F43;
+  --accent-pink:      #2F80ED;
+  --accent-gold:      #FF9F43;
+  --accent-danger:    #EF476F;
+  --accent-green:     #22C55E;
   --cream:            #ffffff;
-  --cream-alt:        #F5F0E8;
-  --text-main:        #333333;           /* dark slate text for ivory */
-  --text-muted:       #7a899c;           /* soft muted dark */
+  --cream-alt:        #EDEFF2;
+  --text-main:        #EDEFF2;
+  --text-muted:       #8a99a8;
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
@@ -522,6 +521,7 @@ html, body {
   background: rgba(36, 20, 23, 0.7); border: 1px solid rgba(201, 143, 138, 0.28);
   border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
   box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease-in-out;
 }
 .ide-left .terminal-hint {
   background: rgba(201, 166, 107, 0.1); border-left: 4px solid var(--accent-gold);
@@ -553,6 +553,7 @@ html, body {
 .ide-console {
   height: 150px; flex-shrink: 0; background: #0a0507; border-top: 1px solid rgba(107, 31, 42, 0.4);
   overflow-y: auto; padding: 10px 16px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .ide-console-title { color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 #terminal-result { font-size: 13px; white-space: pre-wrap; font-family: var(--font-mono); line-height: 1.5; }
@@ -571,6 +572,11 @@ html, body {
   color: var(--cream); box-shadow: 0 0 18px rgba(140, 38, 53, 0.5);
 }
 .ide-right .primary-btn:disabled { background: #2e1a1d; color: var(--text-muted); cursor: not-allowed; }
+
+/* Subtle fade/highlight transition for syntax highlighting tokens in Monaco */
+.monaco-editor .mtk1, .monaco-editor .mtk2, .monaco-editor .mtk3, .monaco-editor .mtk4, .monaco-editor .mtk5, .monaco-editor .mtk6, .monaco-editor .mtk7, .monaco-editor .mtk8, .monaco-editor .mtk9 {
+  transition: color 0.4s ease;
+}
 
 /* ── Security Ejection Alert Banner ───────────────────────────────── */
 .security-eject-alert {

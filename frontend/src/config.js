@@ -22,41 +22,41 @@ export const DOOR_LABELS = {
   mystery:        "Core Vault",
 };
 
-// Wonder-inducing Aesthetic Palette: Warm Ivory + Soft Glowing Accents
+// Neutral/Electric Aesthetic Palette
 export const BUILDING_PALETTE = {
-  // Magical Accents
-  hotPink:        0xB39DDB,  // #B39DDB - gentle lavender
-  electricBlue:   0x6B7FD7,  // #6B7FD7 - twilight blue
-  emeraldGreen:   0xB39DDB,  // #B39DDB - gentle lavender
-  coolWhite:      0xF5F0E8,  // #F5F0E8 - warm ivory / pearl
-  gold:           0xE8B84B,  // #E8B84B - warm gold
+  // Accents
+  hotPink:        0x0F5C56,
+  electricBlue:   0x0F5C56,
+  emeraldGreen:   0x0F5C56,
+  coolWhite:      0xF4F1EC,
+  gold:           0x26241F,
 
-  // Warm Luminous Architectural Base
-  wallGraphite:   0xF5F0E8,  // #F5F0E8 - warm ivory walls
-  wallAlt:        0xE8DFD0,  // #E8DFD0 - warm stone
-  floorDark:      0xE8DFD0,  // #E8DFD0 - reflective warm stone floor
-  floorGrout:     0xE8B84B,  // #E8B84B - warm gold grout
-  ceilingDark:    0xF5F0E8,  // #F5F0E8 - warm cream ceiling
-  trussMetal:     0xD4C8A0,  // #D4C8A0 - warm champagne beam
-  ceilingCyan:    0xE8B84B,  // #E8B84B - warm gold LED strip
-  downlightWhite: 0xFFF8F0,  // #FFF8F0 - luminous warm-white downlights
-  edgeMagenta:    0xB39DDB,  // #B39DDB - soft lavender accent
-  furniture:      0xC8B898,  // #C8B898 - warm linen chassis
+  // Architectural Base
+  wallGraphite:   0xF4F1EC,
+  wallAlt:        0xF4F1EC,
+  floorDark:      0xD9D4C8,
+  floorGrout:     0x2B2B2E,
+  ceilingDark:    0xEDEAE3,
+  trussMetal:     0x26241F,
+  ceilingCyan:    0x0F5C56,
+  downlightWhite: 0xFFFFFF,
+  edgeMagenta:    0x0F5C56,
+  furniture:      0x26241F,
 };
 
-// Door identity colours — unified twilight blue accent
+// Door identity colours
 export const DOOR_COLORS = {
-  classification: 0x6b7fd7, // 1F: Twilight Blue
-  regression:     0x6b7fd7, // 2F: Twilight Blue
-  clustering:     0x6b7fd7, // 3F: Twilight Blue
-  anomaly:        0x6b7fd7, // 4F: Twilight Blue
-  mystery:        0x6b7fd7, // 5F: Twilight Blue
+  classification: 0x0F5C56,
+  regression:     0x0F5C56,
+  clustering:     0x0F5C56,
+  anomaly:        0x0F5C56,
+  mystery:        0x0F5C56,
 };
 
 // Status colours — reserved for locked / solved states ONLY
 export const STATUS_COLORS = {
-  locked:   0xff9900, // Electric Security Amber (#FF9900) — locked / danger
-  unlocked: 0x00f0ff, // Brilliant Ice Cyan (#00F0FF)      — solved / unlocked
+  locked:   0xC1502E, // terracotta
+  unlocked: 0x0F5C56, // teal
 };
 
 export const ALGORITHMS = {
