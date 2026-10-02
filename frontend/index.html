@@ -50,13 +50,41 @@
   <!-- Voice mute toggle -->
   <div id="voice-toggle-btn">🔊 VOICE</div>
 
-  <!-- Floor/Sector Cleared Notification -->
+  <!-- Sector Cleared Notification -->
   <div id="sector-cleared-banner" class="hidden">
     <div class="cleared-content">
       <span class="cleared-badge">ROOM TERMINAL CLEARED</span>
       <h2 id="cleared-title">Room Cleared!</h2>
       <p id="cleared-desc">Door is open. Walk through to the next room.</p>
     </div>
+  </div>
+
+  <!-- ── Pause Menu ─────────────────────────────────────────── -->
+  <div id="pause-menu" class="overlay hidden">
+    <div class="modal-card">
+      <h2>PAUSED</h2>
+      <div class="pause-options">
+        <button id="resume-btn" class="primary-btn">Resume</button>
+        <button id="restart-level-btn" class="secondary-btn">Restart Level</button>
+      </div>
+      <div class="pause-settings">
+        <h3>Settings</h3>
+        <div class="setting-row">
+          <label>Voice Mute</label>
+          <button id="pause-voice-toggle-btn">🔊 ON</button>
+        </div>
+        <div class="setting-row">
+          <label>Master SFX Volume</label>
+          <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.01" value="1.0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Minimap / Compass ─────────────────────────────────────────── -->
+  <div id="minimap-container">
+    <div id="minimap-arrow">↑</div>
+    <div id="minimap-label">Target</div>
   </div>
 
   <!-- ── Achievement Popup ─────────────────────────────────────────── -->
@@ -154,9 +182,13 @@
   <!-- Level Complete Overlay -->
   <div id="level-complete" class="overlay hidden">
     <div class="modal-card">
-      <h2>Tower Cleared</h2>
-      <p id="level-complete-summary"></p>
-      <p class="sub-text">All floors cleared. The vault is open. You made it out.</p>
+      <h2>Sector Complete</h2>
+      <div id="level-results-grid">
+        <!-- populated by JS -->
+      </div>
+      <div id="level-complete-summary" style="margin-top: 15px; font-weight: 500;"></div>
+      <p class="sub-text">Proceeding to next sector...</p>
+      <button id="next-sector-btn" class="primary-btn" style="margin-top: 20px;">Continue</button>
     </div>
   </div>
 
