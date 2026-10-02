@@ -89,11 +89,37 @@ export function hideInteractPrompt() {
   if (el) el.classList.add("hidden");
 }
 
-export function showLevelComplete(level, totalStars, maxStars) {
+export function showLevelComplete(state) {
+  const starsMap = state.starsByDoor || {};
+  const totalStars = Object.values(starsMap).reduce((a, b) => a + b, 0);
+  const maxStars = DOOR_TYPES.length * 3;
+  
   const summaryEl = document.getElementById("level-complete-summary");
   if (summaryEl) {
-    summaryEl.textContent = `All ${level} rooms cleared — ${totalStars} / ${maxStars} stars earned.`;
+    summaryEl.textContent = `All ${state.currentSector} sectors cleared — ${totalStars} / ${maxStars} stars earned.`;
   }
+  
+  const gridEl = document.getElementById("level-results-grid");
+  if (gridEl) {
+    let html = "";
+    for (const doorType of DOOR_TYPES) {
+      const stars = starsMap[doorType] || 0;
+      const starsDisplay = "★".repeat(stars) + "☆".repeat(3 - stars);
+      const timeTaken = state.timeByDoor && state.timeByDoor[doorType] !== undefined ? state.timeByDoor[doorType] : 0;
+      const timeStr = timeTaken > 0 ? `${Math.floor(timeTaken / 60)}m ${timeTaken % 60}s` : "--";
+      html += `
+        <div class="result-row ${stars === 0 ? 'failed' : ''}">
+          <span class="result-door">${doorType.toUpperCase()}</span>
+          <div>
+            <span class="result-time" style="margin-right:12px;">${timeStr}</span>
+            <span class="result-stars">${starsDisplay}</span>
+          </div>
+        </div>
+      `;
+    }
+    gridEl.innerHTML = html;
+  }
+
   const lc = document.getElementById("level-complete");
   if (lc) {
     lc.classList.remove("hidden");

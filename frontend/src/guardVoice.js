@@ -8,11 +8,27 @@ import { API_BASE } from "./config.js";
 let voiceEnabled = true;
 
 export function initGuardVoice() {
-  // Placeholder for a future mute toggle wired up in Phase 5.
+  const globalBtn = document.getElementById("voice-toggle-btn");
+  const pauseBtn = document.getElementById("pause-voice-toggle-btn");
+  
+  const toggle = () => setVoiceEnabled(!voiceEnabled);
+  
+  if (globalBtn) globalBtn.addEventListener("click", toggle);
+  if (pauseBtn) pauseBtn.addEventListener("click", toggle);
 }
 
 export function setVoiceEnabled(enabled) {
   voiceEnabled = enabled;
+  const globalBtn = document.getElementById("voice-toggle-btn");
+  const pauseBtn = document.getElementById("pause-voice-toggle-btn");
+  
+  if (globalBtn) {
+    globalBtn.textContent = voiceEnabled ? "🔊 VOICE" : "🔇 MUTED";
+    globalBtn.classList.toggle("muted", !voiceEnabled);
+  }
+  if (pauseBtn) {
+    pauseBtn.textContent = voiceEnabled ? "🔊 ON" : "🔇 OFF";
+  }
 }
 
 export function onPuzzlePassed(stars = 3) {

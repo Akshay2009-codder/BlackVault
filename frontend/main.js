@@ -137,5 +137,8 @@ async function runBootSequence(onComplete) {
     }
   }
 
+  // Warm up shaders / geometry to prevent hitching during gameplay
+  renderer.compile(scene, camera);
+
   animate();
 })();

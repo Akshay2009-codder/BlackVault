@@ -4,7 +4,7 @@
 // terminal (a normal DOM overlay) can release/reacquire the mouse cleanly.
 
 import * as THREE from "three";
-import { getDoorRegistry, getExitDoor } from "./world.js";
+import { getDoorRegistry, getExitDoor, setMasterSFXVolume } from "./world.js";
 import { getPlayerPosition, getControls, sitAt } from "./player.js";
 import * as hud from "./hud.js";
 import * as levelManager from "./levelManager.js";
@@ -18,14 +18,60 @@ let camera = null;
 let openTerminalCallback = null;
 let targetedDoorType = null;
 let targetedIsExit = false;
+let isPaused = false;
 
 export function initInteractions(cam, onOpenDoor) {
   camera = cam;
   openTerminalCallback = onOpenDoor;
   document.addEventListener("keydown", onKeyDown);
+  
+  // Bind pause menu UI
+  const resumeBtn = document.getElementById("resume-btn");
+  if (resumeBtn) resumeBtn.addEventListener("click", togglePauseMenu);
+  
+  const restartBtn = document.getElementById("restart-level-btn");
+  if (restartBtn) restartBtn.addEventListener("click", () => {
+    // Basic restart: reload page
+    window.location.reload();
+  });
+  
+  // We can attach volume slider listener here if we want, or in ambient.js
+  const sfxSlider = document.getElementById("sfx-volume-slider");
+  if (sfxSlider) {
+    sfxSlider.addEventListener("input", (e) => {
+      setMasterSFXVolume(parseFloat(e.target.value));
+    });
+  }
+}
+
+export function togglePauseMenu() {
+  const pauseMenu = document.getElementById("pause-menu");
+  if (!pauseMenu) return;
+  
+  isPaused = !isPaused;
+  if (isPaused) {
+    unlockPointer();
+    pauseMenu.classList.remove("hidden");
+    pauseMenu.classList.add("animate-in");
+  } else {
+    lockPointer();
+    pauseMenu.classList.add("hidden");
+    pauseMenu.classList.remove("animate-in");
+  }
 }
 
 function onKeyDown(e) {
+  if (e.code === "Escape") {
+    // If terminal is open, puzzleTerminal.js handles closing it.
+    // If not open, we toggle pause menu.
+    if (!isTerminalOpen || !isTerminalOpen()) {
+      togglePauseMenu();
+    }
+    return;
+  }
+  
+  if (isPaused) return;
+
   if (e.code !== "KeyE") return;
 
   // CRITICAL: Ignore interaction key completely if terminal is already open or typing in editor
@@ -121,6 +167,62 @@ export function updateInteractions() {
         }
       }
     }
+  }
+
+  // --- Minimap / Compass Update ---
+  updateMinimap();
+}
+
+function updateMinimap() {
+  const minimapArrow = document.getElementById("minimap-arrow");
+  if (!minimapArrow || !camera) return;
+  
+  const activeDoorType = levelManager.getActiveDoor ? levelManager.getActiveDoor() : null;
+  if (!activeDoorType) return;
+  
+  let targetPos = null;
+  if (activeDoorType === "exit") {
+    const exitDoor = getExitDoor();
+    if (exitDoor) targetPos = exitDoor.position;
+  } else {
+    const doors = getDoorRegistry();
+    if (doors[activeDoorType]) {
+      targetPos = doors[activeDoorType].position;
+    }
+  }
+  
+  if (targetPos) {
+    const playerPos = getPlayerPosition();
+    // Calculate angle in XZ plane
+    const dx = targetPos.x - playerPos.x;
+    const dz = targetPos.z - playerPos.z;
+    const targetAngle = Math.atan2(dx, dz);
+    
+    // Player facing angle (yaw)
+    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
+    const playerYaw = euler.y;
+    
+    // Relative angle
+    let relAngle = targetAngle - playerYaw;
+    // Rotate by PI to match HTML arrow pointing up being forward
+    // Arrow pointing up is 0deg rotation.
+    // Wait, dx/dz is Math.atan2(dx, dz). Forward in Three.js is -Z.
+    // Let's use simple heuristic:
+    const toTarget = new THREE.Vector3(targetPos.x - playerPos.x, 0, targetPos.z - playerPos.z).normalize();
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+    
+    // Calculate signed angle between camDir and toTarget
+    const angle = Math.atan2(
+      camDir.clone().cross(toTarget).y,
+      camDir.dot(toTarget)
+    );
+    
+    // Convert to degrees and apply to CSS rotation
+    const degrees = angle * (180 / Math.PI);
+    minimapArrow.style.transform = `rotate(${degrees}deg)`;
   }
 }
 

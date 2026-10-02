@@ -139,7 +139,11 @@ let mysteryCoreMesh = null;
 let mysteryOuterRing = null;
 let mysteryInnerRing = null;
 
+let masterSFXVolume = 1.0;
 
+export function setMasterSFXVolume(vol) {
+  masterSFXVolume = vol;
+}
 
 // Door accent colours (each floor leans on one accent)
 const doorColors = {
@@ -3544,7 +3548,7 @@ function playDoorUnlockSFX() {
     osc.type = "sine";
     osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
     osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12); // A5
-    oscGain.gain.setValueAtTime(0.18, ctx.currentTime);
+    oscGain.gain.setValueAtTime(0.18 * masterSFXVolume, ctx.currentTime);
     oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
     osc.connect(oscGain);
     oscGain.connect(ctx.destination);
@@ -3563,7 +3567,7 @@ function playDoorUnlockSFX() {
     filt.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 1.8);
     filt.Q.setValueAtTime(2.5, ctx.currentTime);
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.setValueAtTime(0.35 * masterSFXVolume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.8);
     src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
     src.start();
@@ -3574,7 +3578,7 @@ function playDoorUnlockSFX() {
     subOsc.type = "triangle";
     subOsc.frequency.setValueAtTime(58, ctx.currentTime);
     subOsc.frequency.linearRampToValueAtTime(42, ctx.currentTime + 1.8);
-    subGain.gain.setValueAtTime(0.25, ctx.currentTime);
+    subGain.gain.setValueAtTime(0.25 * masterSFXVolume, ctx.currentTime);
     subGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.8);
     subOsc.connect(subGain);
     subGain.connect(ctx.destination);
@@ -3598,7 +3602,7 @@ export function playSecurityAlarmSFX() {
     osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.35);
     osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.70);
     osc.frequency.exponentialRampToValueAtTime(280, ctx.currentTime + 1.10);
-    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.setValueAtTime(0.28 * masterSFXVolume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.25);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -3619,7 +3623,7 @@ export function playErrorBuzzerSFX() {
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(140, ctx.currentTime);
     osc.frequency.setValueAtTime(110, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.setValueAtTime(0.25 * masterSFXVolume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
     osc.connect(gain);
     gain.connect(ctx.destination);

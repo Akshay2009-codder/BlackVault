@@ -302,7 +302,16 @@ export async function openTerminal(doorType, roomIndex = 1) {
 
   const problemEl = document.getElementById("problem-statement");
   if (problemEl) {
+    problemEl.classList.remove("fade-update");
+    void problemEl.offsetWidth;
     problemEl.textContent = stepData.instructions;
+    problemEl.classList.add("fade-update");
+  }
+
+  const hintEl = document.getElementById("terminal-hint");
+  if (hintEl) {
+    hintEl.classList.add("hidden");
+    hintEl.textContent = "";
   }
 
   const tabLabel = document.getElementById("ide-tab-label");
@@ -427,11 +436,14 @@ async function submitCode() {
   const submitBtn = document.getElementById("submit-btn");
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = "⏳ Testing Code...";
+    submitBtn.classList.add("btn-loading-state");
   }
 
   const consoleOut = document.getElementById("terminal-result");
   if (consoleOut) {
+    consoleOut.classList.remove("fade-update");
+    void consoleOut.offsetWidth;
+    consoleOut.classList.add("fade-update");
     consoleOut.innerHTML += `
       <div class="console-line sys">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
       <div class="console-line info">▶ Running script & verifying output...</div>
@@ -443,7 +455,7 @@ async function submitCode() {
     evaluatePlayerCode(code);
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.textContent = "▶ Run & Unlock Door (Ctrl+Enter)";
+      submitBtn.classList.remove("btn-loading-state");
     }
   }, 250);
 }
@@ -606,7 +618,7 @@ function evaluatePlayerCode(code) {
     updateStepChips(2);
     const stars = 3;
     onPuzzlePassed(stars);
-    levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex);
+    levelManager.recordDoorSuccess(doorType, stars, currentRoomIndex, 600 - timeRemaining);
     showSectorClearedBanner(doorType, stars);
 
     // Achievement popup (fires once per door on first perfect clear)
@@ -654,6 +666,21 @@ function handleFailedAttempt(errorMsg) {
         <div class="console-line warning">⚠️ Trials remaining: ${attemptsRemaining} / ${MAX_ATTEMPTS}. Check your code and try again.</div>
       `;
       consoleOut.scrollTop = consoleOut.scrollHeight;
+    }
+    
+    // Hint System: After 2 failed attempts (1 left), show a hint
+    if (attemptsRemaining === 1) {
+      const hintEl = document.getElementById("terminal-hint");
+      if (hintEl && activePuzzle) {
+        let hintText = "Hint: Review the dataset preview and verify your logic.";
+        if (activePuzzle.door_type === "classification") hintText = "Hint: Make sure to check 'if row is not None' and set negative salary directly to 0.";
+        if (activePuzzle.door_type === "regression") hintText = "Hint: Normalization formula requires subtracting the minimum and dividing by the range (max - min).";
+        if (activePuzzle.door_type === "clustering") hintText = "Hint: You can use a threshold operation like `(signals > 50).astype(int)`.";
+        if (activePuzzle.door_type === "anomaly") hintText = "Hint: Apply a boolean filter to your array: `temps[temps > max_safe]`.";
+        
+        hintEl.textContent = hintText;
+        hintEl.classList.remove("hidden");
+      }
     }
   } else {
     // 3rd FAILURE: OUT THE PLAYER (EJECT & LOCKOUT)!

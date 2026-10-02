@@ -12,14 +12,25 @@ let state = {
   activeDoorIndex: 0,
   doorsCleared: [],
   starsByDoor: {},
+  timeByDoor: {},
   currentRoom: "classification",
 };
 
 export function initLevelManager({ level = 1 } = {}) {
-  state.currentSector = level;
-  state.activeDoorIndex = 0;
-  state.doorsCleared = [];
-  state.currentRoom = "classification";
+  const savedState = localStorage.getItem("blackvault_save");
+  if (savedState) {
+    try {
+      const parsed = JSON.parse(savedState);
+      state = parsed;
+    } catch (e) {
+      console.warn("Failed to parse saved state", e);
+    }
+  } else {
+    state.currentSector = level;
+    state.activeDoorIndex = 0;
+    state.doorsCleared = [];
+    state.currentRoom = "classification";
+  }
 
   updateWorldDoorVisuals();
   renderHud(state);
@@ -47,11 +58,15 @@ export function updateWorldDoorVisuals() {
   }
 }
 
-export function recordDoorSuccess(doorType, stars, sectorIndex) {
+export function recordDoorSuccess(doorType, stars, sectorIndex, timeTaken = 0) {
   if (!state.doorsCleared.includes(doorType)) {
     state.doorsCleared.push(doorType);
   }
   state.starsByDoor[doorType] = Math.max(state.starsByDoor[doorType] || 0, stars);
+  if (!state.timeByDoor) state.timeByDoor = {};
+  if (!state.timeByDoor[doorType] || timeTaken < state.timeByDoor[doorType]) {
+    state.timeByDoor[doorType] = timeTaken;
+  }
 
   const idx = SEQUENTIAL_DOORS.indexOf(doorType);
   if (idx !== -1 && idx === state.activeDoorIndex) {
@@ -62,6 +77,9 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
     state.currentSector = sectorIndex + 1;
     state.currentRoom = SEQUENTIAL_DOORS[state.activeDoorIndex] || "mystery";
   }
+  
+  // Save progress
+  localStorage.setItem("blackvault_save", JSON.stringify(state));
 
   // Update door visuals immediately (door opens, glow goes green)
   updateWorldDoorVisuals();
@@ -78,8 +96,7 @@ export function recordDoorSuccess(doorType, stars, sectorIndex) {
       triggerFinale(() => {
         // After reveal → show level complete
         import("./hud.js").then(({ showLevelComplete }) => {
-          const totalStars = Object.values(state.starsByDoor).reduce((a, b) => a + b, 0);
-          showLevelComplete(state.currentSector, totalStars, DOOR_TYPES.length * 3);
+          showLevelComplete(state);
         });
       });
     }, 2500);
@@ -110,6 +127,7 @@ export function advanceLevel() {
   state.activeDoorIndex = 0;
   state.doorsCleared = [];
   state.currentRoom = "classification";
+  localStorage.setItem("blackvault_save", JSON.stringify(state));
   updateWorldDoorVisuals();
   renderHud(state);
 }
